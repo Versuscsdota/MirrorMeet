@@ -1,0 +1,24 @@
+# Root ignores
+node_modules/
+**/node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+/dist
+/build
+.next
+coverage
+.tmp
+.cache
+*.local
+.idea/
+.vscode/
+
+# Docker
+*.pid
+*.pid.lock
+**/.dockerignore
+
+# TypeScript
+*.tsbuildinfo

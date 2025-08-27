@@ -1,0 +1,117 @@
+// Prisma schema for MirrorMeet CRM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Role {
+  CURATOR
+  INTERVIEWER
+  ADMIN
+  ROOT
+}
+
+enum MediaType {
+  PHOTO
+  TEXT
+  AUDIO
+}
+
+enum ScheduleStatus {
+  INTERVIEW_SCHEDULED      // Записана на интервью
+  SHIFT_TRIAL_1            // Первая стажировочная смена
+  SHIFT_TRIAL_2            // Вторая стажировочная смена
+  HIRED                    // Принят(а)
+  REJECTED                 // Отклонён(а)
+  CANCELED
+}
+
+// Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      Role     @default(CURATOR)
+  isActive  Boolean  @default(true)
+
+  profiles        Profile[]        @relation("ProfileCurator")
+  interviews      ScheduleEvent[]  @relation("InterviewerEvents")
+  auditLogs       AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Profile {
+  id         String       @id @default(cuid())
+  fullName   String
+  phone      String?
+  email      String?
+  notes      String?
+  tags       String[]     @default([])
+
+  curatorId  String?
+  curator    User?        @relation("ProfileCurator", fields: [curatorId], references: [id])
+
+  media      MediaAsset[]
+  events     ScheduleEvent[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model MediaAsset {
+  id         String    @id @default(cuid())
+  profileId  String
+  profile    Profile   @relation(fields: [profileId], references: [id])
+
+  type       MediaType
+  url        String
+  storageKey String
+  size       Int?
+  durationMs Int?
+  mimeType   String?
+  transcript String?
+
+  createdAt  DateTime @default(now())
+}
+
+model ScheduleEvent {
+  id            String         @id @default(cuid())
+  profileId     String
+  profile       Profile        @relation(fields: [profileId], references: [id])
+
+  interviewerId String?
+  interviewer   User?          @relation("InterviewerEvents", fields: [interviewerId], references: [id])
+
+  title         String?
+  location      String?
+  start         DateTime
+  end           DateTime
+  status        ScheduleStatus @default(INTERVIEW_SCHEDULED)
+  notes         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  entity    String   // e.g., "Profile:abcd" or "ScheduleEvent:xyz"
+  action    String   // e.g., "CREATE", "UPDATE", "DELETE", "STATUS_CHANGE"
+  diff      Json?
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+}
