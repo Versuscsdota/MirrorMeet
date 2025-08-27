@@ -1,0 +1,13 @@
+# Replace domains with your own
+:80 {
+  encode gzip zstd
+
+  # Route API requests to NestJS backend
+  handle_path /api/* {
+    uri strip_prefix /api
+    reverse_proxy server:3001
+  }
+
+  # Everything else to Next.js frontend
+  reverse_proxy web:3000
+}
