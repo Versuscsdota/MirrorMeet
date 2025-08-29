@@ -1,15 +1,11 @@
 name = "mirror-crm"
 compatibility_date = "2024-06-20"
-
-[site]
-bucket = "public"
-
-env = { }
+pages_build_output_dir = "public"
 
 [[kv_namespaces]]
 binding = "CRM_KV"
-id = ""
-preview_id = ""
+id = "dummy"
+preview_id = "dummy"
 
 [[r2_buckets]]
 binding = "CRM_FILES"
