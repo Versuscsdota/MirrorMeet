@@ -1,6 +1,9 @@
 name = "mirror-crm"
+main = "src/index.js"
 compatibility_date = "2024-06-20"
-pages_build_output_dir = "public"
+
+[assets]
+directory = "public"
 
 [[kv_namespaces]]
 binding = "CRM_KV"
