@@ -15,8 +15,8 @@ function isPhone(v){ return /^[+0-9 ()-]{6,}$/.test(v); }
 
 export async function onRequestGet(context) {
   const { env, request } = context;
-  // Authenticated roles can read list (used by schedule UI)
-  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  // Only admin/root can read list
+  const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const list = await env.CRM_KV.list({ prefix: 'employee:' });
   const items = [];

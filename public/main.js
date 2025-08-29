@@ -168,9 +168,11 @@ function renderAppShell(me) {
     <header>
       <div>MirrorCRM</div>
       <nav>
-        <button id="nav-models">Модели</button>
-        <button id="nav-schedule">Расписание</button>
-        <button id="nav-employees">Сотрудники</button>
+        ${(me.role === 'root' || me.role === 'admin') ? `
+          <button id="nav-models">Модели</button>
+          <button id="nav-schedule">Расписание</button>
+          <button id="nav-employees">Сотрудники</button>
+        ` : ''}
       </nav>
       <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
         <button id="logout">Выход</button>
@@ -179,18 +181,24 @@ function renderAppShell(me) {
     <main id="view"></main>
   `;
   el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
-  el('#nav-models').onclick = renderModels;
-  el('#nav-schedule').onclick = renderSchedule;
-  el('#nav-employees').onclick = renderEmployees;
+  if (me.role === 'root' || me.role === 'admin') {
+    el('#nav-models').onclick = renderModels;
+    el('#nav-schedule').onclick = renderSchedule;
+    el('#nav-employees').onclick = renderEmployees;
+  }
 }
 
 async function renderModels() {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
   const view = el('#view');
   const data = await api('/api/models');
   let items = data.items || [];
   view.innerHTML = `
     <section class="bar">
-      <button id="addModel">Добавить модель</button>
+      ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? '<button id="addModel">Добавить модель</button>' : ''}
       <input id="search" placeholder="Поиск по имени/описанию" />
       <select id="sort">
         <option value="name-asc">Имя ↑</option>
@@ -222,15 +230,22 @@ async function renderModels() {
   el('#search').addEventListener('input', renderList);
   el('#sort').addEventListener('change', renderList);
   renderList();
-  el('#addModel').onclick = async () => {
-    const name = prompt('Имя модели');
-    if (!name) return;
-    await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
-    renderModels();
-  };
+  const addBtn = el('#addModel');
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      const name = prompt('Имя модели');
+      if (!name) return;
+      await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
+      renderModels();
+    };
+  }
 }
 
 async function renderModelCard(id) {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
   const view = el('#view');
   const model = await api('/api/models?id=' + encodeURIComponent(id));
   const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
@@ -240,7 +255,7 @@ async function renderModelCard(id) {
       <h2>${model.name}</h2>
       <p>${model.note || ''}</p>
       <section class="bar" style="gap:8px;flex-wrap:wrap">
-        <form id="fileForm" style="display:flex;gap:8px;flex-wrap:wrap">
+        <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
           <input type="file" name="file" required />
           <input name="name" placeholder="Название" required />
           <input name="description" placeholder="Описание" />
@@ -344,6 +359,10 @@ function minutesFromHM(hm) { const [h,m] = hm.split(':').map(Number); return h*6
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 async function renderSchedule() {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
   const view = el('#view');
   const now = new Date();
   let date = now.toISOString().slice(0,10);
@@ -521,7 +540,11 @@ async function renderApp() {
   if (!me) return renderLogin();
   window.currentUser = me;
   renderAppShell(me);
-  renderModels();
+  if (me.role === 'root' || me.role === 'admin') {
+    renderModels();
+  } else {
+    el('#view').innerHTML = `<div class="card"><h3>Добро пожаловать</h3><p>У вас нет доступа к административным разделам. Обратитесь к администратору.</p></div>`;
+  }
 }
 
 renderApp();

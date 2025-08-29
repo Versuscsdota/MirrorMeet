@@ -11,7 +11,7 @@ function toISO(dateStr, hm) {
 
 export async function onRequestGet(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);
   const date = url.searchParams.get('date');
@@ -29,7 +29,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   const date = (body.date || '').trim();
@@ -52,7 +52,7 @@ export async function onRequestPost(context) {
 
 export async function onRequestPut(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   const { id, date } = body;

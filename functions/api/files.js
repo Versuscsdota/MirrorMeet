@@ -37,6 +37,9 @@ export async function onRequestGet(context) {
   const modelId = url.searchParams.get('modelId');
 
   if (id) {
+    // Require admin/root for any file access by id (inline or download)
+    const { error } = await requireRole(env, request, ['root','admin']);
+    if (error) return error;
     const meta = await env.CRM_KV.get(`file:${id}`, { type: 'json' });
     if (!meta) return notFound('file');
     const obj = await env.CRM_FILES.get(meta.objectKey);
@@ -70,8 +73,8 @@ export async function onRequestGet(context) {
     } });
   }
 
-  // Listing requires authenticated roles
-  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  // Listing requires admin/root
+  const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   if (!modelId) return badRequest('modelId required');
   const list = await env.CRM_KV.list({ prefix: 'file:' });
@@ -86,7 +89,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
 
   if (!request.headers.get('content-type')?.includes('multipart/form-data')) return badRequest('multipart/form-data required');
@@ -127,7 +130,7 @@ export async function onRequestPost(context) {
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin','curator']);
+  const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
