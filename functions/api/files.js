@@ -4,6 +4,28 @@ import { requireRole, newId } from '../_utils.js';
 // file meta in KV: file:<id>
 // object in R2: files/<modelId>/<id>
 
+// Validation helpers
+const ALLOWED_MIME = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf', 'text/plain', 'text/csv',
+  'application/zip',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+]);
+const BLOCKED_EXT = new Set(['.exe','.bat','.cmd','.sh','.js','.msi','.dll']);
+function getExt(name){ const m = /\.([A-Za-z0-9]{1,8})$/.exec(name || ''); return m ? ('.' + m[1].toLowerCase()) : ''; }
+function sanitizeName(name){
+  let s = (name || '').toString();
+  s = s.replace(/[\n\r\t\\/]+/g,' ').replace(/[\x00-\x1F\x7F]/g,'');
+  s = s.trim().slice(0, 80);
+  if (!s) s = 'file';
+  return s;
+}
+function encodeRFC5987(str) {
+  return encodeURIComponent(str).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+}
+
 export async function onRequestGet(context) {
   const { env, request } = context;
   const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
@@ -17,7 +39,13 @@ export async function onRequestGet(context) {
     if (!meta) return notFound('file');
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
-    return new Response(obj.body, { headers: { 'content-type': meta.contentType || 'application/octet-stream', 'content-length': String(meta.size || 0) } });
+    const safeName = sanitizeName(meta.name || `file-${id}`);
+    const dispo = `attachment; filename*=UTF-8''${encodeRFC5987(safeName)}`;
+    return new Response(obj.body, { headers: {
+      'content-type': meta.contentType || 'application/octet-stream',
+      'content-length': String(meta.size || 0),
+      'content-disposition': dispo
+    } });
   }
 
   if (!modelId) return badRequest('modelId required');
@@ -40,7 +68,7 @@ export async function onRequestPost(context) {
   const fd = await request.formData();
   const modelId = fd.get('modelId');
   const file = fd.get('file');
-  const name = (fd.get('name') || '').toString();
+  let name = (fd.get('name') || '').toString();
   const description = (fd.get('description') || '').toString();
   if (!modelId || !file || !name) return badRequest('modelId, file, name required');
 
@@ -52,9 +80,17 @@ export async function onRequestPost(context) {
   const size = file.size ?? 0;
   if (size > MAX) return forbidden('Размер файла превышает 50 МБ');
 
+  // Type and extension validation
+  const contentType = file.type || 'application/octet-stream';
+  if (contentType && !ALLOWED_MIME.has(contentType)) {
+    return forbidden('Недопустимый тип файла');
+  }
+  name = sanitizeName(name);
+  const ext = getExt(name);
+  if (ext && BLOCKED_EXT.has(ext)) return forbidden('Запрещённое расширение файла');
+
   const id = newId('fil');
   const objectKey = `files/${modelId}/${id}`;
-  const contentType = file.type || 'application/octet-stream';
 
   await env.CRM_FILES.put(objectKey, file.stream(), { httpMetadata: { contentType } });
 
