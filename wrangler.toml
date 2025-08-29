@@ -4,8 +4,8 @@ pages_build_output_dir = "public"
 
 [[kv_namespaces]]
 binding = "CRM_KV"
-id = "dummy"
-preview_id = "dummy"
+id = "mirror-crm-kv"
+preview_id = "mirror-crm-kv-preview"
 
 [[r2_buckets]]
 binding = "CRM_FILES"
