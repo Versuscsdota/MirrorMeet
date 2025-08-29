@@ -135,6 +135,7 @@ async function renderModelCard(id) {
         <button id="exportCsv" type="button">Экспорт CSV</button>
       </section>
       <ul id="filesList"></ul>
+      <div id="filePreview" style="margin-top:12px"></div>
     </div>`;
   const listEl = el('#filesList');
   function applyFileSort(arr, mode){
@@ -148,7 +149,42 @@ async function renderModelCard(id) {
     const mode = el('#fileSort').value;
     const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
     const sorted = applyFileSort(filtered, mode);
-    listEl.innerHTML = sorted.map(f => `<li><a href="${f.url}" target="_blank">${f.name}</a> — ${f.description || ''}</li>`).join('');
+    listEl.innerHTML = sorted.map(f => {
+      const viewUrl = f.url; // inline view
+      const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
+      return `<li>
+        <strong>${f.name}</strong> — ${f.description || ''}
+        [<a href="${viewUrl}" target="_blank">Просмотр</a>]
+        [<a href="${downloadUrl}">Скачать</a>]
+      </li>`;
+    }).join('');
+    // attach inline preview on click of Просмотр without leaving page
+    [...listEl.querySelectorAll('a')].forEach(a => {
+      if (a.textContent === 'Просмотр') {
+        a.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const li = a.closest('li');
+          const name = li.querySelector('strong')?.textContent || '';
+          const item = sorted.find(x => x.name === name);
+          const box = el('#filePreview');
+          if (!item) { window.open(a.href, '_blank'); return; }
+          const ct = (item.contentType || '').toLowerCase();
+          const src = a.href;
+          if (ct.startsWith('image/')) {
+            box.innerHTML = `<img src="${src}" alt="${name}" style="max-width:100%;max-height:60vh;object-fit:contain;border:1px solid #eee;padding:4px"/>`;
+          } else if (ct === 'application/pdf') {
+            box.innerHTML = `<iframe src="${src}" style="width:100%;height:60vh;border:1px solid #eee"></iframe>`;
+          } else if (ct.startsWith('audio/')) {
+            box.innerHTML = `<audio src="${src}" controls style="width:100%"></audio>`;
+          } else if (ct.startsWith('video/')) {
+            box.innerHTML = `<video src="${src}" controls style="width:100%;max-height:60vh;background:#000"></video>`;
+          } else {
+            window.open(src, '_blank');
+          }
+          box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+    });
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);

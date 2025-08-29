@@ -11,7 +11,11 @@ const ALLOWED_MIME = new Set([
   'application/zip',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/msword',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  // audio
+  'audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/wav',
+  // video
+  'video/mp4', 'video/webm', 'video/ogg'
 ]);
 const BLOCKED_EXT = new Set(['.exe','.bat','.cmd','.sh','.js','.msi','.dll']);
 function getExt(name){ const m = /\.([A-Za-z0-9]{1,8})$/.exec(name || ''); return m ? ('.' + m[1].toLowerCase()) : ''; }
@@ -39,10 +43,24 @@ export async function onRequestGet(context) {
     if (!meta) return notFound('file');
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
-    const safeName = sanitizeName(meta.name || `file-${id}`);
-    const dispo = `attachment; filename*=UTF-8''${encodeRFC5987(safeName)}`;
+    // Build safe filename with extension for better UX
+    const ct = meta.contentType || 'application/octet-stream';
+    const extMap = {
+      'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp',
+      'application/pdf': '.pdf', 'text/plain': '.txt', 'text/csv': '.csv', 'application/zip': '.zip',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx'
+    };
+    const wantedExt = extMap[ct] || '';
+    let baseSafe = sanitizeName(meta.name || `file-${id}`);
+    const hasExt = /\.[A-Za-z0-9]{1,8}$/.test(baseSafe);
+    if (!hasExt && wantedExt) baseSafe += wantedExt;
+    const safeName = baseSafe;
+    const inline = (new URL(request.url)).searchParams.get('download') !== '1';
+    const dispo = `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeRFC5987(safeName)}`;
     return new Response(obj.body, { headers: {
-      'content-type': meta.contentType || 'application/octet-stream',
+      'content-type': ct,
       'content-length': String(meta.size || 0),
       'content-disposition': dispo
     } });
