@@ -231,20 +231,57 @@ async function renderSchedule() {
   const PX_PER_MIN = 2; // scale
   const DAY_START = 8*60, DAY_END = 22*60; // 08:00 - 22:00
 
-  const data = await api('/api/schedule?date=' + date);
+  const [data, employees] = await Promise.all([
+    api('/api/schedule?date=' + date),
+    api('/api/employees')
+  ]);
   view.innerHTML = `
     <section class="bar">
       <button id="addEvent">Создать слот</button>
       <input id="pickDate" type="date" value="${date}" />
     </section>
-    <div class="tl-scroll">
-      <div class="tl-header" id="tlHeader"></div>
-      <div class="timeline" id="timeline">
-        <div class="tl-grid" id="tlGrid"></div>
-        <div class="tl-events" id="tlEvents"></div>
+    <div class="sched-layout">
+      <aside class="sched-left">
+        <h4>Сотрудники</h4>
+        <ul id="emplList" class="empl-list"></ul>
+      </aside>
+      <div class="sched-right">
+        <div class="tl-scroll">
+          <div class="tl-header" id="tlHeader"></div>
+          <div class="timeline" id="timeline">
+            <div class="tl-grid" id="tlGrid"></div>
+            <div class="tl-events" id="tlEvents"></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
+  // render employees list
+  const emplUl = el('#emplList');
+  emplUl.innerHTML = (employees || []).map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position}</div></li>`).join('');
+
+  // admin/root can add employees
+  const canManageEmployees = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
+  if (canManageEmployees) {
+    const bar = document.querySelector('.bar');
+    const btn = document.createElement('button');
+    btn.textContent = 'Добавить сотрудника';
+    btn.id = 'addEmployee';
+    bar.appendChild(btn);
+    btn.addEventListener('click', async () => {
+      const fullName = prompt('ФИО сотрудника');
+      if (!fullName) return;
+      const position = prompt('Должность');
+      if (!position) return;
+      const phone = prompt('Телефон (необязательно)') || '';
+      const email = prompt('Email (необязательно)') || '';
+      try {
+        await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
+        const fresh = await api('/api/employees');
+        emplUl.innerHTML = (fresh || []).map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position}</div></li>`).join('');
+      } catch (err) { alert(err.message); }
+    });
+  }
 
   const header = el('#tlHeader');
   const grid = el('#tlGrid');

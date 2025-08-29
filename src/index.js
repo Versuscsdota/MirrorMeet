@@ -5,6 +5,7 @@ import * as models from '../functions/api/models.js';
 import * as files from '../functions/api/files.js';
 import * as schedule from '../functions/api/schedule.js';
 import { parseCookies, cookieSerialize } from '../functions/_utils.js';
+import * as employees from '../functions/api/employees.js';
 
 async function handleApi(request, env, ctx) {
   const url = new URL(request.url);
@@ -20,6 +21,12 @@ async function handleApi(request, env, ctx) {
     if (method === 'GET') return users.onRequestGet({ env, request, context: ctx });
     if (method === 'POST') return users.onRequestPost({ env, request, context: ctx });
     if (method === 'DELETE') return users.onRequestDelete({ env, request, context: ctx });
+  }
+
+  // Employees
+  if (pathname === '/api/employees') {
+    if (method === 'GET') return employees.onRequestGet({ env, request, context: ctx });
+    if (method === 'POST') return employees.onRequestPost({ env, request, context: ctx });
   }
 
   // Models

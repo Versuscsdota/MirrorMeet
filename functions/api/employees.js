@@ -1,0 +1,50 @@
+import { json, badRequest, forbidden } from '../_utils.js';
+import { requireRole, newId } from '../_utils.js';
+
+// KV key: employee:<id>
+// Stored object shape:
+// { id, fullName, position, phone?, email? }
+
+function sanitizeStr(v, max = 120) {
+  if (v == null) return '';
+  return String(v).trim().replace(/[\x00-\x1F\x7F]/g, '').slice(0, max);
+}
+
+function isEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function isPhone(v){ return /^[+0-9 ()-]{6,}$/.test(v); }
+
+export async function onRequestGet(context) {
+  const { env, request } = context;
+  // Authenticated roles can read list (used by schedule UI)
+  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  if (error) return error;
+  const list = await env.CRM_KV.list({ prefix: 'employee:' });
+  const items = [];
+  for (const k of list.keys) {
+    const e = await env.CRM_KV.get(k.name, { type: 'json' });
+    if (e) items.push({ id: e.id, fullName: e.fullName, position: e.position });
+  }
+  items.sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||''));
+  return json(items);
+}
+
+export async function onRequestPost(context) {
+  const { env, request } = context;
+  const { error } = await requireRole(env, request, ['root','admin']);
+  if (error) return forbidden('Только администратор и root могут регистрировать новых пользователей');
+  let body;
+  try { body = await request.json(); } catch { return badRequest('Invalid JSON'); }
+  let fullName = sanitizeStr(body.fullName, 160);
+  let position = sanitizeStr(body.position, 80);
+  let phone = sanitizeStr(body.phone || '', 40);
+  let email = sanitizeStr(body.email || '', 120);
+
+  if (!fullName || !position) return badRequest('fullName и position обязательны');
+  if (email && !isEmail(email)) return badRequest('Некорректный email');
+  if (phone && !isPhone(phone)) return badRequest('Некорректный телефон');
+
+  const id = newId('emp');
+  const employee = { id, fullName, position, ...(phone ? { phone } : {}), ...(email ? { email } : {}) };
+  await env.CRM_KV.put(`employee:${id}`, JSON.stringify(employee));
+  return json(employee, { status: 201 });
+}
