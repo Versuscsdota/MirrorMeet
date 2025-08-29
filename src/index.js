@@ -20,6 +20,7 @@ async function handleApi(request, env, ctx) {
   if (pathname === '/api/users') {
     if (method === 'GET') return users.onRequestGet({ env, request, context: ctx });
     if (method === 'POST') return users.onRequestPost({ env, request, context: ctx });
+    if (method === 'PUT') return users.onRequestPut({ env, request, context: ctx });
     if (method === 'DELETE') return users.onRequestDelete({ env, request, context: ctx });
   }
 

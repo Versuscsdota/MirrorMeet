@@ -25,6 +25,33 @@ export async function onRequestGet(context) {
   return json({ items });
 }
 
+export async function onRequestPut(context) {
+  const { env, request } = context;
+  // Any authenticated user can change their own login/password
+  const { sess, error } = await requireRole(env, request, []);
+  if (error) return error;
+  let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
+  const newLogin = (body.login || '').trim().toLowerCase();
+  const newPassword = String(body.password || '');
+  if (!newLogin || !newPassword) return badRequest('login/password required');
+  if (newPassword.length < 6) return badRequest('password too short');
+
+  const me = await env.CRM_KV.get(`user:${sess.user.id}`, { type: 'json' });
+  if (!me) return notFound('user');
+  // check login uniqueness if changed
+  if (newLogin !== me.login) {
+    const exists = await env.CRM_KV.get(`user_login:${newLogin}`);
+    if (exists) return badRequest('login already exists');
+    // remove previous index
+    await env.CRM_KV.delete(`user_login:${me.login}`);
+    await env.CRM_KV.put(`user_login:${newLogin}`, me.id);
+  }
+  const passHash = await sha256(newPassword);
+  const updated = { ...me, login: newLogin, mustChange: false };
+  await env.CRM_KV.put(`user:${me.id}`, JSON.stringify({ ...updated, passHash }));
+  return json({ ok: true, user: { id: updated.id, login: updated.login, role: updated.role, fullName: updated.fullName, mustChange: false } });
+}
+
 export async function onRequestPost(context) {
   const { env, request } = context;
   const { sess, error } = await requireRole(env, request, ['root']);

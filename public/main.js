@@ -55,10 +55,37 @@ function renderLogin() {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      await api('/api/login', {
+      const res = await api('/api/login', {
         method: 'POST',
         body: JSON.stringify({ login: fd.get('login'), password: fd.get('password') }),
       });
+      // First login: must change credentials
+      if (res && res.user && res.user.mustChange) {
+        const form = document.createElement('div');
+        form.innerHTML = `
+          <p style="color:var(--muted)">Это первый вход. Пожалуйста, задайте новый логин и пароль.</p>
+          <label>Новый логин<input id="newLogin" required /></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <label>Новый пароль<input id="newPass" type="password" required /></label>
+            <label>Ещё раз пароль<input id="newPass2" type="password" required /></label>
+          </div>`;
+        const m = await showModal({ title: 'Смена учётных данных', content: form, submitText: 'Сохранить' });
+        if (m) {
+          const { close, setError } = m;
+          const loginNew = form.querySelector('#newLogin').value.trim().toLowerCase();
+          const p1 = form.querySelector('#newPass').value;
+          const p2 = form.querySelector('#newPass2').value;
+          if (!loginNew || !p1) { setError('Заполните поля'); return; }
+          if (p1 !== p2) { setError('Пароли не совпадают'); return; }
+          try {
+            await api('/api/users', { method: 'PUT', body: JSON.stringify({ login: loginNew, password: p1 }) });
+            close();
+          } catch (err) {
+            setError(err.message);
+            return;
+          }
+        }
+      }
       renderApp();
     } catch (err) {
       alert(err.message);
@@ -107,10 +134,22 @@ async function renderEmployees() {
       const email = form.querySelector('#fEmail').value.trim();
       if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
-        await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
         items = await api('/api/employees');
         renderList();
         close();
+        // Show generated credentials once
+        if (created && created.credentials) {
+          const info = document.createElement('div');
+          info.innerHTML = `
+            <p>Учётная запись создана. Передайте сотруднику эти данные для первого входа:</p>
+            <div class="card" style="margin:0">
+              <div><strong>Логин:</strong> <code>${created.credentials.login}</code></div>
+              <div><strong>Пароль:</strong> <code>${created.credentials.password}</code></div>
+            </div>
+            <p style="color:var(--muted)">При первом входе система попросит задать собственные логин и пароль.</p>`;
+          await showModal({ title: 'Данные для входа', content: info, submitText: 'Готово' });
+        }
       } catch (e) { setError(e.message); }
     };
   }

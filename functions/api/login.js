@@ -38,5 +38,5 @@ export async function onRequestPost(context) {
   await env.CRM_KV.put(`session:${sid}`, JSON.stringify({ userId: stored.id, exp }), { expirationTtl: Number(SESSION_TTL_SECONDS) });
 
   const cookie = cookieSerialize(SESSION_COOKIE_NAME, sid, { maxAge: Number(SESSION_TTL_SECONDS), path: '/' });
-  return json({ ok: true, user: { id: stored.id, login: stored.login, role: stored.role } }, { headers: { 'set-cookie': cookie } });
+  return json({ ok: true, user: { id: stored.id, login: stored.login, role: stored.role, mustChange: !!stored.mustChange } }, { headers: { 'set-cookie': cookie } });
 }
