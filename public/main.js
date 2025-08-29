@@ -152,10 +152,11 @@ async function renderModelCard(id) {
     listEl.innerHTML = sorted.map(f => {
       const viewUrl = f.url; // inline view
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
+      const canDownload = (window.currentUser && window.currentUser.role === 'root');
       return `<li>
         <strong>${f.name}</strong> — ${f.description || ''}
         [<a href="${viewUrl}" target="_blank">Просмотр</a>]
-        [<a href="${downloadUrl}">Скачать</a>]
+        ${canDownload ? `[<a href="${downloadUrl}">Скачать</a>]` : ''}
       </li>`;
     }).join('');
     // attach inline preview on click of Просмотр without leaving page
@@ -361,6 +362,7 @@ async function renderSchedule() {
 async function renderApp() {
   const me = await fetchMe();
   if (!me) return renderLogin();
+  window.currentUser = me;
   renderAppShell(me);
   renderModels();
 }

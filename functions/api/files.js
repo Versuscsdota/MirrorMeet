@@ -32,8 +32,6 @@ function encodeRFC5987(str) {
 
 export async function onRequestGet(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
-  if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const modelId = url.searchParams.get('modelId');
@@ -43,6 +41,12 @@ export async function onRequestGet(context) {
     if (!meta) return notFound('file');
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
+    // If download requested, require root
+    const isDownload = url.searchParams.get('download') === '1';
+    if (isDownload) {
+      const { error } = await requireRole(env, request, ['root']);
+      if (error) return error;
+    }
     // Build safe filename with extension for better UX
     const ct = meta.contentType || 'application/octet-stream';
     const extMap = {
@@ -57,7 +61,7 @@ export async function onRequestGet(context) {
     const hasExt = /\.[A-Za-z0-9]{1,8}$/.test(baseSafe);
     if (!hasExt && wantedExt) baseSafe += wantedExt;
     const safeName = baseSafe;
-    const inline = (new URL(request.url)).searchParams.get('download') !== '1';
+    const inline = !isDownload;
     const dispo = `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeRFC5987(safeName)}`;
     return new Response(obj.body, { headers: {
       'content-type': ct,
@@ -66,6 +70,9 @@ export async function onRequestGet(context) {
     } });
   }
 
+  // Listing requires authenticated roles
+  const { error } = await requireRole(env, request, ['root','admin','interviewer','curator']);
+  if (error) return error;
   if (!modelId) return badRequest('modelId required');
   const list = await env.CRM_KV.list({ prefix: 'file:' });
   const items = [];
