@@ -2,7 +2,7 @@ import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
 
 // event key: event:<date>:<id>  where date = YYYY-MM-DD in UTC
-// event: { id, date, startISO, endISO, title, modelId?, createdAt, createdBy }
+// event: { id, date, startISO, endISO, title, modelId?, employeeId?, createdAt, createdBy }
 
 function toISO(dateStr, hm) {
   // dateStr: YYYY-MM-DD, hm: HH:MM
@@ -37,10 +37,15 @@ export async function onRequestPost(context) {
   const end = (body.end || '').trim();
   const title = (body.title || '').trim();
   const modelId = body.modelId || null;
+  const employeeId = body.employeeId || null;
   if (!date || !start || !end) return badRequest('date/start/end required');
+  if (employeeId) {
+    const emp = await env.CRM_KV.get(`employee:${employeeId}`);
+    if (!emp) return badRequest('invalid employeeId');
+  }
 
   const id = newId('evt');
-  const ev = { id, date, startISO: toISO(date, start), endISO: toISO(date, end), title, modelId, createdAt: Date.now(), createdBy: sess.user.id };
+  const ev = { id, date, startISO: toISO(date, start), endISO: toISO(date, end), title, modelId, employeeId, createdAt: Date.now(), createdBy: sess.user.id };
   await env.CRM_KV.put(`event:${date}:${id}`, JSON.stringify(ev));
   return json(ev);
 }
@@ -59,6 +64,16 @@ export async function onRequestPut(context) {
   if (body.end) cur.endISO = toISO(date, body.end);
   if ('title' in body) cur.title = (body.title || '').trim();
   if ('modelId' in body) cur.modelId = body.modelId || null;
+  if ('employeeId' in body) {
+    const eid = body.employeeId || null;
+    if (eid) {
+      const emp = await env.CRM_KV.get(`employee:${eid}`);
+      if (!emp) return badRequest('invalid employeeId');
+      cur.employeeId = eid;
+    } else {
+      cur.employeeId = null;
+    }
+  }
   await env.CRM_KV.put(key, JSON.stringify(cur));
   return json(cur);
 }

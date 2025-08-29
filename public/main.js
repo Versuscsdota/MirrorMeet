@@ -38,6 +38,45 @@ function renderLogin() {
   });
 }
 
+async function renderEmployees() {
+  const view = el('#view');
+  let items = await api('/api/employees');
+  view.innerHTML = `
+    <section class="bar">
+      <input id="emplSearch" placeholder="Поиск по ФИО/должности" />
+      <span style="flex:1"></span>
+      ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
+    </section>
+    <div class="card">
+      <ul id="emplListFull" class="empl-list"></ul>
+    </div>
+  `;
+  const listEl = el('#emplListFull');
+  function renderList(){
+    const q = (el('#emplSearch').value || '').toLowerCase();
+    const filtered = (items || []).filter(e => (e.fullName||'').toLowerCase().includes(q) || (e.position||'').toLowerCase().includes(q));
+    listEl.innerHTML = filtered.map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position||''}</div></li>`).join('');
+  }
+  el('#emplSearch').addEventListener('input', renderList);
+  renderList();
+  const addBtn = el('#addEmployee');
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      const fullName = prompt('ФИО сотрудника');
+      if (!fullName) return;
+      const position = prompt('Должность');
+      if (!position) return;
+      const phone = prompt('Телефон (необязательно)') || '';
+      const email = prompt('Email (необязательно)') || '';
+      try {
+        await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
+        items = await api('/api/employees');
+        renderList();
+      } catch (err) { alert(err.message); }
+    };
+  }
+}
+
 async function fetchMe() {
   try {
     return await api('/api/users?me=1');
@@ -53,6 +92,7 @@ function renderAppShell(me) {
       <nav>
         <button id="nav-models">Модели</button>
         <button id="nav-schedule">Расписание</button>
+        <button id="nav-employees">Сотрудники</button>
       </nav>
       <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
         <button id="logout">Выход</button>
@@ -63,6 +103,7 @@ function renderAppShell(me) {
   el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
   el('#nav-models').onclick = renderModels;
   el('#nav-schedule').onclick = renderSchedule;
+  el('#nav-employees').onclick = renderEmployees;
 }
 
 async function renderModels() {
@@ -256,32 +297,9 @@ async function renderSchedule() {
       </div>
     </div>
   `;
-  // render employees list
+  // render employees list (only full names)
   const emplUl = el('#emplList');
-  emplUl.innerHTML = (employees || []).map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position}</div></li>`).join('');
-
-  // admin/root can add employees
-  const canManageEmployees = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
-  if (canManageEmployees) {
-    const bar = document.querySelector('.bar');
-    const btn = document.createElement('button');
-    btn.textContent = 'Добавить сотрудника';
-    btn.id = 'addEmployee';
-    bar.appendChild(btn);
-    btn.addEventListener('click', async () => {
-      const fullName = prompt('ФИО сотрудника');
-      if (!fullName) return;
-      const position = prompt('Должность');
-      if (!position) return;
-      const phone = prompt('Телефон (необязательно)') || '';
-      const email = prompt('Email (необязательно)') || '';
-      try {
-        await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
-        const fresh = await api('/api/employees');
-        emplUl.innerHTML = (fresh || []).map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position}</div></li>`).join('');
-      } catch (err) { alert(err.message); }
-    });
-  }
+  emplUl.innerHTML = (employees || []).map(e => `<li><div class="empl-name">${e.fullName}</div></li>`).join('');
 
   const header = el('#tlHeader');
   const grid = el('#tlGrid');
@@ -316,8 +334,10 @@ async function renderSchedule() {
       node.style.width = width + 'px';
       node.dataset.id = ev.id;
       node.dataset.date = ev.date;
-      node.title = `${ev.title || 'Слот'} ${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)}`;
-      node.innerHTML = `<span class="tl-title">${ev.title || 'Слот'}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
+      const emp = (employees || []).find(e => e.id === ev.employeeId);
+      const empLabel = emp ? ` • ${emp.fullName}` : '';
+      node.title = `${ev.title || 'Слот'}${emp ? ' ('+emp.fullName+')' : ''} ${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)}`;
+      node.innerHTML = `<span class="tl-title">${(ev.title || 'Слот') + empLabel}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
       eventsLayer.appendChild(node);
     });
   }
@@ -384,7 +404,17 @@ async function renderSchedule() {
     const end = prompt('Конец (HH:MM)', timeStr(new Date(now.getTime()+3600000)));
     const title = prompt('Заголовок');
     if (!start || !end) return;
-    await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title }) });
+    // choose employee (optional)
+    let employeeId = null;
+    if ((employees || []).length) {
+      const menu = ['0) Без сотрудника', ...employees.map((e, i) => `${i+1}) ${e.fullName} — ${e.position}`)].join('\n');
+      const answer = prompt('Назначить сотрудника (введите номер):\n' + menu, '0');
+      const idx = parseInt(answer, 10);
+      if (!isNaN(idx) && idx > 0 && idx <= employees.length) {
+        employeeId = employees[idx-1].id;
+      }
+    }
+    await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
     const fresh = await api('/api/schedule?date=' + date);
     renderEvents(fresh.items || []);
   };
