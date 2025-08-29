@@ -11,6 +11,34 @@ const api = async (path, opts = {}) => {
 
 const el = (sel) => document.querySelector(sel);
 
+// Simple modal helpers
+function showModal({ title = '', content, submitText = 'Сохранить' }) {
+  return new Promise((resolve, reject) => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    const header = document.createElement('header');
+    header.innerHTML = `<h3>${title}</h3>`;
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'ghost';
+    cancelBtn.textContent = 'Отмена';
+    const okBtn = document.createElement('button');
+    okBtn.textContent = submitText;
+    actions.append(cancelBtn, okBtn);
+    const err = document.createElement('div');
+    err.style.color = 'var(--danger)'; err.style.fontSize = '12px'; err.style.minHeight = '16px'; err.style.marginTop = '4px';
+    modal.append(header, content, err, actions);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+    const close = () => { backdrop.remove(); };
+    cancelBtn.onclick = () => { close(); resolve(null); };
+    okBtn.onclick = () => { resolve({ close, setError: (m)=> err.textContent = m }); };
+  });
+}
+
 function renderLogin() {
   el('#app').innerHTML = `
     <div class="card">
@@ -62,17 +90,28 @@ async function renderEmployees() {
   const addBtn = el('#addEmployee');
   if (addBtn) {
     addBtn.onclick = async () => {
-      const fullName = prompt('ФИО сотрудника');
-      if (!fullName) return;
-      const position = prompt('Должность');
-      if (!position) return;
-      const phone = prompt('Телефон (необязательно)') || '';
-      const email = prompt('Email (необязательно)') || '';
+      const form = document.createElement('div');
+      form.innerHTML = `
+        <label>ФИО<input id="fFullName" placeholder="Иванов Иван Иванович" required /></label>
+        <label>Должность<input id="fPosition" placeholder="Менеджер" required /></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <label>Телефон<input id="fPhone" placeholder="+79991234567" /></label>
+          <label>Email<input id="fEmail" type="email" placeholder="name@example.com" /></label>
+        </div>`;
+      const res = await showModal({ title: 'Добавить сотрудника', content: form, submitText: 'Создать' });
+      if (!res) return;
+      const { close, setError } = res;
+      const fullName = form.querySelector('#fFullName').value.trim();
+      const position = form.querySelector('#fPosition').value.trim();
+      const phone = form.querySelector('#fPhone').value.trim();
+      const email = form.querySelector('#fEmail').value.trim();
+      if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
         await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
         items = await api('/api/employees');
         renderList();
-      } catch (err) { alert(err.message); }
+        close();
+      } catch (e) { setError(e.message); }
     };
   }
 }
@@ -400,23 +439,35 @@ async function renderSchedule() {
   eventsLayer.addEventListener('mousedown', onDown);
 
   el('#addEvent').onclick = async () => {
-    const start = prompt('Начало (HH:MM)', timeStr(now));
-    const end = prompt('Конец (HH:MM)', timeStr(new Date(now.getTime()+3600000)));
-    const title = prompt('Заголовок');
-    if (!start || !end) return;
-    // choose employee (optional)
-    let employeeId = null;
-    if ((employees || []).length) {
-      const menu = ['0) Без сотрудника', ...employees.map((e, i) => `${i+1}) ${e.fullName} — ${e.position}`)].join('\n');
-      const answer = prompt('Назначить сотрудника (введите номер):\n' + menu, '0');
-      const idx = parseInt(answer, 10);
-      if (!isNaN(idx) && idx > 0 && idx <= employees.length) {
-        employeeId = employees[idx-1].id;
-      }
-    }
-    await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
-    const fresh = await api('/api/schedule?date=' + date);
-    renderEvents(fresh.items || []);
+    const form = document.createElement('div');
+    const defaultStart = timeStr(now);
+    const defaultEnd = timeStr(new Date(now.getTime()+3600000));
+    form.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label>Начало<input id="evStart" placeholder="HH:MM" value="${defaultStart}" /></label>
+        <label>Конец<input id="evEnd" placeholder="HH:MM" value="${defaultEnd}" /></label>
+      </div>
+      <label>Заголовок<input id="evTitle" placeholder="Название слота" /></label>
+      <label>Сотрудник
+        <select id="evEmployee">
+          <option value="">— Без сотрудника —</option>
+          ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName}</option>`).join('')}
+        </select>
+      </label>`;
+    const res = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
+    if (!res) return;
+    const { close, setError } = res;
+    const start = form.querySelector('#evStart').value.trim();
+    const end = form.querySelector('#evEnd').value.trim();
+    const title = form.querySelector('#evTitle').value.trim();
+    const employeeId = form.querySelector('#evEmployee').value || null;
+    if (!start || !end) { setError('Укажите время начала и конца'); return; }
+    try {
+      await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
+      const fresh = await api('/api/schedule?date=' + date);
+      renderEvents(fresh.items || []);
+      close();
+    } catch (e) { setError(e.message); }
   };
 
   el('#pickDate').addEventListener('change', async (e)=>{
