@@ -7,7 +7,7 @@ directory = "public"
 
 [[kv_namespaces]]
 binding = "CRM_KV"
-id = "mirror-crm-kv"
+id = "13ed18b79933479c853f0cdc9ae78bd5"
 
 [[r2_buckets]]
 binding = "CRM_FILES"
@@ -26,7 +26,7 @@ compatibility_date = "2024-06-20"
 
 [[env.staging.kv_namespaces]]
 binding = "CRM_KV"
-id = "mirror-crm-kv"
+id = "13ed18b79933479c853f0cdc9ae78bd5"
 
 [[env.staging.r2_buckets]]
 binding = "CRM_FILES"

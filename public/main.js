@@ -119,29 +119,143 @@ async function renderModelCard(id) {
 
 function timeStr(d) { return d.toTimeString().slice(0,5); }
 
+function hmFromISO(iso) { return iso.slice(11,16); }
+function minutesFromHM(hm) { const [h,m] = hm.split(':').map(Number); return h*60 + m; }
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
 async function renderSchedule() {
   const view = el('#view');
   const now = new Date();
-  const date = now.toISOString().slice(0,10);
+  let date = now.toISOString().slice(0,10);
+  const PX_PER_MIN = 2; // scale
+  const DAY_START = 8*60, DAY_END = 22*60; // 08:00 - 22:00
+
   const data = await api('/api/schedule?date=' + date);
   view.innerHTML = `
     <section class="bar">
       <button id="addEvent">Создать слот</button>
-      <span>${date}</span>
+      <input id="pickDate" type="date" value="${date}" />
     </section>
-    <div class="timeline" id="timeline"></div>
+    <div class="tl-scroll">
+      <div class="tl-header" id="tlHeader"></div>
+      <div class="timeline" id="timeline">
+        <div class="tl-grid" id="tlGrid"></div>
+        <div class="tl-events" id="tlEvents"></div>
+      </div>
+    </div>
   `;
-  const tl = el('#timeline');
-  // simple textual timeline
-  tl.innerHTML = data.items.map(ev => `<div class="event"><b>${ev.title || 'Слот'}</b> ${ev.start.slice(11,16)}–${ev.end.slice(11,16)} ${ev.modelId ? ' • модель ' + ev.modelId : ''}</div>`).join('') || '<i>Нет событий</i>';
+
+  const header = el('#tlHeader');
+  const grid = el('#tlGrid');
+  const eventsLayer = el('#tlEvents');
+  const width = (DAY_END - DAY_START) * PX_PER_MIN;
+  el('#timeline').style.width = width + 'px';
+  grid.style.width = width + 'px';
+  eventsLayer.style.width = width + 'px';
+
+  // build hour ticks
+  let headerHtml = '';
+  let gridHtml = '';
+  for (let m = DAY_START; m <= DAY_END; m += 60) {
+    const left = (m - DAY_START) * PX_PER_MIN;
+    const hh = String(Math.floor(m/60)).padStart(2,'0');
+    headerHtml += `<div class="tl-hour" style="left:${left}px">${hh}:00</div>`;
+    gridHtml += `<div class="tl-vline" style="left:${left}px"></div>`;
+  }
+  header.innerHTML = headerHtml;
+  grid.innerHTML = gridHtml;
+
+  function renderEvents(items) {
+    eventsLayer.innerHTML = '';
+    items.forEach(ev => {
+      const s = minutesFromHM(hmFromISO(ev.startISO));
+      const e = minutesFromHM(hmFromISO(ev.endISO));
+      const left = (s - DAY_START) * PX_PER_MIN;
+      const width = Math.max(6, (e - s) * PX_PER_MIN);
+      const node = document.createElement('div');
+      node.className = 'tl-event';
+      node.style.left = left + 'px';
+      node.style.width = width + 'px';
+      node.dataset.id = ev.id;
+      node.dataset.date = ev.date;
+      node.title = `${ev.title || 'Слот'} ${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)}`;
+      node.innerHTML = `<span class="tl-title">${ev.title || 'Слот'}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
+      eventsLayer.appendChild(node);
+    });
+  }
+
+  renderEvents(data.items || []);
+
+  // interactions: drag move and resize
+  let drag = null;
+  function onDown(e){
+    const target = e.target.closest('.tl-event');
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const startX = e.clientX;
+    const isLeft = e.target.classList.contains('left');
+    const isRight = e.target.classList.contains('right');
+    const ev = {
+      id: target.dataset.id,
+      date: target.dataset.date,
+      leftPx: parseFloat(target.style.left),
+      widthPx: parseFloat(target.style.width),
+      mode: isLeft ? 'resize-left' : isRight ? 'resize-right' : 'move',
+      startX,
+      node: target,
+    };
+    drag = ev;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp, { once: true });
+  }
+  function onMove(e){
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    if (drag.mode === 'move'){
+      const nextLeft = clamp(drag.leftPx + dx, 0, (DAY_END-DAY_START)*PX_PER_MIN - drag.widthPx);
+      drag.node.style.left = nextLeft + 'px';
+    } else if (drag.mode === 'resize-left'){
+      const nextLeft = clamp(drag.leftPx + dx, 0, drag.leftPx + drag.widthPx - 6);
+      const nextWidth = drag.widthPx + (drag.leftPx - nextLeft);
+      drag.node.style.left = nextLeft + 'px';
+      drag.node.style.width = Math.max(6, nextWidth) + 'px';
+    } else if (drag.mode === 'resize-right'){
+      const nextWidth = Math.max(6, drag.widthPx + dx);
+      const maxWidth = (DAY_END-DAY_START)*PX_PER_MIN - drag.leftPx;
+      drag.node.style.width = clamp(nextWidth, 6, maxWidth) + 'px';
+    }
+  }
+  async function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    const node = drag.node;
+    const leftPx = parseFloat(node.style.left);
+    const widthPx = parseFloat(node.style.width);
+    drag = null;
+    // convert to HM
+    const startMin = Math.round(leftPx / PX_PER_MIN) + DAY_START;
+    const endMin = Math.round((leftPx + widthPx) / PX_PER_MIN) + DAY_START;
+    const toHM = (m)=> `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+    try{
+      await api('/api/schedule', { method:'PUT', body: JSON.stringify({ id: node.dataset.id, date: node.dataset.date, start: toHM(startMin), end: toHM(endMin) }) });
+    }catch(err){ alert(err.message); }
+  }
+  eventsLayer.addEventListener('mousedown', onDown);
+
   el('#addEvent').onclick = async () => {
     const start = prompt('Начало (HH:MM)', timeStr(now));
     const end = prompt('Конец (HH:MM)', timeStr(new Date(now.getTime()+3600000)));
     const title = prompt('Заголовок');
     if (!start || !end) return;
     await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title }) });
-    renderSchedule();
+    const fresh = await api('/api/schedule?date=' + date);
+    renderEvents(fresh.items || []);
   };
+
+  el('#pickDate').addEventListener('change', async (e)=>{
+    date = e.target.value;
+    const fresh = await api('/api/schedule?date=' + date);
+    renderEvents(fresh.items || []);
+  });
 }
 
 async function renderApp() {
