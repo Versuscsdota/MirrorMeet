@@ -68,43 +68,105 @@ function renderAppShell(me) {
 async function renderModels() {
   const view = el('#view');
   const data = await api('/api/models');
+  let items = data.items || [];
   view.innerHTML = `
     <section class="bar">
       <button id="addModel">Добавить модель</button>
-      <input id="search" placeholder="Поиск" />
+      <input id="search" placeholder="Поиск по имени/описанию" />
+      <select id="sort">
+        <option value="name-asc">Имя ↑</option>
+        <option value="name-desc">Имя ↓</option>
+      </select>
     </section>
-    <div class="grid">${data.items.map(m => `
+    <div class="grid" id="modelsGrid"></div>
+  `;
+  const grid = el('#modelsGrid');
+  function applySort(list, mode){
+    const arr = [...list];
+    if (mode === 'name-desc') arr.sort((a,b)=> (b.name||'').localeCompare(a.name||''));
+    else arr.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+    return arr;
+  }
+  function renderList(){
+    const q = (el('#search').value || '').toLowerCase();
+    const mode = el('#sort').value;
+    const filtered = items.filter(m => (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q));
+    const sorted = applySort(filtered, mode);
+    grid.innerHTML = sorted.map(m => `
       <div class="card">
         <h3>${m.name}</h3>
         <p>${m.note || ''}</p>
         <button data-id="${m.id}" class="openModel">Открыть</button>
-      </div>`).join('')}</div>
-  `;
+      </div>`).join('');
+    [...grid.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
+  }
+  el('#search').addEventListener('input', renderList);
+  el('#sort').addEventListener('change', renderList);
+  renderList();
   el('#addModel').onclick = async () => {
     const name = prompt('Имя модели');
     if (!name) return;
     await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
     renderModels();
   };
-  [...document.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
 }
 
 async function renderModelCard(id) {
   const view = el('#view');
   const model = await api('/api/models?id=' + encodeURIComponent(id));
-  const files = await api('/api/files?modelId=' + encodeURIComponent(id));
+  const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
+  let files = filesRes.items || [];
   view.innerHTML = `
     <div class="card">
       <h2>${model.name}</h2>
       <p>${model.note || ''}</p>
-      <form id="fileForm">
-        <input type="file" name="file" required />
-        <input name="name" placeholder="Название" required />
-        <input name="description" placeholder="Описание" />
-        <button>Загрузить</button>
-      </form>
-      <ul>${files.items.map(f => `<li><a href="${f.url}" target="_blank">${f.name}</a> — ${f.description || ''}</li>`).join('')}</ul>
+      <section class="bar" style="gap:8px;flex-wrap:wrap">
+        <form id="fileForm" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="file" name="file" required />
+          <input name="name" placeholder="Название" required />
+          <input name="description" placeholder="Описание" />
+          <button>Загрузить</button>
+        </form>
+        <input id="fileSearch" placeholder="Поиск по файлам" />
+        <select id="fileSort">
+          <option value="name-asc">Имя ↑</option>
+          <option value="name-desc">Имя ↓</option>
+        </select>
+        <button id="exportCsv" type="button">Экспорт CSV</button>
+      </section>
+      <ul id="filesList"></ul>
     </div>`;
+  const listEl = el('#filesList');
+  function applyFileSort(arr, mode){
+    const a = [...arr];
+    if (mode === 'name-desc') a.sort((x,y)=> (y.name||'').localeCompare(x.name||''));
+    else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
+    return a;
+  }
+  function renderFiles(){
+    const q = (el('#fileSearch').value || '').toLowerCase();
+    const mode = el('#fileSort').value;
+    const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
+    const sorted = applyFileSort(filtered, mode);
+    listEl.innerHTML = sorted.map(f => `<li><a href="${f.url}" target="_blank">${f.name}</a> — ${f.description || ''}</li>`).join('');
+  }
+  el('#fileSearch').addEventListener('input', renderFiles);
+  el('#fileSort').addEventListener('change', renderFiles);
+  el('#exportCsv').addEventListener('click', () => {
+    const mode = el('#fileSort').value;
+    const q = (el('#fileSearch').value || '').toLowerCase();
+    const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
+    const sorted = applyFileSort(filtered, mode);
+    const rows = [['name','description','url'], ...sorted.map(f => [f.name||'', f.description||'', f.url||''])];
+    const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${model.name}-files.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+  renderFiles();
   el('#fileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -112,7 +174,9 @@ async function renderModelCard(id) {
     try {
       const res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
       if (!res.ok) throw new Error(await res.text());
-      renderModelCard(id);
+      const fresh = await api('/api/files?modelId=' + encodeURIComponent(id));
+      files = fresh.items || [];
+      renderFiles();
     } catch (err) { alert(err.message); }
   });
 }
