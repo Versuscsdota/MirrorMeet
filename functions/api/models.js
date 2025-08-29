@@ -1,5 +1,5 @@
-import { json, badRequest, notFound } from '../../_utils.js';
-import { requireRole, newId } from '../../_utils.js';
+import { json, badRequest, notFound } from '../_utils.js';
+import { requireRole, newId } from '../_utils.js';
 
 // KV keys
 // model:<id> -> { id, name, note, createdAt, createdBy }

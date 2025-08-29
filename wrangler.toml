@@ -17,7 +17,7 @@ bucket_name = "mirror-crm-files"
 
 [vars]
 SESSION_COOKIE_NAME = "mirrorsid"
-SESSION_TTL_SECONDS = 60 * 60 * 24 * 7 # 7 days
+SESSION_TTL_SECONDS = 604800 # 7 days
 
 [observability]
 enabled = true

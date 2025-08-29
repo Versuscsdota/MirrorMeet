@@ -1,5 +1,5 @@
-import { json, badRequest, notFound } from '../../_utils.js';
-import { requireRole, sha256, newId, incUserCount } from '../../_utils.js';
+import { json, badRequest, notFound } from '../_utils.js';
+import { requireRole, sha256, newId, incUserCount } from '../_utils.js';
 
 const ROLES = ['root','admin','interviewer','curator'];
 

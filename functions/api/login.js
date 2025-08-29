@@ -1,4 +1,4 @@
-import { json, text, badRequest, cookieSerialize, sha256, newId, firstUserExists, incUserCount } from '../../_utils.js';
+import { json, text, badRequest, cookieSerialize, sha256, newId, firstUserExists, incUserCount } from '../_utils.js';
 
 export async function onRequestPost(context) {
   const { env, request } = context;

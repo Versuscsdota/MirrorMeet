@@ -1,5 +1,5 @@
-import { json, badRequest, notFound, forbidden } from '../../_utils.js';
-import { requireRole, newId } from '../../_utils.js';
+import { json, badRequest, notFound, forbidden } from '../_utils.js';
+import { requireRole, newId } from '../_utils.js';
 
 // file meta in KV: file:<id>
 // object in R2: files/<modelId>/<id>

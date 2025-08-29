@@ -1,4 +1,4 @@
-import { json, cookieSerialize } from '../../_utils.js';
+import { json, cookieSerialize } from '../_utils.js';
 
 export async function onRequestPost(context) {
   const { env, request } = context;
