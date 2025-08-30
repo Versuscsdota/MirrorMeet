@@ -174,6 +174,7 @@ function renderAppShell(me) {
           <button id="nav-models">Модели</button>
           <button id="nav-schedule">Расписание</button>
           <button id="nav-employees">Сотрудники</button>
+          <button id="nav-files">Файлы</button>
         ` : ''}
       </nav>
       <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
@@ -187,6 +188,7 @@ function renderAppShell(me) {
     el('#nav-models').onclick = renderModels;
     el('#nav-schedule').onclick = renderSchedule;
     el('#nav-employees').onclick = renderEmployees;
+    el('#nav-files').onclick = renderFileSystem;
   }
 }
 
@@ -403,6 +405,7 @@ async function renderModelCard(id) {
             <div class="file-actions">
               <a href="${viewUrl}" target="_blank" class="file-btn">Просмотр</a>
               ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
             </div>
           </div>
         </div>`;
@@ -437,6 +440,22 @@ async function renderModelCard(id) {
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
+  
+  // File deletion
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('delete-file')) {
+      const fileId = e.target.dataset.id;
+      const fileName = e.target.closest('.file-card').querySelector('.file-name').textContent;
+      if (!confirm(`Удалить файл "${fileName}"?`)) return;
+      try {
+        await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
+        files = files.filter(f => f.id !== fileId);
+        renderFiles();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
 
   // Edit profile functionality
   el('#editProfile').onclick = async () => {
@@ -745,6 +764,248 @@ async function renderSchedule() {
     events = fresh.items || [];
     renderEvents(events);
   });
+}
+
+async function renderFileSystem() {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
+  
+  const view = el('#view');
+  
+  // Fetch all models and files
+  const [modelsRes, allFiles] = await Promise.all([
+    api('/api/models'),
+    getAllFiles()
+  ]);
+  
+  const models = modelsRes.items || [];
+  
+  view.innerHTML = `
+    <div class="file-system">
+      <div class="fs-header">
+        <h1>Файловая система</h1>
+        <div class="fs-stats">
+          <span>${allFiles.length} файлов</span>
+          <span>${models.length} моделей</span>
+          <span>${Math.round(allFiles.reduce((sum, f) => sum + (f.size || 0), 0) / 1024 / 1024)} МБ</span>
+        </div>
+      </div>
+      
+      <div class="fs-controls">
+        <input id="fsSearch" placeholder="Поиск по файлам и моделям..." />
+        <select id="fsSort">
+          <option value="date-desc">По дате ↓</option>
+          <option value="date-asc">По дате ↑</option>
+          <option value="name-asc">По имени ↑</option>
+          <option value="name-desc">По имени ↓</option>
+          <option value="size-desc">По размеру ↓</option>
+        </select>
+        <select id="fsFilter">
+          <option value="all">Все файлы</option>
+          <option value="images">Изображения</option>
+          <option value="videos">Видео</option>
+          <option value="documents">Документы</option>
+        </select>
+      </div>
+      
+      <div class="fs-content">
+        <div class="fs-sidebar">
+          <h3>Модели</h3>
+          <div class="model-list" id="modelList"></div>
+        </div>
+        <div class="fs-main">
+          <div class="files-timeline" id="filesTimeline"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  let filteredFiles = [...allFiles];
+  let selectedModelId = null;
+  
+  function renderModelList() {
+    const modelCounts = {};
+    allFiles.forEach(f => {
+      modelCounts[f.modelId] = (modelCounts[f.modelId] || 0) + 1;
+    });
+    
+    const modelListEl = el('#modelList');
+    modelListEl.innerHTML = `
+      <div class="model-item ${!selectedModelId ? 'active' : ''}" data-model="all">
+        <div class="model-name">Все модели</div>
+        <div class="file-count">${allFiles.length}</div>
+      </div>
+      ${models.map(m => `
+        <div class="model-item ${selectedModelId === m.id ? 'active' : ''}" data-model="${m.id}">
+          <div class="model-name">${m.name}</div>
+          <div class="file-count">${modelCounts[m.id] || 0}</div>
+        </div>
+      `).join('')}
+    `;
+    
+    // Model selection
+    [...modelListEl.querySelectorAll('.model-item')].forEach(item => {
+      item.onclick = () => {
+        const modelId = item.dataset.model;
+        selectedModelId = modelId === 'all' ? null : modelId;
+        applyFilters();
+        renderModelList();
+      };
+    });
+  }
+  
+  function applyFilters() {
+    const search = (el('#fsSearch').value || '').toLowerCase();
+    const sort = el('#fsSort').value;
+    const filter = el('#fsFilter').value;
+    
+    // Filter by model
+    let files = selectedModelId ? allFiles.filter(f => f.modelId === selectedModelId) : [...allFiles];
+    
+    // Filter by search
+    if (search) {
+      files = files.filter(f => {
+        const model = models.find(m => m.id === f.modelId);
+        return (f.name || '').toLowerCase().includes(search) ||
+               (f.description || '').toLowerCase().includes(search) ||
+               (model && model.name.toLowerCase().includes(search));
+      });
+    }
+    
+    // Filter by type
+    if (filter !== 'all') {
+      files = files.filter(f => {
+        const ct = (f.contentType || '').toLowerCase();
+        if (filter === 'images') return ct.startsWith('image/');
+        if (filter === 'videos') return ct.startsWith('video/');
+        if (filter === 'documents') return ct.includes('pdf') || ct.includes('document') || ct.includes('text');
+        return true;
+      });
+    }
+    
+    // Sort
+    files.sort((a, b) => {
+      if (sort === 'date-desc') return (b.createdAt || 0) - (a.createdAt || 0);
+      if (sort === 'date-asc') return (a.createdAt || 0) - (b.createdAt || 0);
+      if (sort === 'name-desc') return (b.name || '').localeCompare(a.name || '');
+      if (sort === 'name-asc') return (a.name || '').localeCompare(b.name || '');
+      if (sort === 'size-desc') return (b.size || 0) - (a.size || 0);
+      return 0;
+    });
+    
+    filteredFiles = files;
+    renderTimeline();
+  }
+  
+  function renderTimeline() {
+    const timelineEl = el('#filesTimeline');
+    
+    if (filteredFiles.length === 0) {
+      timelineEl.innerHTML = '<div class="no-files">Файлы не найдены</div>';
+      return;
+    }
+    
+    // Group by date
+    const groups = {};
+    filteredFiles.forEach(f => {
+      const date = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : 'Неизвестная дата';
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(f);
+    });
+    
+    timelineEl.innerHTML = Object.entries(groups).map(([date, files]) => `
+      <div class="timeline-group">
+        <h3 class="timeline-date">${date}</h3>
+        <div class="timeline-files">
+          ${files.map(f => {
+            const model = models.find(m => m.id === f.modelId);
+            const isImage = (f.contentType || '').startsWith('image/');
+            const isVideo = (f.contentType || '').startsWith('video/');
+            const viewUrl = `/api/files?id=${f.id}`;
+            const downloadUrl = viewUrl + '&download=1';
+            const canDownload = window.currentUser && window.currentUser.role === 'root';
+            const fileSize = f.size ? (f.size / 1024 / 1024).toFixed(1) + ' МБ' : '';
+            
+            return `
+              <div class="timeline-file">
+                <div class="file-preview">
+                  ${isImage ? `<img src="${viewUrl}" alt="${f.name}" />` : 
+                    isVideo ? `<div class="file-icon">📹</div>` : 
+                    `<div class="file-icon">📄</div>`}
+                </div>
+                <div class="file-details">
+                  <div class="file-header">
+                    <div class="file-name">${f.name}</div>
+                    <div class="file-model">${model ? model.name : 'Неизвестная модель'}</div>
+                  </div>
+                  ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
+                  <div class="file-meta">
+                    ${fileSize ? `<span>${fileSize}</span>` : ''}
+                    <span>${new Date(f.createdAt).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'})}</span>
+                  </div>
+                  <div class="file-actions">
+                    <a href="${viewUrl}" target="_blank" class="file-btn">Просмотр</a>
+                    ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+                    <button class="file-btn" onclick="renderModelCard('${f.modelId}')">К модели</button>
+                    ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 
+                      `<button class="file-btn delete-file-fs" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+    
+    // File deletion in file system
+    [...timelineEl.querySelectorAll('.delete-file-fs')].forEach(btn => {
+      btn.onclick = async () => {
+        const fileId = btn.dataset.id;
+        const file = filteredFiles.find(f => f.id === fileId);
+        if (!confirm(`Удалить файл "${file.name}"?`)) return;
+        try {
+          await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
+          // Remove from all arrays
+          const index = allFiles.findIndex(f => f.id === fileId);
+          if (index >= 0) allFiles.splice(index, 1);
+          applyFilters();
+          renderModelList();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+  }
+  
+  // Event listeners
+  el('#fsSearch').addEventListener('input', applyFilters);
+  el('#fsSort').addEventListener('change', applyFilters);
+  el('#fsFilter').addEventListener('change', applyFilters);
+  
+  // Initial render
+  renderModelList();
+  applyFilters();
+}
+
+async function getAllFiles() {
+  const modelsRes = await api('/api/models');
+  const models = modelsRes.items || [];
+  
+  const allFiles = [];
+  await Promise.all(models.map(async (model) => {
+    try {
+      const filesRes = await api('/api/files?modelId=' + encodeURIComponent(model.id));
+      const files = (filesRes.items || []).map(f => ({ ...f, modelId: model.id }));
+      allFiles.push(...files);
+    } catch (e) {
+      console.warn('Failed to fetch files for model', model.id, e);
+    }
+  }));
+  
+  return allFiles;
 }
 
 async function renderApp() {
