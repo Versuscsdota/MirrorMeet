@@ -375,7 +375,7 @@ async function renderCalendar() {
   };
   el('#mNext').onclick = async () => {
     const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
-    const d = new Date(y, m, 1);
+    const d = new Date(y, m, 1); // m is already 1-based, so this goes to next month
     currentMonth = d.toISOString().slice(0,7);
     await loadMonth();
   };
