@@ -378,6 +378,7 @@ async function renderSchedule() {
   let date = now.toISOString().slice(0,10);
   const PX_PER_MIN = 2; // scale
   const DAY_START = 8*60, DAY_END = 22*60; // 08:00 - 22:00
+  const ROW_H = 56; // per-employee row height
 
   const [data, employees] = await Promise.all([
     api('/api/schedule?date=' + date),
@@ -416,8 +417,13 @@ async function renderSchedule() {
   el('#timeline').style.width = width + 'px';
   grid.style.width = width + 'px';
   eventsLayer.style.width = width + 'px';
+  // set timeline height based on employees
+  const totalHeight = (employees.length || 0) * ROW_H + 32; // padding for top
+  el('#timeline').style.height = totalHeight + 'px';
+  eventsLayer.style.height = totalHeight + 'px';
+  grid.style.height = totalHeight + 'px';
 
-  // build hour ticks
+  // build hour ticks and grid lines
   let headerHtml = '';
   let gridHtml = '';
   for (let m = DAY_START; m <= DAY_END; m += 60) {
@@ -425,6 +431,11 @@ async function renderSchedule() {
     const hh = String(Math.floor(m/60)).padStart(2,'0');
     headerHtml += `<div class="tl-hour" style="left:${left}px">${hh}:00</div>`;
     gridHtml += `<div class="tl-vline" style="left:${left}px"></div>`;
+  }
+  // horizontal lines per employee row
+  for (let i = 0; i < (employees.length || 0); i++) {
+    const top = 24 + i * ROW_H; // 24px top padding for events lane
+    gridHtml += `<div class="tl-hline" style="top:${top - 2}px"></div>`; // slight offset for separator
   }
   header.innerHTML = headerHtml;
   grid.innerHTML = gridHtml;
@@ -443,6 +454,9 @@ async function renderSchedule() {
       node.dataset.id = ev.id;
       node.dataset.date = ev.date;
       const emp = (employees || []).find(e => e.id === ev.employeeId);
+      const rowIndex = Math.max(0, (employees || []).findIndex(e => e.id === (emp && emp.id)));
+      const top = 24 + rowIndex * ROW_H; // align to employee row
+      node.style.top = top + 'px';
       const empLabel = emp ? ` • ${emp.fullName}` : '';
       node.title = `${ev.title || 'Слот'}${emp ? ' ('+emp.fullName+')' : ''} ${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)}`;
       node.innerHTML = `<span class="tl-title">${(ev.title || 'Слот') + empLabel}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
@@ -518,8 +532,7 @@ async function renderSchedule() {
       </div>
       <label>Заголовок<input id="evTitle" placeholder="Название слота" /></label>
       <label>Сотрудник
-        <select id="evEmployee">
-          <option value="">— Без сотрудника —</option>
+        <select id="evEmployee" required>
           ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName}</option>`).join('')}
         </select>
       </label>`;
@@ -529,8 +542,8 @@ async function renderSchedule() {
     const start = form.querySelector('#evStart').value.trim();
     const end = form.querySelector('#evEnd').value.trim();
     const title = form.querySelector('#evTitle').value.trim();
-    const employeeId = form.querySelector('#evEmployee').value || null;
-    if (!start || !end) { setError('Укажите время начала и конца'); return; }
+    const employeeId = form.querySelector('#evEmployee').value;
+    if (!start || !end || !employeeId) { setError('Укажите время начала и конца и выберите сотрудника'); return; }
     try {
       const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
       events = [...events, created];
@@ -546,6 +559,17 @@ async function renderSchedule() {
     const fresh = await api('/api/schedule?date=' + date);
     events = fresh.items || [];
     renderEvents(events);
+  });
+
+  // Sync vertical scroll between sidebar and timeline
+  const leftPane = document.querySelector('.sched-left');
+  const rightPane = document.querySelector('.sched-right');
+  let syncing = false;
+  rightPane.addEventListener('scroll', () => {
+    if (syncing) return; syncing = true; leftPane.scrollTop = rightPane.scrollTop; syncing = false;
+  });
+  leftPane.addEventListener('scroll', () => {
+    if (syncing) return; syncing = true; rightPane.scrollTop = leftPane.scrollTop; syncing = false;
   });
 }
 
