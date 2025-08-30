@@ -3,7 +3,7 @@ import { json, text, badRequest, cookieSerialize, sha256, newId, firstUserExists
 export async function onRequestPost(context) {
   const { env, request } = context;
   try {
-    const { SESSION_COOKIE_NAME = 'mirrorsid', SESSION_TTL_SECONDS = 60 * 60 * 24 * 7 } = env;
+    const { SESSION_COOKIE_NAME = 'mirrorsid', SESSION_TTL_SECONDS = 60 * 60 * 24 * 7, COOKIE_SECURE = true } = env;
 
     let body;
     try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
@@ -38,14 +38,14 @@ export async function onRequestPost(context) {
     try {
       const sid = newId('sid');
       await env.CRM_KV.put(`session:${sid}`, JSON.stringify({ userId: stored.id, exp }), { expirationTtl: Number(SESSION_TTL_SECONDS) });
-      const cookie = cookieSerialize(SESSION_COOKIE_NAME, sid, { maxAge: Number(SESSION_TTL_SECONDS), path: '/' });
+      const cookie = cookieSerialize(SESSION_COOKIE_NAME, sid, { maxAge: Number(SESSION_TTL_SECONDS), path: '/', secure: COOKIE_SECURE });
       return json({ ok: true, user: { id: stored.id, login: stored.login, role: stored.role, mustChange: !!stored.mustChange } }, { headers: { 'set-cookie': cookie } });
     } catch (e) {
       // KV write failed (e.g., daily limit). Fallback to stateless cookie if secret provided.
       const secret = env.SESSION_HMAC_SECRET;
       if (!secret) throw e;
       const token = await makeJwt({ userId: stored.id, exp }, secret);
-      const cookie = cookieSerialize(SESSION_COOKIE_NAME, 'jwt.' + token, { maxAge: Number(SESSION_TTL_SECONDS), path: '/' });
+      const cookie = cookieSerialize(SESSION_COOKIE_NAME, 'jwt.' + token, { maxAge: Number(SESSION_TTL_SECONDS), path: '/', secure: COOKIE_SECURE });
       return json({ ok: true, user: { id: stored.id, login: stored.login, role: stored.role, mustChange: !!stored.mustChange } }, { headers: { 'set-cookie': cookie } });
     }
   } catch (err) {

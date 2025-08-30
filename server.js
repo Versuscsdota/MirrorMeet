@@ -58,7 +58,8 @@ const env = {
   CRM_FILES: createFiles(process.env.FILES_DIR || path.join(__dirname, 'files')),
   SESSION_COOKIE_NAME: process.env.SESSION_COOKIE_NAME || 'mirrorsid',
   SESSION_TTL_SECONDS: Number(process.env.SESSION_TTL_SECONDS || 604800),
-  SESSION_HMAC_SECRET: process.env.SESSION_HMAC_SECRET || ''
+  SESSION_HMAC_SECRET: process.env.SESSION_HMAC_SECRET || '',
+  COOKIE_SECURE: (process.env.COOKIE_SECURE ?? 'true') !== 'false'
 };
 
 // Support multipart for endpoints that need formData()

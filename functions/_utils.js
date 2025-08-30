@@ -25,7 +25,7 @@ export function cookieSerialize(name, value, opts = {}) {
   if (opts.path) parts.push(`Path=${opts.path}`); else parts.push('Path=/');
   parts.push('HttpOnly');
   parts.push('SameSite=Lax');
-  parts.push('Secure');
+  if (opts.secure !== false) parts.push('Secure');
   return parts.join('; ');
 }
 
