@@ -1,7 +1,9 @@
 const api = async (path, opts = {}) => {
+  const isFD = (opts && opts.body && typeof FormData !== 'undefined' && opts.body instanceof FormData);
+  const headers = isFD ? (opts.headers || {}) : { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   const res = await fetch(path, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers,
     ...opts,
   });
   if (!res.ok) throw new Error(await res.text());
@@ -37,6 +39,204 @@ function showModal({ title = '', content, submitText = 'Сохранить' }) {
     cancelBtn.onclick = () => { close(); resolve(null); };
     okBtn.onclick = () => { resolve({ close, setError: (m)=> err.textContent = m }); };
   });
+}
+
+// Calendar: slot-based without employee linkage
+async function renderCalendar() {
+  const view = el('#view');
+  const today = new Date().toISOString().slice(0,10);
+  let date = today;
+  let slots = [];
+
+  view.innerHTML = `
+    <section class="bar" style="gap:8px;flex-wrap:wrap">
+      <label>Дата <input id="calDate" type="date" value="${today}" /></label>
+      <span style="flex:1"></span>
+      ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot">Создать слот</button>' : ''}
+    </section>
+    <div class="card">
+      <ul id="slotList" class="empl-list"></ul>
+    </div>`;
+
+  async function load() {
+    const res = await api('/api/schedule?date=' + encodeURIComponent(date));
+    slots = res.items || [];
+    renderList();
+  }
+
+  function renderList() {
+    const list = el('#slotList');
+    if (!slots.length) { list.innerHTML = '<li class="employee-item"><div class="employee-info">Слотов нет</div></li>'; return; }
+    list.innerHTML = slots.map(s => `
+      <li class="employee-item">
+        <div class="employee-info">
+          <div class="employee-header">
+            <div class="empl-name">${s.start || ''}–${s.end || ''} ${s.title ? '· ' + s.title : ''}</div>
+            <div class="employee-actions">
+              <button class="open-slot" data-id="${s.id}">Открыть</button>
+              ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
+            </div>
+          </div>
+          ${s.notes ? `<div class="empl-notes">${s.notes}</div>` : ''}
+        </div>
+      </li>
+    `).join('');
+
+    // Wire actions
+    [...list.querySelectorAll('.open-slot')].forEach(b => b.onclick = () => openSlot(b.dataset.id));
+    [...list.querySelectorAll('.edit-slot')].forEach(b => b.onclick = () => editSlot(b.dataset.id));
+    [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
+  }
+
+  async function createSlot() {
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>Начало<input id="sStart" type="time" required /></label>
+      <label>Конец<input id="sEnd" type="time" required /></label>
+      <label>Заголовок<input id="sTitle" /></label>
+      <label>Заметки<textarea id="sNotes" rows="3"></textarea></label>`;
+    const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
+    if (!m) return;
+    const { close, setError } = m;
+    const start = form.querySelector('#sStart').value.trim();
+    const end = form.querySelector('#sEnd').value.trim();
+    const title = form.querySelector('#sTitle').value.trim();
+    const notes = form.querySelector('#sNotes').value.trim();
+    if (!start || !end) { setError('Укажите время начала и конца'); return; }
+    try {
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, notes }) });
+      slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      renderList();
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  async function editSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
+      <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" /></label>
+      <label>Заголовок<input id="sTitle" value="${s.title || ''}" /></label>
+      <label>Заметки<textarea id="sNotes" rows="3">${s.notes || ''}</textarea></label>
+      <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"/></label></div>`;
+    const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
+    if (!m) return;
+    const { close, setError } = m;
+    const start = form.querySelector('#sStart').value.trim();
+    const end = form.querySelector('#sEnd').value.trim();
+    const title = form.querySelector('#sTitle').value.trim();
+    const notes = form.querySelector('#sNotes').value.trim();
+    const timeChanged = (start !== (s.start||'')) || (end !== (s.end||''));
+    const comment = timeChanged ? (form.querySelector('#sComment').value || '').trim() : '';
+    if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
+    try {
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
+      slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      renderList();
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  async function deleteSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+      alert('Недостаточно прав для удаления');
+      return;
+    }
+    if (window.currentUser.role === 'root') {
+      if (!await confirmRootPassword(`удаление слота ${s.start}-${s.end}`)) return;
+    }
+    if (!confirm('Удалить слот?')) return;
+    try {
+      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(date)}`, { method: 'DELETE' });
+      slots = slots.filter(x => x.id !== s.id);
+      renderList();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function openSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    const box = document.createElement('div');
+    box.innerHTML = `
+      <div style="display:grid;gap:8px">
+        <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
+        <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
+        <div>
+          <h4>Вложения</h4>
+          <div id="attList" style="display:grid;gap:8px"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="upFile" type="file" accept="image/*,audio/*" />
+            <input id="upName" placeholder="Название файла" />
+            <button id="uploadBtn" type="button">Загрузить</button>
+          </div>
+        </div>
+      </div>`;
+    const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
+
+    async function refreshFiles() {
+      try {
+        const res = await api('/api/files?slotId=' + encodeURIComponent(s.id));
+        const items = res.items || [];
+        const list = box.querySelector('#attList');
+        list.innerHTML = items.map(f => {
+          const ct = (f.contentType || '').toLowerCase();
+          const isImg = ct.startsWith('image/');
+          const isAudio = ct.startsWith('audio/');
+          return `
+            <div class="file-card" style="display:flex;gap:12px;align-items:center">
+              <div style="width:64px;height:48px;display:flex;align-items:center;justify-content:center;background:#111;border:1px solid #222">
+                ${isImg ? `<img src="${f.url}" style="max-width:100%;max-height:100%;object-fit:contain"/>` : (isAudio ? '🎵' : '📄')}
+              </div>
+              <div style="flex:1">
+                <div>${f.name}</div>
+                ${isAudio ? `<audio src="${f.url}" controls style="width:100%"></audio>` : ''}
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    // initial
+    refreshFiles();
+
+    box.querySelector('#uploadBtn').onclick = async () => {
+      const f = box.querySelector('#upFile').files[0];
+      const name = (box.querySelector('#upName').value || '').trim() || (f && f.name) || 'file';
+      if (!f) { alert('Выберите файл'); return; }
+      const fd = new FormData();
+      fd.append('slotId', s.id);
+      fd.append('file', f);
+      fd.append('name', name);
+      try {
+        await api('/api/files', { method: 'POST', body: fd });
+        box.querySelector('#upFile').value = '';
+        box.querySelector('#upName').value = '';
+        await refreshFiles();
+      } catch (e) { alert(e.message); }
+    };
+
+    const m = await modalPromise;
+    if (!m) return;
+    const { close, setError } = m;
+    try {
+      // save interview text
+      const text = () => (box.querySelector('#iText').value || '').trim();
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, interviewText: text() }) });
+      slots = slots.map(x => x.id === s.id ? updated : x);
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  el('#calDate').addEventListener('change', async (e) => { date = e.target.value; await load(); });
+  const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
+  await load();
 }
 
 function renderLogin() {
@@ -281,12 +481,16 @@ function renderAppShell(me) {
         <span>MirrorCRM</span>
       </div>
       <nav>
-        ${(me.role === 'root' || me.role === 'admin') ? `
-          <button id="nav-models">Модели</button>
-          <button id="nav-schedule">Расписание</button>
-          <button id="nav-employees">Сотрудники</button>
-          <button id="nav-files">Файлы</button>
-        ` : ''}
+        ${
+          (me.role === 'root' || me.role === 'admin') ? `
+            <button id="nav-models">Модели</button>
+            <button id="nav-calendar">Календарь</button>
+            <button id="nav-employees">Сотрудники</button>
+            <button id="nav-files">Файлы</button>
+          ` : (me.role === 'interviewer') ? `
+            <button id="nav-calendar">Календарь</button>
+          ` : ''
+        }
       </nav>
       <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
         <button id="logout">Выход</button>
@@ -297,9 +501,11 @@ function renderAppShell(me) {
   el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
   if (me.role === 'root' || me.role === 'admin') {
     el('#nav-models').onclick = renderModels;
-    el('#nav-schedule').onclick = renderSchedule;
+    el('#nav-calendar').onclick = renderCalendar;
     el('#nav-employees').onclick = renderEmployees;
     el('#nav-files').onclick = renderFileSystem;
+  } else if (me.role === 'interviewer') {
+    el('#nav-calendar').onclick = renderCalendar;
   }
 }
 
@@ -1273,8 +1479,10 @@ async function renderApp() {
   renderAppShell(me);
   if (me.role === 'root' || me.role === 'admin') {
     renderModels();
+  } else if (me.role === 'interviewer') {
+    renderCalendar();
   } else {
-    el('#view').innerHTML = `<div class="card"><h3>Добро пожаловать</h3><p>У вас нет доступа к административным разделам. Обратитесь к администратору.</p></div>`;
+    el('#view').innerHTML = `<div class="card"><h3>Добро пожаловать</h3><p>Нет доступных разделов для вашей роли.</p></div>`;
   }
 }
 
