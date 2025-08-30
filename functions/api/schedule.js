@@ -59,6 +59,8 @@ export async function onRequestPost(context) {
   const slot = { 
     id, date, start, end, title,
     notes: (body.notes || '').trim() || undefined,
+    // optional assignment to employee
+    employeeId: (body.employeeId || '').trim() || undefined,
     interview: { text: (body.interviewText || '').trim() || undefined },
     history: [{ ts: Date.now(), userId: sess.user.id, action: 'create' }],
     createdAt: Date.now(), createdBy: sess.user.id
@@ -85,6 +87,7 @@ export async function onRequestPut(context) {
   if ('end' in body) cur.end = (body.end || '').trim();
   if ('title' in body) cur.title = (body.title || '').trim();
   if ('notes' in body) cur.notes = (body.notes || '').trim() || undefined;
+  if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};
     cur.interview.text = (body.interviewText || '').trim() || undefined;

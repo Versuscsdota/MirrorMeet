@@ -41,6 +41,21 @@ function showModal({ title = '', content, submitText = 'Сохранить' }) {
   });
 }
 
+// Employees helper
+const Employee = {
+  async getAll() {
+    return api('/api/employees');
+  },
+  async get(id, opts = {}) {
+    const qs = new URLSearchParams();
+    qs.set('id', String(id));
+    if (opts.withStats) qs.set('withStats', 'true');
+    if (opts.from) qs.set('from', opts.from);
+    if (opts.to) qs.set('to', opts.to);
+    return api('/api/employees?' + qs.toString());
+  }
+};
+
 // Calendar: slot-based without employee linkage
 async function renderCalendar() {
   const view = el('#view');
@@ -450,7 +465,7 @@ async function renderEmployees() {
       <li class="employee-item">
         <div class="employee-info">
           <div class="employee-header">
-            <div class="empl-name">${e.fullName}</div>
+            <button class="empl-name open-employee" data-id="${e.id}">${e.fullName}</button>
             <div class="employee-actions">
               ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
               ${isRoot ? `<button class="delete-employee" data-id="${e.id}">Удалить</button>` : ''}
@@ -468,6 +483,13 @@ async function renderEmployees() {
       </li>
     `).join('');
     
+    // Open profile
+    [...listEl.querySelectorAll('.open-employee')].forEach(btn => {
+      btn.onclick = () => {
+        if (typeof window.renderEmployeeCard === 'function') window.renderEmployeeCard(btn.dataset.id);
+      };
+    });
+
     // Add functionality
     if (isRoot) {
       [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
@@ -587,7 +609,113 @@ async function renderEmployees() {
       setError(e.message); 
     }
   }
+
+  // expose edit helper for external callers (employee card)
+  window._openEditEmployee = (targetId) => {
+    const e = (items || []).find(x => x.id === targetId);
+    if (e) editEmployee(e);
+  };
 }
+
+// Detailed employee card with stats
+async function renderEmployeeCard(id) {
+  const view = el('#view');
+  // Default range: last 30 days
+  const to = new Date();
+  const from = new Date(to.getTime() - 29*24*60*60*1000);
+  let range = { from: from.toISOString().slice(0,10), to: to.toISOString().slice(0,10) };
+  let data = await Employee.get(id, { withStats: true, ...range });
+
+  function hoursFmt(h) {
+    if (!h) return '0 ч';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return mm ? `${hh} ч ${mm} мин` : `${hh} ч`;
+  }
+
+  function render() {
+    const e = data;
+    const stats = e.stats || { eventsCount: 0, hoursTotal: 0, byDay: [] };
+    view.innerHTML = `
+      <section class="bar">
+        <button id="backToEmployees" class="ghost">← Назад</button>
+        <h2 style="margin:0 12px">${e.fullName}</h2>
+        <span style="flex:1"></span>
+        <label>Период: 
+          <input id="stFrom" type="date" value="${range.from}" /> — 
+          <input id="stTo" type="date" value="${range.to}" />
+        </label>
+        <button id="applyRange">Обновить</button>
+      </section>
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:16px">
+        <div class="card" style="padding:16px">
+          <h3 style="margin-top:0">Профиль</h3>
+          <div style="display:grid;gap:6px;font-size:14px">
+            ${e.position ? `<div><strong>Должность:</strong> ${e.position}</div>` : ''}
+            ${e.department ? `<div><strong>Отдел:</strong> ${e.department}</div>` : ''}
+            ${e.phone ? `<div><strong>Телефон:</strong> ${e.phone}</div>` : ''}
+            ${e.email ? `<div><strong>Email:</strong> ${e.email}</div>` : ''}
+            ${e.startDate ? `<div><strong>Начало работы:</strong> ${e.startDate}</div>` : ''}
+            ${e.notes ? `<div style="white-space:pre-wrap"><strong>Заметки:</strong> ${e.notes}</div>` : ''}
+          </div>
+          ${(window.currentUser && (window.currentUser.role === 'root')) ? `
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button id="editEmployeeBtn">Редактировать</button>
+              <button id="deleteEmployeeBtn" style="background:#dc2626">Удалить</button>
+            </div>` : ''}
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="display:flex;gap:24px;align-items:center;border-bottom:1px solid #1e1e1e;padding-bottom:8px;margin-bottom:12px">
+            <h3 style="margin:0">Статистика</h3>
+            <div style="color:var(--muted)">за период ${range.from} — ${range.to}</div>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px">
+            <div class="stat-badge"><div class="stat-value">${stats.eventsCount||0}</div><div class="stat-label">событий</div></div>
+            <div class="stat-badge"><div class="stat-value">${hoursFmt(stats.hoursTotal||0)}</div><div class="stat-label">отработано</div></div>
+          </div>
+          <div style="overflow:auto">
+            <table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse">
+              <thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Дата</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Кол-во</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Часы</th></tr></thead>
+              <tbody>
+                ${(stats.byDay||[]).map(d => `<tr>
+                  <td style="padding:6px;border-bottom:1px solid #111">${d.date}</td>
+                  <td style="padding:6px;border-bottom:1px solid #111">${d.count||0}</td>
+                  <td style="padding:6px;border-bottom:1px solid #111">${hoursFmt(d.hours||0)}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+
+    // Wire back
+    el('#backToEmployees').onclick = renderEmployees;
+    // Apply range
+    el('#applyRange').onclick = async () => {
+      const nf = el('#stFrom').value || range.from;
+      const nt = el('#stTo').value || range.to;
+      range = { from: nf, to: nt };
+      data = await Employee.get(id, { withStats: true, ...range });
+      render();
+    };
+    // Edit/Delete
+    const editBtn = el('#editEmployeeBtn');
+    if (editBtn) editBtn.onclick = async () => {
+      // Reuse list editor if present by temporarily rendering list and opening edit
+      await renderEmployees();
+      if (typeof window._openEditEmployee === 'function') window._openEditEmployee(id);
+    };
+    const delBtn = el('#deleteEmployeeBtn');
+    if (delBtn) delBtn.onclick = async () => {
+      await deleteEmployeeWithPassword({ id, fullName: data.fullName });
+    };
+  }
+
+  render();
+}
+
+// expose globally
+window.renderEmployeeCard = renderEmployeeCard;
 
 async function fetchMe() {
   try {
