@@ -3,7 +3,7 @@ import { requireRole, newId, sha256, incUserCount } from '../_utils.js';
 
 // KV key: employee:<id>
 // Stored object shape:
-// { id, fullName, position, phone?, email?, department?, startDate?, notes? }
+// { id, fullName, position, phone?, email?, department?, startDate?, notes?, telegram?, birthDate?, address?, city? }
 
 function sanitizeStr(v, max = 120) {
   if (v == null) return '';
@@ -81,6 +81,11 @@ export async function onRequestPost(context) {
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
   let role = sanitizeStr(body.role || 'interviewer', 20);
+  // Additional optional fields
+  let telegram = sanitizeStr(body.telegram || '', 80);
+  let birthDate = sanitizeStr(body.birthDate || '', 20);
+  let address = sanitizeStr(body.address || '', 200);
+  let city = sanitizeStr(body.city || '', 80);
 
   if (!fullName || !position) return badRequest('fullName и position обязательны');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
@@ -95,7 +100,11 @@ export async function onRequestPost(context) {
     ...(email ? { email } : {}),
     ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
-    ...(notes ? { notes } : {})
+    ...(notes ? { notes } : {}),
+    ...(telegram ? { telegram } : {}),
+    ...(birthDate ? { birthDate } : {}),
+    ...(address ? { address } : {}),
+    ...(city ? { city } : {})
   };
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(employee));
 
@@ -196,6 +205,11 @@ export async function onRequestPut(context) {
   let department = sanitizeStr(body.department || '', 80);
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
+  // Additional optional fields
+  let telegram = sanitizeStr(body.telegram || '', 80);
+  let birthDate = sanitizeStr(body.birthDate || '', 20);
+  let address = sanitizeStr(body.address || '', 200);
+  let city = sanitizeStr(body.city || '', 80);
 
   if (!fullName || !position) return badRequest('fullName и position обязательны');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
@@ -209,7 +223,11 @@ export async function onRequestPut(context) {
     ...(email ? { email } : {}),
     ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
-    ...(notes ? { notes } : {})
+    ...(notes ? { notes } : {}),
+    ...(telegram ? { telegram } : {}),
+    ...(birthDate ? { birthDate } : {}),
+    ...(address ? { address } : {}),
+    ...(city ? { city } : {})
   };
   
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(updatedEmployee));

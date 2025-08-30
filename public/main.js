@@ -457,7 +457,8 @@ async function renderEmployees() {
     const filtered = (items || []).filter(e => 
       (e.fullName||'').toLowerCase().includes(q) || 
       (e.position||'').toLowerCase().includes(q) ||
-      (e.department||'').toLowerCase().includes(q)
+      (e.department||'').toLowerCase().includes(q) ||
+      (e.city||'').toLowerCase().includes(q)
     );
     gridEl.innerHTML = filtered.map(e => {
       const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">📧 ${e.email}</a></span>` : '';
@@ -497,6 +498,9 @@ async function renderEmployees() {
               ${e.department ? `<span class="info-item">🏢 ${e.department}</span>` : ''}
               ${contactPhone}
               ${e.startDate ? `<span class="info-item">📅 Начал работу: ${e.startDate}</span>` : ''}
+              ${e.birthDate ? `<span class="info-item">🎂 Дата рождения: ${e.birthDate}</span>` : ''}
+              ${e.city ? `<span class="info-item">🏙️ ${e.city}</span>` : ''}
+              ${e.address ? `<span class="info-item">📍 ${e.address}</span>` : ''}
             </div>
           </div>
         </div>`;
@@ -549,7 +553,11 @@ async function renderEmployees() {
         <label>Отдел<input id="fDepartment" placeholder="Студийная съёмка" /></label>
         <label>Телефон<input id="fPhone" placeholder="+7 (999) 123-45-67" /></label>
         <label>Email<input id="fEmail" placeholder="employee@example.com" /></label>
+        <label>Telegram<input id="fTelegram" placeholder="@username" /></label>
         <label>Дата начала работы<input id="fStartDate" type="date" /></label>
+        <label>Дата рождения<input id="fBirthDate" type="date" /></label>
+        <label>Город<input id="fCity" placeholder="Москва" /></label>
+        <label>Адрес<input id="fAddress" placeholder="ул. Пример, д. 1, кв. 1" /></label>
         <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3"></textarea></label>
         <label>Роль
           <select id="fRole">
@@ -567,12 +575,16 @@ async function renderEmployees() {
       const department = form.querySelector('#fDepartment').value.trim();
       const phone = form.querySelector('#fPhone').value.trim();
       const email = form.querySelector('#fEmail').value.trim();
+      const telegram = form.querySelector('#fTelegram').value.trim();
       const startDate = form.querySelector('#fStartDate').value;
+      const birthDate = form.querySelector('#fBirthDate').value;
+      const city = form.querySelector('#fCity').value.trim();
+      const address = form.querySelector('#fAddress').value.trim();
       const notes = form.querySelector('#fNotes').value.trim();
       const role = form.querySelector('#fRole').value;
       if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
-        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, startDate, notes, role }) });
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, notes, role }) });
         // Optimistic update: add to local list and re-render without refetch
         items = [created, ...items];
         renderList();
@@ -602,7 +614,11 @@ async function renderEmployees() {
       <label>Отдел<input id="fDepartment" value="${employee.department || ''}" placeholder="Студийная съёмка" /></label>
       <label>Телефон<input id="fPhone" value="${employee.phone || ''}" placeholder="+7 (999) 123-45-67" /></label>
       <label>Email<input id="fEmail" value="${employee.email || ''}" placeholder="employee@example.com" /></label>
+      <label>Telegram<input id="fTelegram" value="${employee.telegram || ''}" placeholder="@username" /></label>
       <label>Дата начала работы<input id="fStartDate" type="date" value="${employee.startDate || ''}" /></label>
+      <label>Дата рождения<input id="fBirthDate" type="date" value="${employee.birthDate || ''}" /></label>
+      <label>Город<input id="fCity" value="${employee.city || ''}" placeholder="Москва" /></label>
+      <label>Адрес<input id="fAddress" value="${employee.address || ''}" placeholder="ул. Пример, д. 1, кв. 1" /></label>
       <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3">${employee.notes || ''}</textarea></label>
     `;
     
@@ -615,7 +631,11 @@ async function renderEmployees() {
     const department = form.querySelector('#fDepartment').value.trim();
     const phone = form.querySelector('#fPhone').value.trim();
     const email = form.querySelector('#fEmail').value.trim();
+    const telegram = form.querySelector('#fTelegram').value.trim();
     const startDate = form.querySelector('#fStartDate').value;
+    const birthDate = form.querySelector('#fBirthDate').value;
+    const city = form.querySelector('#fCity').value.trim();
+    const address = form.querySelector('#fAddress').value.trim();
     const notes = form.querySelector('#fNotes').value.trim();
     
     if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
@@ -623,7 +643,7 @@ async function renderEmployees() {
     try {
       const updated = await api('/api/employees', { 
         method: 'PUT', 
-        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, startDate, notes }) 
+        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, notes }) 
       });
       
       // Update local list
@@ -686,7 +706,11 @@ async function renderEmployeeCard(id) {
             ${e.department ? `<div><strong>Отдел:</strong> ${e.department}</div>` : ''}
             ${e.phone ? `<div><strong>Телефон:</strong> ${e.phone}</div>` : ''}
             ${e.email ? `<div><strong>Email:</strong> ${e.email}</div>` : ''}
+            ${e.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">${e.telegram}</a></div>` : ''}
             ${e.startDate ? `<div><strong>Начало работы:</strong> ${e.startDate}</div>` : ''}
+            ${e.birthDate ? `<div><strong>Дата рождения:</strong> ${e.birthDate}</div>` : ''}
+            ${e.city ? `<div><strong>Город:</strong> ${e.city}</div>` : ''}
+            ${e.address ? `<div><strong>Адрес:</strong> ${e.address}</div>` : ''}
             ${e.notes ? `<div style="white-space:pre-wrap"><strong>Заметки:</strong> ${e.notes}</div>` : ''}
           </div>
           ${(window.currentUser && (window.currentUser.role === 'root')) ? `
