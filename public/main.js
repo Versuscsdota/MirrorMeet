@@ -1032,6 +1032,22 @@ async function renderModelCard(id) {
         </form>
       </div>
     </div>`;
+  // Render comments helper
+  function renderComments(list){
+    const box = el('#commentsList');
+    const items = Array.isArray(list) ? [...list] : [];
+    items.sort((a,b)=> (a.ts||0) - (b.ts||0));
+    box.innerHTML = items.map(c => {
+      const when = c.ts ? new Date(c.ts).toLocaleString('ru') : '';
+      const who = c.user && (c.user.login || c.user.fullName || c.user.id) ? ` · ${c.user.login || c.user.fullName || c.user.id}` : '';
+      const text = (c.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div class="comment-item" style="padding:8px;border:1px solid #1f2937;border-radius:8px;background:#0b1220">`+
+        `<div style="font-size:12px;color:#94a3b8">${when}${who}</div>`+
+        `<div style="margin-top:4px;white-space:pre-wrap">${text}</div>`+
+      `</div>`;
+    }).join('');
+  }
+  renderComments(model.comments || []);
   const gridEl = el('#filesGrid');
   function applyFileSort(arr, mode){
     const a = [...arr];
@@ -1208,12 +1224,33 @@ async function renderModelCard(id) {
       const res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      if (data && data.file) {
-        files = [data.file, ...files];
+      if (data) {
+        if (Array.isArray(data.files)) {
+          files = [...data.files, ...files];
+        } else if (data.file) {
+          files = [data.file, ...files];
+        }
       }
       renderFiles();
     } catch (err) { alert(err.message); }
   });
+  // Comment submit handler
+  const commentForm = el('#commentForm');
+  if (commentForm) {
+    commentForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const ta = el('#commentText');
+      const text = (ta.value || '').trim();
+      if (!text) return;
+      try {
+        const resp = await api('/api/models', { method: 'PUT', body: JSON.stringify({ action: 'addComment', modelId: id, text }) });
+        // resp: { ok, comment, model }
+        ta.value = '';
+        const updated = (resp && resp.model) ? resp.model : model;
+        renderComments(updated.comments || []);
+      } catch (e) { alert(e.message); }
+    });
+  }
 }
 
 function timeStr(d) { return d.toTimeString().slice(0,5); }

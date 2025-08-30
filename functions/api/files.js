@@ -129,10 +129,10 @@ export async function onRequestPost(context) {
   const fd = await request.formData();
   const modelId = fd.get('modelId');
   const slotId = fd.get('slotId');
-  const file = fd.get('file');
-  let name = (fd.get('name') || '').toString();
+  const files = (typeof fd.getAll === 'function') ? fd.getAll('file') : [fd.get('file')].filter(Boolean);
+  const nameSingle = (fd.get('name') || '').toString();
   const description = (fd.get('description') || '').toString();
-  if ((!modelId && !slotId) || !file || !name) return badRequest('modelId or slotId, file, name required');
+  if ((!modelId && !slotId) || !files || files.length === 0) return badRequest('modelId or slotId and at least one file required');
 
   let entity = null;
   if (modelId) {
@@ -149,37 +149,40 @@ export async function onRequestPost(context) {
     entity = { type: 'slot', id: slotId, roles: ['root','admin','interviewer'] };
   }
 
-  // enforce 50 MB limit
+  // enforce 50 MB limit per file
   const MAX = 50 * 1024 * 1024;
-  const size = file.size ?? 0;
-  if (size > MAX) return forbidden('Размер файла превышает 50 МБ');
+  const created = [];
+  for (const f of files) {
+    const size = f.size ?? 0;
+    if (size > MAX) return forbidden('Размер файла превышает 50 МБ');
+    // Type and extension validation
+    const contentType = f.type || 'application/octet-stream';
+    if (contentType && !ALLOWED_MIME.has(contentType)) {
+      return forbidden('Недопустимый тип файла');
+    }
+    // Determine name: explicit name field or file name
+    let name = sanitizeName(nameSingle || f.name || 'file');
+    const ext = getExt(name);
+    if (ext && BLOCKED_EXT.has(ext)) return forbidden('Запрещённое расширение файла');
 
-  // Type and extension validation
-  const contentType = file.type || 'application/octet-stream';
-  if (contentType && !ALLOWED_MIME.has(contentType)) {
-    return forbidden('Недопустимый тип файла');
+    const id = newId('fil');
+    const objectKey = entity.type === 'model' ? `files/models/${entity.id}/${id}` : `files/slots/${entity.id}/${id}`;
+    await env.CRM_FILES.put(objectKey, f.stream(), { httpMetadata: { contentType } });
+
+    const meta = entity.type === 'model'
+      ? { id, entity: 'model', modelId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() }
+      : { id, entity: 'slot', slotId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() };
+    await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
+    if (entity.type === 'model') {
+      await env.CRM_KV.put(`file_model:${entity.id}:${id}`, '1');
+    } else {
+      await env.CRM_KV.put(`file_slot:${entity.id}:${id}`, '1');
+    }
+    created.push({ ...meta, url: `/api/files?id=${id}` });
   }
-  name = sanitizeName(name);
-  const ext = getExt(name);
-  if (ext && BLOCKED_EXT.has(ext)) return forbidden('Запрещённое расширение файла');
 
-  const id = newId('fil');
-  const objectKey = entity.type === 'model' ? `files/models/${entity.id}/${id}` : `files/slots/${entity.id}/${id}`;
-
-  await env.CRM_FILES.put(objectKey, file.stream(), { httpMetadata: { contentType } });
-
-  const meta = entity.type === 'model'
-    ? { id, entity: 'model', modelId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() }
-    : { id, entity: 'slot', slotId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() };
-  await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
-  // write index key for fast listing
-  if (entity.type === 'model') {
-    await env.CRM_KV.put(`file_model:${entity.id}:${id}`, '1');
-  } else {
-    await env.CRM_KV.put(`file_slot:${entity.id}:${id}`, '1');
-  }
-
-  return json({ ok: true, file: { ...meta, url: `/api/files?id=${id}` } });
+  if (created.length === 1) return json({ ok: true, file: created[0] });
+  return json({ ok: true, files: created });
 }
 
 export async function onRequestDelete(context) {
