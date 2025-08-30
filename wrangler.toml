@@ -16,7 +16,6 @@ bucket_name = "mirror-crm-files"
 [vars]
 SESSION_COOKIE_NAME = "mirrorsid"
 SESSION_TTL_SECONDS = 604800 # 7 days
-SESSION_HMAC_SECRET = "4f1f7f2cddc84c9ab1dbabf2ea5f3a8c6f2b5a2d7c9e4a1f8b6d3c1a9e0f4b2c9d7e3a1b5c8f2d6e0a3b7c9f1e2d4c6a8"
 
 [observability]
 enabled = true
@@ -36,4 +35,3 @@ bucket_name = "mirror-crm-files"
 [env.staging.vars]
 SESSION_COOKIE_NAME = "mirrorsid"
 SESSION_TTL_SECONDS = 604800
-SESSION_HMAC_SECRET = "4f1f7f2cddc84c9ab1dbabf2ea5f3a8c6f2b5a2d7c9e4a1f8b6d3c1a9e0f4b2c9d7e3a1b5c8f2d6e0a3b7c9f1e2d4c6a8"
