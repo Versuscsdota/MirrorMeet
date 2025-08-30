@@ -884,5 +884,240 @@ main{padding:16px}
 
 .model-actions {
   margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Employee card specific styles */
+.employee-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.employee-card .model-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.employee-card .model-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.employee-card .model-fullname {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+  margin: 2px 0 0 0;
+}
+
+.employee-card .model-info .info-item {
+  background: var(--panel-light);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.employee-card .model-info .info-item:hover {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+}
+
+.employee-card .model-info .info-item a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.employee-card .model-info .info-item a:hover {
+  color: var(--accent);
+}
+
+.employee-card .model-actions button {
+  padding: 8px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.employee-card .model-actions .openEmployee {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+}
+
+.employee-card .model-actions .openEmployee:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.employee-card .model-actions .toggleMore {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.employee-card .model-actions .toggleMore:hover {
+  background: var(--panel-light);
+  color: var(--text);
+  border-color: var(--accent-weak);
+}
+
+.employee-card .model-actions .edit-employee {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.employee-card .model-actions .edit-employee:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.employee-card .model-actions .delete-employee {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.employee-card .model-actions .delete-employee:hover {
+  background: var(--danger);
+  color: var(--text);
+}
+
+.employee-more {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.employee-more .model-info .info-item {
+  background: var(--bg);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Employee card layout improvements */
+.employee-card .model-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.employee-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+  background: var(--success);
+  color: var(--bg);
+}
+
+.employee-contacts {
+  margin-bottom: 12px;
+}
+
+.employee-contacts .model-info {
+  gap: 8px;
+}
+
+.employee-notes {
+  margin-bottom: 12px;
+}
+
+.employee-notes .model-note {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--panel-light);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-weak);
+}
+
+.employee-card .model-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.employee-card .model-actions button.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  font-weight: 600;
+}
+
+.employee-card .model-actions button.primary:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(43, 179, 177, 0.3);
+}
+
+.employee-card .model-actions button.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.employee-card .model-actions button.secondary:hover {
+  background: var(--panel-light);
+  color: var(--text);
+  border-color: var(--accent-weak);
+}
+
+.employee-card .model-actions button.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.employee-card .model-actions button.danger:hover {
+  background: var(--danger);
+  color: var(--text);
+}
+
+.expanded-info {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.expanded-info .info-item {
+  background: var(--bg);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 6px 8px;
 }
 

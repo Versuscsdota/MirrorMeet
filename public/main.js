@@ -460,30 +460,43 @@ async function renderEmployees() {
       (e.department||'').toLowerCase().includes(q)
     );
     gridEl.innerHTML = filtered.map(e => {
-      const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">${e.email}</a></span>` : '';
-      const contactTg = e.telegram ? `<span class="info-item"><a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">@${String(e.telegram).replace('@','')}</a></span>` : '';
+      const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">📧 ${e.email}</a></span>` : '';
+      const contactTg = e.telegram ? `<span class="info-item"><a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">💬 @${String(e.telegram).replace('@','')}</a></span>` : '';
+      const contactPhone = e.phone ? `<span class="info-item">📞 ${e.phone}</span>` : '';
+      
       return `
         <div class="card model-card employee-card">
           <div class="model-header">
-            <h3>${e.fullName || 'Сотрудник'}</h3>
-            ${e.position ? `<div class="model-fullname">${e.position}</div>` : ''}
+            <div>
+              <h3>${e.fullName || 'Сотрудник'}</h3>
+              ${e.position ? `<div class="model-fullname">${e.position}</div>` : ''}
+            </div>
+            <div class="employee-status">
+              <span class="status-badge active">Активен</span>
+            </div>
           </div>
-          <div class="model-info">
-            ${contactEmail}
-            ${contactTg}
+          
+          <div class="employee-contacts">
+            <div class="model-info">
+              ${contactEmail}
+              ${contactTg}
+            </div>
           </div>
-          ${e.notes ? `<p class="model-note">${e.notes}</p>` : ''}
-          <div class="model-actions" style="gap:8px;flex-wrap:wrap">
-            <button data-id="${e.id}" class="openEmployee">Открыть профиль</button>
-            <button data-id="${e.id}" class="toggleMore">Показать подробнее</button>
-            ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
-            ${isRoot ? `<button class="delete-employee" data-id="${e.id}" style="background:#dc2626">Удалить</button>` : ''}
+          
+          ${e.notes ? `<div class="employee-notes"><p class="model-note">${e.notes}</p></div>` : ''}
+          
+          <div class="model-actions">
+            <button data-id="${e.id}" class="openEmployee primary">Открыть профиль</button>
+            <button data-id="${e.id}" class="toggleMore secondary">Подробнее</button>
+            ${isRoot ? `<button class="edit-employee secondary" data-id="${e.id}">Изменить</button>` : ''}
+            ${isRoot ? `<button class="delete-employee danger" data-id="${e.id}">Удалить</button>` : ''}
           </div>
-          <div class="employee-more" data-id="${e.id}" style="display:none;margin-top:8px">
-            <div class="model-info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              ${e.department ? `<span class="info-item">Отдел: ${e.department}</span>` : ''}
-              ${e.phone ? `<span class="info-item">Тел: ${e.phone}</span>` : ''}
-              ${e.startDate ? `<span class="info-item">Начал: ${e.startDate}</span>` : ''}
+          
+          <div class="employee-more" data-id="${e.id}" style="display:none">
+            <div class="model-info expanded-info">
+              ${e.department ? `<span class="info-item">🏢 ${e.department}</span>` : ''}
+              ${contactPhone}
+              ${e.startDate ? `<span class="info-item">📅 Начал работу: ${e.startDate}</span>` : ''}
             </div>
           </div>
         </div>`;
