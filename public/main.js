@@ -757,8 +757,10 @@ async function renderModelCard(id) {
     return;
   }
   const view = el('#view');
-  const model = await api('/api/models?id=' + encodeURIComponent(id));
-  const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
+  const [model, filesRes] = await Promise.all([
+    api('/api/models?id=' + encodeURIComponent(id)),
+    api('/api/files?modelId=' + encodeURIComponent(id))
+  ]);
   let files = filesRes.items || [];
   
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
@@ -840,12 +842,16 @@ async function renderModelCard(id) {
     else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
     return a;
   }
+  // simple pagination
+  let page = 1;
+  const pageSize = 24;
   function renderFiles(){
     const q = (el('#fileSearch').value || '').toLowerCase();
     const mode = el('#fileSort').value;
     const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
     const sorted = applyFileSort(filtered, mode);
-    gridEl.innerHTML = sorted.map(f => {
+    const paged = sorted.slice(0, page*pageSize);
+    gridEl.innerHTML = paged.map(f => {
       const viewUrl = f.url;
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
       const canDownload = (window.currentUser && window.currentUser.role === 'root');
@@ -854,7 +860,7 @@ async function renderModelCard(id) {
       const fileDate = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : '';
       return `
         <div class="file-card">
-          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" /></div>` : 
+          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" loading="lazy" /></div>` : 
             isVideo ? `<div class="file-thumb video"><span>📹</span></div>` : 
             `<div class="file-thumb doc"><span>📄</span></div>`}
           <div class="file-info">
@@ -869,6 +875,21 @@ async function renderModelCard(id) {
           </div>
         </div>`;
     }).join('');
+    const moreBtnId = 'moreFilesBtn';
+    let moreBtn = document.getElementById(moreBtnId);
+    if (sorted.length > paged.length) {
+      if (!moreBtn) {
+        moreBtn = document.createElement('button');
+        moreBtn.id = moreBtnId;
+        moreBtn.textContent = 'Показать ещё';
+        moreBtn.className = 'file-btn';
+        gridEl.parentElement.appendChild(moreBtn);
+        moreBtn.onclick = () => { page++; renderFiles(); };
+      }
+      moreBtn.style.display = '';
+    } else if (moreBtn) {
+      moreBtn.style.display = 'none';
+    }
     // no inline preview, only download
   }
   el('#fileSearch').addEventListener('input', renderFiles);

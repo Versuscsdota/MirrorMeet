@@ -79,9 +79,21 @@ export async function onRequestGet(context) {
   if (modelId) {
     const { error } = await requireRole(env, request, ['root','admin']);
     if (error) return error;
-    const list = await env.CRM_KV.list({ prefix: 'file:' });
-    const metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-    const items = metas.filter(f => f && f.entity === 'model' && f.modelId === modelId).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
+    // Try indexed listing first
+    const idx = await env.CRM_KV.list({ prefix: `file_model:${modelId}:` });
+    let metas = [];
+    if (idx.keys && idx.keys.length) {
+      metas = await Promise.all(idx.keys.map(k => {
+        const id = k.name.split(':').pop();
+        return env.CRM_KV.get(`file:${id}`, { type: 'json' });
+      }));
+    } else {
+      // Fallback for legacy entries
+      const list = await env.CRM_KV.list({ prefix: 'file:' });
+      metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      metas = metas.filter(f => f && f.entity === 'model' && f.modelId === modelId);
+    }
+    const items = (metas || []).filter(Boolean).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
     items.sort((a,b)=> b.createdAt - a.createdAt);
     return json({ items });
   }
@@ -89,9 +101,19 @@ export async function onRequestGet(context) {
   if (slotId) {
     const { error } = await requireRole(env, request, ['root','admin','interviewer']);
     if (error) return error;
-    const list = await env.CRM_KV.list({ prefix: 'file:' });
-    const metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-    const items = metas.filter(f => f && f.entity === 'slot' && f.slotId === slotId).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
+    const idx = await env.CRM_KV.list({ prefix: `file_slot:${slotId}:` });
+    let metas = [];
+    if (idx.keys && idx.keys.length) {
+      metas = await Promise.all(idx.keys.map(k => {
+        const id = k.name.split(':').pop();
+        return env.CRM_KV.get(`file:${id}`, { type: 'json' });
+      }));
+    } else {
+      const list = await env.CRM_KV.list({ prefix: 'file:' });
+      metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      metas = metas.filter(f => f && f.entity === 'slot' && f.slotId === slotId);
+    }
+    const items = (metas || []).filter(Boolean).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
     items.sort((a,b)=> b.createdAt - a.createdAt);
     return json({ items });
   }
@@ -150,6 +172,12 @@ export async function onRequestPost(context) {
     ? { id, entity: 'model', modelId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() }
     : { id, entity: 'slot', slotId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() };
   await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
+  // write index key for fast listing
+  if (entity.type === 'model') {
+    await env.CRM_KV.put(`file_model:${entity.id}:${id}`, '1');
+  } else {
+    await env.CRM_KV.put(`file_slot:${entity.id}:${id}`, '1');
+  }
 
   return json({ ok: true, file: { ...meta, url: `/api/files?id=${id}` } });
 }
@@ -165,5 +193,11 @@ export async function onRequestDelete(context) {
   if (!meta) return notFound('file');
   await env.CRM_FILES.delete(meta.objectKey);
   await env.CRM_KV.delete(`file:${id}`);
+  // cleanup index
+  if (meta.entity === 'model') {
+    await env.CRM_KV.delete(`file_model:${meta.modelId}:${id}`);
+  } else if (meta.entity === 'slot') {
+    await env.CRM_KV.delete(`file_slot:${meta.slotId}:${id}`);
+  }
   return json({ ok: true });
 }

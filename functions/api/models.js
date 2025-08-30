@@ -48,6 +48,8 @@ export async function onRequestPost(context) {
       const id = newId('fil');
       const meta = { id, entity: 'model', modelId, name: f.name, description: f.description, objectKey: f.objectKey, contentType: f.contentType, size: f.size, createdAt: Date.now() };
       await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
+      // write index for faster listing
+      await env.CRM_KV.put(`file_model:${modelId}:${id}`, '1');
       linked.push({ ...meta, url: `/api/files?id=${id}` });
     }
 
@@ -81,7 +83,7 @@ export async function onRequestPost(context) {
 
 export async function onRequestPut(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   // Action: immutable comments append
@@ -92,7 +94,7 @@ export async function onRequestPut(context) {
     const cur = await env.CRM_KV.get(`model:${modelId}`, { type: 'json' });
     if (!cur) return notFound('model');
     cur.comments = Array.isArray(cur.comments) ? cur.comments : [];
-    const entry = { ts: Date.now(), text };
+    const entry = { ts: Date.now(), text, user: sess && sess.user ? { id: sess.user.id, login: sess.user.login, role: sess.user.role } : null };
     cur.comments.push(entry);
     await env.CRM_KV.put(`model:${modelId}`, JSON.stringify(cur));
     return json({ ok: true, comment: entry, model: cur });
