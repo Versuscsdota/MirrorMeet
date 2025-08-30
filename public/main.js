@@ -168,7 +168,16 @@ async function fetchMe() {
 function renderAppShell(me) {
   el('#app').innerHTML = `
     <header>
-      <div>MirrorCRM</div>
+      <div class="logo">
+        <svg width="120" height="48" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 45 Q25 35, 35 40 Q45 45, 50 35 Q55 25, 65 30 Q75 35, 80 25" 
+                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M90 55 Q100 45, 110 50 Q120 55, 125 45 Q130 35, 140 40 Q150 45, 155 35 Q160 25, 170 30 Q180 35, 185 25" 
+                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <ellipse cx="35" cy="20" rx="25" ry="15" stroke="#2bb3b1" stroke-width="2" fill="none" transform="rotate(-15 35 20)"/>
+        </svg>
+        <span>MirrorCRM</span>
+      </div>
       <nav>
         ${(me.role === 'root' || me.role === 'admin') ? `
           <button id="nav-models">Модели</button>
@@ -667,8 +676,12 @@ async function renderSchedule() {
     if (!target) return;
     e.preventDefault();
     const startX = e.clientX;
+    const startY = e.clientY;
     const isLeft = e.target.classList.contains('left');
     const isRight = e.target.classList.contains('right');
+    const currentRow = target.closest('.sched-row');
+    const currentEmployeeId = currentRow ? currentRow.dataset.employeeId : null;
+    
     const ev = {
       id: target.dataset.id,
       date: target.dataset.date,
@@ -676,7 +689,10 @@ async function renderSchedule() {
       widthPx: parseFloat(target.style.width),
       mode: isLeft ? 'resize-left' : isRight ? 'resize-right' : 'move',
       startX,
+      startY,
       node: target,
+      originalEmployeeId: currentEmployeeId,
+      currentEmployeeId: currentEmployeeId,
     };
     drag = ev;
     target.classList.add('dragging');
@@ -687,9 +703,36 @@ async function renderSchedule() {
   function onMove(e){
     if (!drag) return;
     const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    
+    // Horizontal drag for time changes and resizing
     if (drag.mode === 'move'){
       const nextLeft = clamp(drag.leftPx + dx, 0, (DAY_END-DAY_START)*PX_PER_MIN - drag.widthPx);
       drag.node.style.left = nextLeft + 'px';
+      
+      // Vertical drag for employee change (only in move mode)
+      if (Math.abs(dy) > 10) {
+        const schedTable = document.querySelector('.sched-table');
+        const rows = [...schedTable.querySelectorAll('.sched-row[data-employee-id]')];
+        const currentRowIndex = rows.findIndex(row => row.dataset.employeeId === drag.currentEmployeeId);
+        
+        if (currentRowIndex >= 0) {
+          const rowHeight = 56; // Fixed row height
+          const targetRowIndex = Math.max(0, Math.min(rows.length - 1, 
+            currentRowIndex + Math.round(dy / rowHeight)));
+          
+          if (targetRowIndex !== currentRowIndex) {
+            const targetRow = rows[targetRowIndex];
+            const newEmployeeId = targetRow.dataset.employeeId;
+            
+            // Visual feedback - highlight target row
+            rows.forEach(row => row.classList.remove('drop-target'));
+            targetRow.classList.add('drop-target');
+            
+            drag.currentEmployeeId = newEmployeeId;
+          }
+        }
+      }
     } else if (drag.mode === 'resize-left'){
       const nextLeft = clamp(drag.leftPx + dx, 0, drag.leftPx + drag.widthPx - 6);
       const nextWidth = drag.widthPx + (drag.leftPx - nextLeft);
@@ -708,17 +751,54 @@ async function renderSchedule() {
     const widthPx = parseFloat(node.style.width);
     node.classList.remove('dragging');
     document.body.style.cursor = '';
-    drag = null;
-    // convert to HM
-    const startMin = Math.round(leftPx / PX_PER_MIN) + DAY_START;
-    const endMin = Math.round((leftPx + widthPx) / PX_PER_MIN) + DAY_START;
-    const toHM = (m)=> `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-    try{
-      await api('/api/schedule', { method:'PUT', body: JSON.stringify({ id: node.dataset.id, date: node.dataset.date, start: toHM(startMin), end: toHM(endMin) }) });
-    }catch(err){ 
-      alert(err.message);
-      renderEvents(events);
+    
+    // Clear drop target highlights
+    document.querySelectorAll('.drop-target').forEach(row => row.classList.remove('drop-target'));
+    
+    // Check if employee changed
+    const employeeChanged = drag.currentEmployeeId !== drag.originalEmployeeId;
+    const timeChanged = drag.mode === 'move' || drag.mode === 'resize-left' || drag.mode === 'resize-right';
+    
+    if (employeeChanged || timeChanged) {
+      // convert to HM
+      const startMin = Math.round(leftPx / PX_PER_MIN) + DAY_START;
+      const endMin = Math.round((leftPx + widthPx) / PX_PER_MIN) + DAY_START;
+      const toHM = (m)=> `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+      
+      const updateData = { 
+        id: node.dataset.id, 
+        date: node.dataset.date, 
+        start: toHM(startMin), 
+        end: toHM(endMin) 
+      };
+      
+      // Add employee change if needed
+      if (employeeChanged) {
+        updateData.employeeId = drag.currentEmployeeId;
+      }
+      
+      try{
+        await api('/api/schedule', { method:'PUT', body: JSON.stringify(updateData) });
+        
+        // If employee changed, move the event to the new row
+        if (employeeChanged) {
+          const targetRow = document.querySelector(`.sched-row[data-employee-id="${drag.currentEmployeeId}"] .cell-right`);
+          if (targetRow) {
+            targetRow.appendChild(node);
+            // Update the event in our local data
+            const eventIndex = events.findIndex(e => e.id === node.dataset.id);
+            if (eventIndex >= 0) {
+              events[eventIndex].employeeId = drag.currentEmployeeId;
+            }
+          }
+        }
+      }catch(err){ 
+        alert(err.message);
+        renderEvents(events);
+      }
     }
+    
+    drag = null;
   }
   // delegate mousedown to all rows
   document.querySelector('.sched-table').addEventListener('mousedown', onDown);
