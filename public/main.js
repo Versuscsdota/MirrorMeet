@@ -385,82 +385,71 @@ async function renderSchedule() {
     api('/api/employees')
   ]);
   let events = data.items || [];
+  const width = (DAY_END - DAY_START) * PX_PER_MIN;
+  // Build a single grid with sticky left column
   view.innerHTML = `
     <section class="bar">
       <button id="addEvent">Создать слот</button>
       <input id="pickDate" type="date" value="${date}" />
     </section>
-    <div class="sched-layout">
-      <aside class="sched-left">
-        <h4>Сотрудники</h4>
-        <ul id="emplList" class="empl-list"></ul>
-      </aside>
-      <div class="sched-right">
-        <div class="tl-scroll">
-          <div class="tl-header" id="tlHeader"></div>
-          <div class="timeline" id="timeline">
-            <div class="tl-grid" id="tlGrid"></div>
-            <div class="tl-events" id="tlEvents"></div>
+    <div class="sched-wrap">
+      <div class="tl-scroll" id="schedScroll">
+        <div class="sched-table">
+          <div class="sched-header">
+            <div class="cell-left sticky">Сотрудник</div>
+            <div class="cell-right" style="width:${width}px">
+              <div class="tl-header" id="tlHeader"></div>
+              <div class="tl-grid" id="tlGridHeader"></div>
+            </div>
           </div>
+          ${(employees||[]).map((emp, idx)=>`
+            <div class="sched-row" data-emp="${emp.id}" style="height:${ROW_H}px">
+              <div class="cell-left sticky"><div class="empl-name">${emp.fullName}</div></div>
+              <div class="cell-right" style="width:${width}px">
+                <div class="row-grid"></div>
+                <div class="row-events"></div>
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     </div>
   `;
-  // render employees list (only full names)
-  const emplUl = el('#emplList');
-  emplUl.innerHTML = (employees || []).map(e => `<li><div class="empl-name">${e.fullName}</div></li>`).join('');
-
+  // Build hour ticks and vlines once (header)
   const header = el('#tlHeader');
-  const grid = el('#tlGrid');
-  const eventsLayer = el('#tlEvents');
-  const width = (DAY_END - DAY_START) * PX_PER_MIN;
-  el('#timeline').style.width = width + 'px';
-  grid.style.width = width + 'px';
-  eventsLayer.style.width = width + 'px';
-  // set timeline height based on employees
-  const totalHeight = (employees.length || 0) * ROW_H + 32; // padding for top
-  el('#timeline').style.height = totalHeight + 'px';
-  eventsLayer.style.height = totalHeight + 'px';
-  grid.style.height = totalHeight + 'px';
-
-  // build hour ticks and grid lines
+  const gridHeader = el('#tlGridHeader');
   let headerHtml = '';
-  let gridHtml = '';
+  let vlines = '';
   for (let m = DAY_START; m <= DAY_END; m += 60) {
     const left = (m - DAY_START) * PX_PER_MIN;
     const hh = String(Math.floor(m/60)).padStart(2,'0');
     headerHtml += `<div class="tl-hour" style="left:${left}px">${hh}:00</div>`;
-    gridHtml += `<div class="tl-vline" style="left:${left}px"></div>`;
-  }
-  // horizontal lines per employee row
-  for (let i = 0; i < (employees.length || 0); i++) {
-    const top = 24 + i * ROW_H; // 24px top padding for events lane
-    gridHtml += `<div class="tl-hline" style="top:${top - 2}px"></div>`; // slight offset for separator
+    vlines += `<div class="tl-vline" style="left:${left}px"></div>`;
   }
   header.innerHTML = headerHtml;
-  grid.innerHTML = gridHtml;
+  gridHeader.innerHTML = vlines;
 
-  function renderEvents(items) {
-    eventsLayer.innerHTML = '';
+  function renderEvents(items){
+    // Clear all rows
+    document.querySelectorAll('.sched-row').forEach(row => {
+      row.querySelector('.row-grid').innerHTML = vlines; // per-row vlines
+      row.querySelector('.row-events').innerHTML = '';
+    });
     items.forEach(ev => {
+      const row = document.querySelector(`.sched-row[data-emp="${ev.employeeId}"]`);
+      if (!row) return;
       const s = minutesFromHM(hmFromISO(ev.startISO));
       const e = minutesFromHM(hmFromISO(ev.endISO));
       const left = (s - DAY_START) * PX_PER_MIN;
-      const width = Math.max(6, (e - s) * PX_PER_MIN);
+      const widthPx = Math.max(6, (e - s) * PX_PER_MIN);
       const node = document.createElement('div');
       node.className = 'tl-event';
       node.style.left = left + 'px';
-      node.style.width = width + 'px';
+      node.style.width = widthPx + 'px';
       node.dataset.id = ev.id;
       node.dataset.date = ev.date;
-      const emp = (employees || []).find(e => e.id === ev.employeeId);
-      const rowIndex = Math.max(0, (employees || []).findIndex(e => e.id === (emp && emp.id)));
-      const top = 24 + rowIndex * ROW_H; // align to employee row
-      node.style.top = top + 'px';
-      const empLabel = emp ? ` • ${emp.fullName}` : '';
-      node.title = `${ev.title || 'Слот'}${emp ? ' ('+emp.fullName+')' : ''} ${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)}`;
-      node.innerHTML = `<span class="tl-title">${(ev.title || 'Слот') + empLabel}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
-      eventsLayer.appendChild(node);
+      node.innerHTML = `<span class="tl-title">${ev.title || 'Слот'}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
+      row.querySelector('.row-events').appendChild(node);
     });
   }
 
@@ -519,7 +508,8 @@ async function renderSchedule() {
       await api('/api/schedule', { method:'PUT', body: JSON.stringify({ id: node.dataset.id, date: node.dataset.date, start: toHM(startMin), end: toHM(endMin) }) });
     }catch(err){ alert(err.message); }
   }
-  eventsLayer.addEventListener('mousedown', onDown);
+  // delegate mousedown to all rows
+  document.querySelector('.sched-table').addEventListener('mousedown', onDown);
 
   el('#addEvent').onclick = async () => {
     const form = document.createElement('div');
@@ -559,17 +549,6 @@ async function renderSchedule() {
     const fresh = await api('/api/schedule?date=' + date);
     events = fresh.items || [];
     renderEvents(events);
-  });
-
-  // Sync vertical scroll between sidebar and timeline
-  const leftPane = document.querySelector('.sched-left');
-  const rightPane = document.querySelector('.sched-right');
-  let syncing = false;
-  rightPane.addEventListener('scroll', () => {
-    if (syncing) return; syncing = true; leftPane.scrollTop = rightPane.scrollTop; syncing = false;
-  });
-  leftPane.addEventListener('scroll', () => {
-    if (syncing) return; syncing = true; rightPane.scrollTop = leftPane.scrollTop; syncing = false;
   });
 }
 
