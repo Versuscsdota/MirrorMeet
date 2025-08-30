@@ -111,24 +111,48 @@ async function renderEmployees() {
   
   function renderList(){
     const q = (el('#emplSearch').value || '').toLowerCase();
-    const filtered = (items || []).filter(e => (e.fullName||'').toLowerCase().includes(q) || (e.position||'').toLowerCase().includes(q));
+    const filtered = (items || []).filter(e => 
+      (e.fullName||'').toLowerCase().includes(q) || 
+      (e.position||'').toLowerCase().includes(q) ||
+      (e.department||'').toLowerCase().includes(q)
+    );
     listEl.innerHTML = filtered.map(e => `
       <li class="employee-item">
         <div class="employee-info">
-          <div class="empl-name">${e.fullName}</div>
-          <div class="empl-pos">${e.position||''}</div>
+          <div class="employee-header">
+            <div class="empl-name">${e.fullName}</div>
+            <div class="employee-actions">
+              ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
+              ${isRoot ? `<button class="delete-employee" data-id="${e.id}">Удалить</button>` : ''}
+            </div>
+          </div>
+          <div class="employee-details">
+            <div class="empl-pos">${e.position||''}</div>
+            ${e.department ? `<div class="empl-dept">${e.department}</div>` : ''}
+            ${e.phone ? `<div class="empl-contact">📞 ${e.phone}</div>` : ''}
+            ${e.email ? `<div class="empl-contact">✉️ ${e.email}</div>` : ''}
+            ${e.startDate ? `<div class="empl-start">Начало работы: ${e.startDate}</div>` : ''}
+          </div>
+          ${e.notes ? `<div class="empl-notes">${e.notes}</div>` : ''}
         </div>
-        ${isRoot ? `<button class="delete-employee ghost" data-id="${e.id}" style="color: var(--danger); border-color: var(--danger);">Удалить</button>` : ''}
       </li>
     `).join('');
     
-    // Add delete functionality
+    // Add functionality
     if (isRoot) {
       [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
         btn.onclick = async () => {
           const employeeId = btn.dataset.id;
           const employee = filtered.find(e => e.id === employeeId);
           await deleteEmployeeWithPassword(employee);
+        };
+      });
+      
+      [...listEl.querySelectorAll('.edit-employee')].forEach(btn => {
+        btn.onclick = async () => {
+          const employeeId = btn.dataset.id;
+          const employee = filtered.find(e => e.id === employeeId);
+          await editEmployee(employee);
         };
       });
     }
@@ -141,24 +165,36 @@ async function renderEmployees() {
       const form = document.createElement('div');
       form.innerHTML = `
         <label>ФИО<input id="fFullName" placeholder="Иванов Иван Иванович" required /></label>
-        <label>Должность<input id="fPosition" placeholder="Менеджер" required /></label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <label>Телефон<input id="fPhone" placeholder="+79991234567" /></label>
-          <label>Email<input id="fEmail" type="email" placeholder="name@example.com" /></label>
-        </div>`;
+        <label>Должность<input id="fPosition" placeholder="Фотограф" required /></label>
+        <label>Отдел<input id="fDepartment" placeholder="Студийная съёмка" /></label>
+        <label>Телефон<input id="fPhone" placeholder="+7 (999) 123-45-67" /></label>
+        <label>Email<input id="fEmail" placeholder="employee@example.com" /></label>
+        <label>Дата начала работы<input id="fStartDate" type="date" /></label>
+        <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3"></textarea></label>
+        <label>Роль
+          <select id="fRole">
+            <option value="interviewer">Интервьюер</option>
+            <option value="curator">Куратор</option>
+            <option value="admin">Администратор</option>
+          </select>
+        </label>
+      `;
       const res = await showModal({ title: 'Добавить сотрудника', content: form, submitText: 'Создать' });
       if (!res) return;
       const { close, setError } = res;
       const fullName = form.querySelector('#fFullName').value.trim();
       const position = form.querySelector('#fPosition').value.trim();
+      const department = form.querySelector('#fDepartment').value.trim();
       const phone = form.querySelector('#fPhone').value.trim();
       const email = form.querySelector('#fEmail').value.trim();
+      const startDate = form.querySelector('#fStartDate').value;
+      const notes = form.querySelector('#fNotes').value.trim();
+      const role = form.querySelector('#fRole').value;
       if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
-        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, startDate, notes, role }) });
         // Optimistic update: add to local list and re-render without refetch
-        const toAdd = { id: created.id, fullName: created.fullName, position: created.position };
-        items = [toAdd, ...items];
+        items = [created, ...items];
         renderList();
         close();
         // Show generated credentials once
@@ -175,6 +211,51 @@ async function renderEmployees() {
         }
       } catch (e) { setError(e.message); }
     };
+  }
+
+  // Add edit employee function
+  async function editEmployee(employee) {
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>ФИО<input id="fFullName" value="${employee.fullName || ''}" placeholder="Иванов Иван Иванович" required /></label>
+      <label>Должность<input id="fPosition" value="${employee.position || ''}" placeholder="Фотограф" required /></label>
+      <label>Отдел<input id="fDepartment" value="${employee.department || ''}" placeholder="Студийная съёмка" /></label>
+      <label>Телефон<input id="fPhone" value="${employee.phone || ''}" placeholder="+7 (999) 123-45-67" /></label>
+      <label>Email<input id="fEmail" value="${employee.email || ''}" placeholder="employee@example.com" /></label>
+      <label>Дата начала работы<input id="fStartDate" type="date" value="${employee.startDate || ''}" /></label>
+      <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3">${employee.notes || ''}</textarea></label>
+    `;
+    
+    const res = await showModal({ title: 'Редактировать сотрудника', content: form, submitText: 'Сохранить' });
+    if (!res) return;
+    
+    const { close, setError } = res;
+    const fullName = form.querySelector('#fFullName').value.trim();
+    const position = form.querySelector('#fPosition').value.trim();
+    const department = form.querySelector('#fDepartment').value.trim();
+    const phone = form.querySelector('#fPhone').value.trim();
+    const email = form.querySelector('#fEmail').value.trim();
+    const startDate = form.querySelector('#fStartDate').value;
+    const notes = form.querySelector('#fNotes').value.trim();
+    
+    if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
+    
+    try {
+      const updated = await api('/api/employees', { 
+        method: 'PUT', 
+        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, startDate, notes }) 
+      });
+      
+      // Update local list
+      const index = items.findIndex(e => e.id === employee.id);
+      if (index !== -1) {
+        items[index] = updated.employee;
+        renderList();
+      }
+      close();
+    } catch (e) { 
+      setError(e.message); 
+    }
   }
 }
 
