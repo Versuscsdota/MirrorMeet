@@ -147,8 +147,9 @@ app.delete('/api/schedule', (req, res) => callHandler(schedule.onRequestDelete, 
 
 // Files API with multipart support
 app.get('/api/files', (req, res) => callHandler(files.onRequestGet, req, res));
-app.post('/api/files', upload.single('file'), async (req, res) => {
-  const parsedForm = { fields: req.body || {}, files: req.file ? [req.file] : [] };
+app.post('/api/files', upload.any(), async (req, res) => {
+  const filesArr = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
+  const parsedForm = { fields: req.body || {}, files: filesArr };
   await callHandler(files.onRequestPost, req, res, parsedForm);
 });
 app.delete('/api/files', (req, res) => callHandler(files.onRequestDelete, req, res));
