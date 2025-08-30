@@ -830,7 +830,7 @@ async function renderModelCard(id) {
         <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
         <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
           <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
-          <button type="submit">Добавить</button>
+          <button type="button" id="commentSubmit">Добавить</button>
         </form>
       </div>
     </div>`;
