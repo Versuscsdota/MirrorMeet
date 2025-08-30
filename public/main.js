@@ -51,21 +51,24 @@ async function renderCalendar() {
   let monthDays = [];
 
   view.innerHTML = `
-    <section class="bar" style="gap:8px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px">
-        <button id="mPrev" class="ghost" title="Предыдущий месяц">◀</button>
-        <strong id="mTitle"></strong>
-        <button id="mNext" class="ghost" title="Следующий месяц">▶</button>
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;height:calc(100vh - 120px)">
+      <div class="card" style="padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <button id="mPrev" class="ghost" style="padding:4px 8px">◀</button>
+          <strong id="mTitle" style="font-size:14px"></strong>
+          <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
+        </div>
+        <div id="monthGrid"></div>
+        ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
       </div>
-      <label style="margin-left:auto">Дата <input id="calDate" type="date" value="${today}" /></label>
-      <span style="flex:1"></span>
-      ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot">Создать слот</button>' : ''}
-    </section>
-    <div class="card" style="padding:12px">
-      <div id="monthGrid"></div>
-    </div>
-    <div class="card">
-      <ul id="slotList" class="empl-list"></ul>
+      <div class="card">
+        <div style="padding:16px;border-bottom:1px solid #1e1e1e">
+          <h3 style="margin:0;font-size:16px">Слоты на <span id="selectedDate">${today}</span></h3>
+        </div>
+        <div style="padding:16px;overflow-y:auto;max-height:calc(100vh - 200px)">
+          <ul id="slotList" class="empl-list" style="margin:0"></ul>
+        </div>
+      </div>
     </div>`;
 
   async function load() {
@@ -124,36 +127,28 @@ async function renderCalendar() {
     const todayStr = new Date().toISOString().slice(0,10);
 
     grid.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:12px;color:var(--muted);margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--muted);margin-bottom:4px;text-align:center">
         <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
         ${cells.map(c => {
-          if (!c) return `<div style=\"height:84px;border:1px solid #1e1e1e;background:#0e0e0e\"></div>`;
+          if (!c) return `<div style="height:40px;border:1px solid #1a1a1a;background:#0a0a0a"></div>`;
           const dstr = c.toISOString().slice(0,10);
           const info = byDate.get(dstr);
           const isToday = dstr === todayStr;
           const isSelected = dstr === date;
-          const slotsHtml = info && Array.isArray(info.slots) ? info.slots.map(sl => {
-            const t = (sl.start || '').slice(0,5);
-            const title = (sl.title || '').slice(0,20);
-            return `<div style=\"font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb\">${t} ${title}</div>`;
-          }).join('') : '';
-          const countBadge = info && info.count ? `<span style=\"align-self:flex-start;background:${isSelected ? '#2bb3b1' : '#222'};color:${isSelected ? '#000' : '#ccc'};font-size:11px;padding:2px 6px;border-radius:10px\">${info.count}</span>` : '';
+          const hasSlots = info && info.count > 0;
           return `
-            <button class=\"cal-cell\" data-date=\"${dstr}\" style=\"height:84px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;padding:6px;border:1px solid ${isSelected ? '#2bb3b1' : '#1e1e1e'};background:${isToday ? '#0f1f1f' : '#0e0e0e'}\">
-              <div style=\"width:100%;display:flex;align-items:center;justify-content:space-between\">
-                ${countBadge}
-                <span style=\"font-size:12px;color:${isSelected ? '#2bb3b1' : '#aaa'}\">${c.getDate()}</span>
-              </div>
-              <div style=\"width:100%;margin-top:4px;display:grid;gap:2px\">${slotsHtml}</div>
+            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? '#2bb3b1' : '#1a1a1a'};background:${isToday ? '#1a2a2a' : (hasSlots ? '#1a1a2a' : '#0a0a0a')};font-size:12px;color:${isSelected ? '#2bb3b1' : (hasSlots ? '#fff' : '#888')}">
+              ${c.getDate()}
+              ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#2bb3b1;border-radius:50%"></div>` : ''}
             </button>`;
         }).join('')}
       </div>`;
 
     [...grid.querySelectorAll('.cal-cell')].forEach(btn => btn.onclick = async () => {
       date = btn.dataset.date;
-      const dateInput = el('#calDate'); if (dateInput) dateInput.value = date;
+      el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
       await load();
       renderMonth();
     });
@@ -356,7 +351,7 @@ async function renderCalendar() {
     } catch (e) { setError(e.message); }
   }
 
-  el('#calDate').addEventListener('change', async (e) => { date = e.target.value; currentMonth = date.slice(0,7); await Promise.all([loadMonth(), load()]); });
+  // Remove date input - navigation only via calendar clicks
   el('#mPrev').onclick = async () => {
     const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
     const d = new Date(y, m-2, 1);
@@ -370,6 +365,7 @@ async function renderCalendar() {
     await loadMonth();
   };
   const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
+  el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   await Promise.all([loadMonth(), load()]);
 }
 
