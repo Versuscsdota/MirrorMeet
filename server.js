@@ -155,6 +155,6 @@ app.delete('/api/files', (req, res) => callHandler(files.onRequestDelete, req, r
 // Static assets
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
-  console.log(`MirrorCRM server listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`MirrorCRM server listening on 0.0.0.0:${PORT} (local: http://127.0.0.1:${PORT})`);
 });
