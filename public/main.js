@@ -607,6 +607,12 @@ async function renderEmployees() {
 
   // Add edit employee function
   async function editEmployee(employee) {
+    // Fetch full details to include current role
+    let full = employee;
+    try {
+      full = await api('/api/employees?id=' + encodeURIComponent(employee.id));
+    } catch {}
+    const currentRole = (full && full.role) || 'interviewer';
     const form = document.createElement('div');
     form.innerHTML = `
       <label>ФИО<input id="fFullName" value="${employee.fullName || ''}" placeholder="Иванов Иван Иванович" required /></label>
@@ -619,6 +625,13 @@ async function renderEmployees() {
       <label>Дата рождения<input id="fBirthDate" type="date" value="${employee.birthDate || ''}" /></label>
       <label>Город<input id="fCity" value="${employee.city || ''}" placeholder="Москва" /></label>
       <label>Адрес<input id="fAddress" value="${employee.address || ''}" placeholder="ул. Пример, д. 1, кв. 1" /></label>
+      <label>Роль
+        <select id="fRole">
+          <option value="interviewer" ${currentRole==='interviewer' ? 'selected' : ''}>Интервьюер</option>
+          <option value="curator" ${currentRole==='curator' ? 'selected' : ''}>Куратор</option>
+          <option value="admin" ${currentRole==='admin' ? 'selected' : ''}>Администратор</option>
+        </select>
+      </label>
       <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3">${employee.notes || ''}</textarea></label>
     `;
     
@@ -636,6 +649,7 @@ async function renderEmployees() {
     const birthDate = form.querySelector('#fBirthDate').value;
     const city = form.querySelector('#fCity').value.trim();
     const address = form.querySelector('#fAddress').value.trim();
+    const role = form.querySelector('#fRole').value;
     const notes = form.querySelector('#fNotes').value.trim();
     
     if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
@@ -643,7 +657,7 @@ async function renderEmployees() {
     try {
       const updated = await api('/api/employees', { 
         method: 'PUT', 
-        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, notes }) 
+        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, role, notes }) 
       });
       
       // Update local list
@@ -704,6 +718,7 @@ async function renderEmployeeCard(id) {
           <div style="display:grid;gap:6px;font-size:14px">
             ${e.position ? `<div><strong>Должность:</strong> ${e.position}</div>` : ''}
             ${e.department ? `<div><strong>Отдел:</strong> ${e.department}</div>` : ''}
+            ${e.role ? `<div><strong>Роль:</strong> ${e.role}</div>` : ''}
             ${e.phone ? `<div><strong>Телефон:</strong> ${e.phone}</div>` : ''}
             ${e.email ? `<div><strong>Email:</strong> ${e.email}</div>` : ''}
             ${e.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">${e.telegram}</a></div>` : ''}
