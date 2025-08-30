@@ -22,14 +22,17 @@ export async function onRequestGet(context) {
     const list = await env.CRM_KV.list({ prefix });
     const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
     const items = fetched.filter(Boolean);
-    // aggregate by date
+    // aggregate by date with small preview (first 2 slots by time)
     const days = {};
     for (const s of items) {
       if (!s || !s.date) continue;
-      days[s.date] = days[s.date] || { date: s.date, count: 0 };
-      days[s.date].count += 1;
+      const d = (days[s.date] = days[s.date] || { date: s.date, count: 0, slots: [] });
+      d.count += 1;
+      d.slots.push({ start: s.start, title: s.title });
     }
-    const out = Object.values(days).sort((a,b)=> a.date.localeCompare(b.date));
+    const out = Object.values(days)
+      .map(d => ({ ...d, slots: (d.slots || []).sort((a,b)=> (a.start||'').localeCompare(b.start||'')).slice(0,2) }))
+      .sort((a,b)=> a.date.localeCompare(b.date));
     return json({ days: out });
   }
 
