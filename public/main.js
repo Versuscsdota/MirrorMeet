@@ -636,6 +636,9 @@ async function renderEmployeeCard(id) {
   function render() {
     const e = data;
     const stats = e.stats || { eventsCount: 0, hoursTotal: 0, byDay: [] };
+    const byDayArr = Array.isArray(stats.byDay)
+      ? stats.byDay
+      : Object.entries(stats.byDay || {}).map(([date, count]) => ({ date, count }));
     view.innerHTML = `
       <section class="bar">
         <button id="backToEmployees" class="ghost">← Назад</button>
@@ -677,10 +680,10 @@ async function renderEmployeeCard(id) {
             <table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse">
               <thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Дата</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Кол-во</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Часы</th></tr></thead>
               <tbody>
-                ${(stats.byDay||[]).map(d => `<tr>
+                ${byDayArr.map(d => `<tr>
                   <td style="padding:6px;border-bottom:1px solid #111">${d.date}</td>
                   <td style="padding:6px;border-bottom:1px solid #111">${d.count||0}</td>
-                  <td style="padding:6px;border-bottom:1px solid #111">${hoursFmt(d.hours||0)}</td>
+                  <td style="padding:6px;border-bottom:1px solid #111">${(typeof d.hours === 'number') ? hoursFmt(d.hours) : '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
