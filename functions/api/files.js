@@ -35,13 +35,15 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const modelId = url.searchParams.get('modelId');
+  const slotId = url.searchParams.get('slotId');
 
   if (id) {
-    // Require admin/root for any file access by id (inline or download)
-    const { error } = await requireRole(env, request, ['root','admin']);
-    if (error) return error;
+    // Access by id: allow root/admin for everything; allow interviewer only for slot files
     const meta = await env.CRM_KV.get(`file:${id}`, { type: 'json' });
     if (!meta) return notFound('file');
+    const roles = meta.entity === 'slot' ? ['root','admin','interviewer'] : ['root','admin'];
+    const { error } = await requireRole(env, request, roles);
+    if (error) return error;
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
     // If download requested, require root
@@ -73,32 +75,79 @@ export async function onRequestGet(context) {
     } });
   }
 
-  // Listing requires admin/root
-  const { error } = await requireRole(env, request, ['root','admin']);
-  if (error) return error;
-  if (!modelId) return badRequest('modelId required');
-  const list = await env.CRM_KV.list({ prefix: 'file:' });
-  const metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-  const items = metas.filter(f => f && f.modelId === modelId).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
-  items.sort((a,b)=> b.createdAt - a.createdAt);
-  return json({ items });
+  // Listing
+  if (modelId) {
+    const { error } = await requireRole(env, request, ['root','admin']);
+    if (error) return error;
+    // Try indexed listing first
+    const idx = await env.CRM_KV.list({ prefix: `file_model:${modelId}:` });
+    let metas = [];
+    if (idx.keys && idx.keys.length) {
+      metas = await Promise.all(idx.keys.map(k => {
+        const id = k.name.split(':').pop();
+        return env.CRM_KV.get(`file:${id}`, { type: 'json' });
+      }));
+    } else {
+      // Fallback for legacy entries
+      const list = await env.CRM_KV.list({ prefix: 'file:' });
+      metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      metas = metas.filter(f => f && f.entity === 'model' && f.modelId === modelId);
+    }
+    const items = (metas || []).filter(Boolean).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
+    items.sort((a,b)=> b.createdAt - a.createdAt);
+    return json({ items });
+  }
+
+  if (slotId) {
+    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
+    if (error) return error;
+    const idx = await env.CRM_KV.list({ prefix: `file_slot:${slotId}:` });
+    let metas = [];
+    if (idx.keys && idx.keys.length) {
+      metas = await Promise.all(idx.keys.map(k => {
+        const id = k.name.split(':').pop();
+        return env.CRM_KV.get(`file:${id}`, { type: 'json' });
+      }));
+    } else {
+      const list = await env.CRM_KV.list({ prefix: 'file:' });
+      metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      metas = metas.filter(f => f && f.entity === 'slot' && f.slotId === slotId);
+    }
+    const items = (metas || []).filter(Boolean).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
+    items.sort((a,b)=> b.createdAt - a.createdAt);
+    return json({ items });
+  }
+
+  return badRequest('modelId or slotId required');
 }
 
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { sess, error } = await requireRole(env, request, ['root','admin']);
-  if (error) return error;
+  // For model files: root/admin; for slot files: root/admin/interviewer
 
   if (!request.headers.get('content-type')?.includes('multipart/form-data')) return badRequest('multipart/form-data required');
   const fd = await request.formData();
   const modelId = fd.get('modelId');
+  const slotId = fd.get('slotId');
   const file = fd.get('file');
   let name = (fd.get('name') || '').toString();
   const description = (fd.get('description') || '').toString();
-  if (!modelId || !file || !name) return badRequest('modelId, file, name required');
+  if ((!modelId && !slotId) || !file || !name) return badRequest('modelId or slotId, file, name required');
 
-  const model = await env.CRM_KV.get(`model:${modelId}`);
-  if (!model) return notFound('model');
+  let entity = null;
+  if (modelId) {
+    const { sess, error } = await requireRole(env, request, ['root','admin']);
+    if (error) return error;
+    const model = await env.CRM_KV.get(`model:${modelId}`);
+    if (!model) return notFound('model');
+    entity = { type: 'model', id: modelId, roles: ['root','admin'] };
+  } else {
+    const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
+    if (error) return error;
+    const slot = await env.CRM_KV.get(`slot_index:${slotId}`); // dummy read to ensure kv available (optional)
+    // we don't maintain slot_index here; presence not critical
+    entity = { type: 'slot', id: slotId, roles: ['root','admin','interviewer'] };
+  }
 
   // enforce 50 MB limit
   const MAX = 50 * 1024 * 1024;
@@ -115,12 +164,20 @@ export async function onRequestPost(context) {
   if (ext && BLOCKED_EXT.has(ext)) return forbidden('Запрещённое расширение файла');
 
   const id = newId('fil');
-  const objectKey = `files/${modelId}/${id}`;
+  const objectKey = entity.type === 'model' ? `files/models/${entity.id}/${id}` : `files/slots/${entity.id}/${id}`;
 
   await env.CRM_FILES.put(objectKey, file.stream(), { httpMetadata: { contentType } });
 
-  const meta = { id, modelId, name, description, objectKey, contentType, size, createdAt: Date.now(), createdBy: sess.user.id };
+  const meta = entity.type === 'model'
+    ? { id, entity: 'model', modelId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() }
+    : { id, entity: 'slot', slotId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() };
   await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
+  // write index key for fast listing
+  if (entity.type === 'model') {
+    await env.CRM_KV.put(`file_model:${entity.id}:${id}`, '1');
+  } else {
+    await env.CRM_KV.put(`file_slot:${entity.id}:${id}`, '1');
+  }
 
   return json({ ok: true, file: { ...meta, url: `/api/files?id=${id}` } });
 }
@@ -136,5 +193,11 @@ export async function onRequestDelete(context) {
   if (!meta) return notFound('file');
   await env.CRM_FILES.delete(meta.objectKey);
   await env.CRM_KV.delete(`file:${id}`);
+  // cleanup index
+  if (meta.entity === 'model') {
+    await env.CRM_KV.delete(`file_model:${meta.modelId}:${id}`);
+  } else if (meta.entity === 'slot') {
+    await env.CRM_KV.delete(`file_slot:${meta.slotId}:${id}`);
+  }
   return json({ ok: true });
 }

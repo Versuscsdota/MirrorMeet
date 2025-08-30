@@ -1,7 +1,9 @@
 const api = async (path, opts = {}) => {
+  const isFD = (opts && opts.body && typeof FormData !== 'undefined' && opts.body instanceof FormData);
+  const headers = isFD ? (opts.headers || {}) : { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   const res = await fetch(path, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    headers,
     ...opts,
   });
   if (!res.ok) throw new Error(await res.text());
@@ -37,6 +39,349 @@ function showModal({ title = '', content, submitText = 'Сохранить' }) {
     cancelBtn.onclick = () => { close(); resolve(null); };
     okBtn.onclick = () => { resolve({ close, setError: (m)=> err.textContent = m }); };
   });
+}
+
+// Employees helper
+const Employee = {
+  async getAll() {
+    return api('/api/employees');
+  },
+  async get(id, opts = {}) {
+    const qs = new URLSearchParams();
+    qs.set('id', String(id));
+    if (opts.withStats) qs.set('withStats', 'true');
+    if (opts.from) qs.set('from', opts.from);
+    if (opts.to) qs.set('to', opts.to);
+    return api('/api/employees?' + qs.toString());
+  }
+};
+
+// Calendar: slot-based without employee linkage
+async function renderCalendar() {
+  const view = el('#view');
+  const today = new Date().toISOString().slice(0,10);
+  let date = today;
+  let currentMonth = today.slice(0,7); // YYYY-MM
+  let slots = [];
+  let monthDays = [];
+
+  view.innerHTML = `
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;height:calc(100vh - 120px)">
+      <div class="card" style="padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <button id="mPrev" class="ghost" style="padding:4px 8px">◀</button>
+          <strong id="mTitle" style="font-size:14px"></strong>
+          <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
+        </div>
+        <div id="monthGrid"></div>
+        ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
+      </div>
+      <div class="card">
+        <div style="padding:16px;border-bottom:1px solid #1e1e1e">
+          <h3 style="margin:0;font-size:16px">Слоты на <span id="selectedDate">${today}</span></h3>
+        </div>
+        <div style="padding:16px;overflow-y:auto;max-height:calc(100vh - 200px)">
+          <ul id="slotList" class="empl-list" style="margin:0"></ul>
+        </div>
+      </div>
+    </div>`;
+
+  async function load() {
+    const res = await api('/api/schedule?date=' + encodeURIComponent(date));
+    slots = res.items || [];
+    renderList();
+  }
+
+  async function loadMonth() {
+    const res = await api('/api/schedule?month=' + encodeURIComponent(currentMonth));
+    monthDays = res.days || [];
+    renderMonth();
+  }
+
+  function renderList() {
+    const list = el('#slotList');
+    if (!slots.length) { list.innerHTML = '<li class="employee-item"><div class="employee-info">Слотов нет</div></li>'; return; }
+    list.innerHTML = slots.map(s => `
+      <li class="employee-item">
+        <div class="employee-info">
+          <div class="employee-header">
+            <div class="empl-name">${s.start || ''}–${s.end || ''} ${s.title ? '· ' + s.title : ''}</div>
+            <div class="employee-actions">
+              <button class="open-slot" data-id="${s.id}">Открыть</button>
+              ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
+            </div>
+          </div>
+          ${s.notes ? `<div class="empl-notes">${s.notes}</div>` : ''}
+        </div>
+      </li>
+    `).join('');
+
+    // Wire actions
+    [...list.querySelectorAll('.open-slot')].forEach(b => b.onclick = () => openSlot(b.dataset.id));
+    [...list.querySelectorAll('.edit-slot')].forEach(b => b.onclick = () => editSlot(b.dataset.id));
+    [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
+  }
+
+  // Month grid with slot previews
+  function renderMonth() {
+    const grid = el('#monthGrid');
+    const [y, m] = currentMonth.split('-').map(x=>parseInt(x,10));
+    const d0 = new Date(y, m-1, 1);
+    const monthName = d0.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+    const titleEl = el('#mTitle');
+    if (titleEl) titleEl.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    const startDow = (d0.getDay()+6)%7; // Mon=0
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells = [];
+    for (let i=0;i<startDow;i++) cells.push(null);
+    for (let day=1; day<=daysInMonth; day++) cells.push(new Date(y, m-1, day));
+    while (cells.length % 7) cells.push(null);
+
+    const byDate = new Map((monthDays||[]).map(d => [d.date, d]));
+    const todayStr = new Date().toISOString().slice(0,10);
+
+    grid.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--muted);margin-bottom:4px;text-align:center">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
+        ${cells.map(c => {
+          if (!c) return `<div style="height:40px;border:1px solid #1a1a1a;background:#0a0a0a"></div>`;
+          const dstr = c.toISOString().slice(0,10);
+          const info = byDate.get(dstr);
+          const isToday = dstr === todayStr;
+          const isSelected = dstr === date;
+          const hasSlots = info && info.count > 0;
+          return `
+            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? '#2bb3b1' : '#1a1a1a'};background:${isToday ? '#1a2a2a' : (hasSlots ? '#1a1a2a' : '#0a0a0a')};font-size:12px;color:${isSelected ? '#2bb3b1' : (hasSlots ? '#fff' : '#888')}">
+              ${c.getDate()}
+              ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#2bb3b1;border-radius:50%"></div>` : ''}
+            </button>`;
+        }).join('')}
+      </div>`;
+
+    [...grid.querySelectorAll('.cal-cell')].forEach(btn => btn.onclick = async () => {
+      date = btn.dataset.date;
+      el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+      await load();
+      renderMonth();
+    });
+  }
+
+  async function createSlot() {
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>Начало<input id="sStart" type="time" required /></label>
+      <label>Конец<input id="sEnd" type="time" required /></label>
+      <label>Заголовок<input id="sTitle" /></label>
+      <label>Заметки<textarea id="sNotes" rows="3"></textarea></label>`;
+    const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
+    if (!m) return;
+    const { close, setError } = m;
+    const start = form.querySelector('#sStart').value.trim();
+    const end = form.querySelector('#sEnd').value.trim();
+    const title = form.querySelector('#sTitle').value.trim();
+    const notes = form.querySelector('#sNotes').value.trim();
+    if (!start || !end) { setError('Укажите время начала и конца'); return; }
+    try {
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, notes }) });
+      slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      renderList();
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  async function editSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
+      <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" /></label>
+      <label>Заголовок<input id="sTitle" value="${s.title || ''}" /></label>
+      <label>Заметки<textarea id="sNotes" rows="3">${s.notes || ''}</textarea></label>
+      <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"/></label></div>`;
+    const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
+    if (!m) return;
+    const { close, setError } = m;
+    const start = form.querySelector('#sStart').value.trim();
+    const end = form.querySelector('#sEnd').value.trim();
+    const title = form.querySelector('#sTitle').value.trim();
+    const notes = form.querySelector('#sNotes').value.trim();
+    const timeChanged = (start !== (s.start||'')) || (end !== (s.end||''));
+    const comment = timeChanged ? (form.querySelector('#sComment').value || '').trim() : '';
+    if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
+    try {
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
+      slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      renderList();
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  async function deleteSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+      alert('Недостаточно прав для удаления');
+      return;
+    }
+    if (window.currentUser.role === 'root') {
+      if (!await confirmRootPassword(`удаление слота ${s.start}-${s.end}`)) return;
+    }
+    if (!confirm('Удалить слот?')) return;
+    try {
+      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(date)}`, { method: 'DELETE' });
+      slots = slots.filter(x => x.id !== s.id);
+      renderList();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function openSlot(id) {
+    const s = slots.find(x => x.id === id);
+    if (!s) return;
+    const box = document.createElement('div');
+    const canCreateModel = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
+    box.innerHTML = `
+      <div style="display:grid;gap:8px">
+        <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
+        <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
+        <div>
+          <h4>Вложения</h4>
+          <div id="attList" style="display:grid;gap:8px"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="upFile" type="file" accept="image/*,audio/*" />
+            <input id="upName" placeholder="Название файла" />
+            <button id="uploadBtn" type="button">Загрузить</button>
+          </div>
+        </div>
+        ${Array.isArray(s.history) && s.history.length ? `<div>
+          <h4>История</h4>
+          <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
+        </div>` : ''}
+        ${canCreateModel ? `<div style="margin-top:8px"><button id="createModelBtn" type="button">Создать модель из слота</button></div>` : ''}
+      </div>`;
+    const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
+
+    async function refreshFiles() {
+      try {
+        const res = await api('/api/files?slotId=' + encodeURIComponent(s.id));
+        const items = res.items || [];
+        const list = box.querySelector('#attList');
+        const canDelete = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
+        list.innerHTML = items.map(f => {
+          const ct = (f.contentType || '').toLowerCase();
+          const isImg = ct.startsWith('image/');
+          const isAudio = ct.startsWith('audio/');
+          return `
+            <div class="file-card" style="display:flex;gap:12px;align-items:center">
+              <div style="width:64px;height:48px;display:flex;align-items:center;justify-content:center;background:#111;border:1px solid #222">
+                ${isImg ? `<img src="${f.url}" style="max-width:100%;max-height:100%;object-fit:contain"/>` : (isAudio ? '🎵' : '📄')}
+              </div>
+              <div style="flex:1">
+                <div>${f.name}</div>
+                ${isAudio ? `<audio src="${f.url}" controls style="width:100%"></audio>` : ''}
+              </div>
+              ${canDelete ? `<div><button class="del-slot-file" data-id="${f.id}" style="background:#dc2626">Удалить</button></div>` : ''}
+            </div>`;
+        }).join('');
+
+        if (canDelete) {
+          [...list.querySelectorAll('.del-slot-file')].forEach(btn => {
+            btn.onclick = async () => {
+              const fileId = btn.dataset.id;
+              if (window.currentUser.role === 'root') {
+                if (!await confirmRootPassword('удаление вложения слота')) return;
+              }
+              if (!confirm('Удалить файл?')) return;
+              try {
+                await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
+                await refreshFiles();
+              } catch (e) { alert(e.message); }
+            };
+          });
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    // initial
+    refreshFiles();
+    // render history if exists
+    const historyEl = box.querySelector('#slotHistory');
+    if (historyEl && Array.isArray(s.history)) {
+      const actionLabel = (a) => a === 'create' ? 'создание' : a === 'time_change' ? 'смена времени' : 'изменение';
+      historyEl.innerHTML = s.history
+        .sort((a,b)=> (a.ts||0)-(b.ts||0))
+        .map(h => `<li style="font-size:12px;color:#aaa">${new Date(h.ts||Date.now()).toLocaleString('ru-RU')} · ${actionLabel(h.action)}${h.comment ? ` — ${h.comment}` : ''}</li>`)
+        .join('');
+    }
+
+    box.querySelector('#uploadBtn').onclick = async () => {
+      const f = box.querySelector('#upFile').files[0];
+      const name = (box.querySelector('#upName').value || '').trim() || (f && f.name) || 'file';
+      if (!f) { alert('Выберите файл'); return; }
+      const fd = new FormData();
+      fd.append('slotId', s.id);
+      fd.append('file', f);
+      fd.append('name', name);
+      try {
+        await api('/api/files', { method: 'POST', body: fd });
+        box.querySelector('#upFile').value = '';
+        box.querySelector('#upName').value = '';
+        await refreshFiles();
+      } catch (e) { alert(e.message); }
+    };
+
+    // Hook create model action (if visible)
+    if (canCreateModel) {
+      const btn = box.querySelector('#createModelBtn');
+      if (btn) btn.onclick = async () => {
+        const name = (s.title || `Модель от ${date} ${s.start || ''}`);
+        const note = (box.querySelector('#iText').value || '').trim();
+        try {
+          const model = await api('/api/models', { method: 'POST', body: JSON.stringify({ name, note }) });
+          // Ingest slot files and write interview history into model
+          await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date, slotId: s.id }) });
+          // Navigate to models and open the created model
+          renderModels();
+          if (model && model.id && typeof window.renderModelCard === 'function') {
+            window.renderModelCard(model.id);
+          }
+        } catch (e) { alert(e.message); }
+      };
+    }
+
+    const m = await modalPromise;
+    if (!m) return;
+    const { close, setError } = m;
+    try {
+      // save interview text
+      const text = () => (box.querySelector('#iText').value || '').trim();
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, interviewText: text() }) });
+      slots = slots.map(x => x.id === s.id ? updated : x);
+      close();
+    } catch (e) { setError(e.message); }
+  }
+
+  // Remove date input - navigation only via calendar clicks
+  el('#mPrev').onclick = async () => {
+    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+    const d = new Date(y, m-2, 1);
+    currentMonth = d.toISOString().slice(0,7);
+    await loadMonth();
+  };
+  el('#mNext').onclick = async () => {
+    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+    const d = new Date(y, m, 1);
+    currentMonth = d.toISOString().slice(0,7);
+    await loadMonth();
+  };
+  const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
+  el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  await Promise.all([loadMonth(), load()]);
 }
 
 function renderLogin() {
@@ -102,11 +447,9 @@ async function renderEmployees() {
       <span style="flex:1"></span>
       ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
     </section>
-    <div class="card">
-      <ul id="emplListFull" class="empl-list"></ul>
-    </div>
+    <div class="grid" id="emplGrid"></div>
   `;
-  const listEl = el('#emplListFull');
+  const gridEl = el('#emplGrid');
   const isRoot = window.currentUser.role === 'root';
   
   function renderList(){
@@ -114,33 +457,74 @@ async function renderEmployees() {
     const filtered = (items || []).filter(e => 
       (e.fullName||'').toLowerCase().includes(q) || 
       (e.position||'').toLowerCase().includes(q) ||
-      (e.department||'').toLowerCase().includes(q)
+      (e.department||'').toLowerCase().includes(q) ||
+      (e.city||'').toLowerCase().includes(q)
     );
-    listEl.innerHTML = filtered.map(e => `
-      <li class="employee-item">
-        <div class="employee-info">
-          <div class="employee-header">
-            <div class="empl-name">${e.fullName}</div>
-            <div class="employee-actions">
-              ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
-              ${isRoot ? `<button class="delete-employee" data-id="${e.id}">Удалить</button>` : ''}
+    gridEl.innerHTML = filtered.map(e => {
+      const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">📧 ${e.email}</a></span>` : '';
+      const contactTg = e.telegram ? `<span class="info-item"><a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">💬 @${String(e.telegram).replace('@','')}</a></span>` : '';
+      const contactPhone = e.phone ? `<span class="info-item">📞 ${e.phone}</span>` : '';
+      
+      return `
+        <div class="card model-card employee-card">
+          <div class="model-header">
+            <div>
+              <h3>${e.fullName || 'Сотрудник'}</h3>
+              ${e.position ? `<div class="model-fullname">${e.position}</div>` : ''}
+            </div>
+            <div class="employee-status">
+              <span class="status-badge active">Активен</span>
             </div>
           </div>
-          <div class="employee-details">
-            <div class="empl-pos">${e.position||''}</div>
-            ${e.department ? `<div class="empl-dept">${e.department}</div>` : ''}
-            ${e.phone ? `<div class="empl-contact">📞 ${e.phone}</div>` : ''}
-            ${e.email ? `<div class="empl-contact">✉️ ${e.email}</div>` : ''}
-            ${e.startDate ? `<div class="empl-start">Начало работы: ${e.startDate}</div>` : ''}
+          
+          <div class="employee-contacts">
+            <div class="model-info">
+              ${contactEmail}
+              ${contactTg}
+            </div>
           </div>
-          ${e.notes ? `<div class="empl-notes">${e.notes}</div>` : ''}
-        </div>
-      </li>
-    `).join('');
-    
+          
+          ${e.notes ? `<div class="employee-notes"><p class="model-note">${e.notes}</p></div>` : ''}
+          
+          <div class="model-actions">
+            <button data-id="${e.id}" class="openEmployee primary">Открыть профиль</button>
+            <button data-id="${e.id}" class="toggleMore secondary">Подробнее</button>
+            ${isRoot ? `<button class="edit-employee secondary" data-id="${e.id}">Изменить</button>` : ''}
+            ${isRoot ? `<button class="delete-employee danger" data-id="${e.id}">Удалить</button>` : ''}
+          </div>
+          
+          <div class="employee-more" data-id="${e.id}" style="display:none">
+            <div class="model-info expanded-info">
+              ${e.department ? `<span class="info-item">🏢 ${e.department}</span>` : ''}
+              ${contactPhone}
+              ${e.startDate ? `<span class="info-item">📅 Начал работу: ${e.startDate}</span>` : ''}
+              ${e.birthDate ? `<span class="info-item">🎂 Дата рождения: ${e.birthDate}</span>` : ''}
+              ${e.city ? `<span class="info-item">🏙️ ${e.city}</span>` : ''}
+              ${e.address ? `<span class="info-item">📍 ${e.address}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Open profile
+    [...gridEl.querySelectorAll('.openEmployee')].forEach(btn => {
+      btn.onclick = () => {
+        if (typeof window.renderEmployeeCard === 'function') window.renderEmployeeCard(btn.dataset.id);
+      };
+    });
+
+    // Toggle more
+    [...gridEl.querySelectorAll('.toggleMore')].forEach(btn => {
+      btn.onclick = () => {
+        const more = gridEl.querySelector(`.employee-more[data-id="${btn.dataset.id}"]`);
+        if (more) more.style.display = (more.style.display === 'none' || more.style.display === '') ? 'block' : 'none';
+        btn.textContent = (more && more.style.display === 'block') ? 'Скрыть' : 'Показать подробнее';
+      };
+    });
+
     // Add functionality
     if (isRoot) {
-      [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
+      [...gridEl.querySelectorAll('.delete-employee')].forEach(btn => {
         btn.onclick = async () => {
           const employeeId = btn.dataset.id;
           const employee = filtered.find(e => e.id === employeeId);
@@ -148,7 +532,7 @@ async function renderEmployees() {
         };
       });
       
-      [...listEl.querySelectorAll('.edit-employee')].forEach(btn => {
+      [...gridEl.querySelectorAll('.edit-employee')].forEach(btn => {
         btn.onclick = async () => {
           const employeeId = btn.dataset.id;
           const employee = filtered.find(e => e.id === employeeId);
@@ -169,7 +553,11 @@ async function renderEmployees() {
         <label>Отдел<input id="fDepartment" placeholder="Студийная съёмка" /></label>
         <label>Телефон<input id="fPhone" placeholder="+7 (999) 123-45-67" /></label>
         <label>Email<input id="fEmail" placeholder="employee@example.com" /></label>
+        <label>Telegram<input id="fTelegram" placeholder="@username" /></label>
         <label>Дата начала работы<input id="fStartDate" type="date" /></label>
+        <label>Дата рождения<input id="fBirthDate" type="date" /></label>
+        <label>Город<input id="fCity" placeholder="Москва" /></label>
+        <label>Адрес<input id="fAddress" placeholder="ул. Пример, д. 1, кв. 1" /></label>
         <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3"></textarea></label>
         <label>Роль
           <select id="fRole">
@@ -187,12 +575,16 @@ async function renderEmployees() {
       const department = form.querySelector('#fDepartment').value.trim();
       const phone = form.querySelector('#fPhone').value.trim();
       const email = form.querySelector('#fEmail').value.trim();
+      const telegram = form.querySelector('#fTelegram').value.trim();
       const startDate = form.querySelector('#fStartDate').value;
+      const birthDate = form.querySelector('#fBirthDate').value;
+      const city = form.querySelector('#fCity').value.trim();
+      const address = form.querySelector('#fAddress').value.trim();
       const notes = form.querySelector('#fNotes').value.trim();
       const role = form.querySelector('#fRole').value;
       if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
-        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, startDate, notes, role }) });
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, notes, role }) });
         // Optimistic update: add to local list and re-render without refetch
         items = [created, ...items];
         renderList();
@@ -215,6 +607,12 @@ async function renderEmployees() {
 
   // Add edit employee function
   async function editEmployee(employee) {
+    // Fetch full details to include current role
+    let full = employee;
+    try {
+      full = await api('/api/employees?id=' + encodeURIComponent(employee.id));
+    } catch {}
+    const currentRole = (full && full.role) || 'interviewer';
     const form = document.createElement('div');
     form.innerHTML = `
       <label>ФИО<input id="fFullName" value="${employee.fullName || ''}" placeholder="Иванов Иван Иванович" required /></label>
@@ -222,7 +620,18 @@ async function renderEmployees() {
       <label>Отдел<input id="fDepartment" value="${employee.department || ''}" placeholder="Студийная съёмка" /></label>
       <label>Телефон<input id="fPhone" value="${employee.phone || ''}" placeholder="+7 (999) 123-45-67" /></label>
       <label>Email<input id="fEmail" value="${employee.email || ''}" placeholder="employee@example.com" /></label>
+      <label>Telegram<input id="fTelegram" value="${employee.telegram || ''}" placeholder="@username" /></label>
       <label>Дата начала работы<input id="fStartDate" type="date" value="${employee.startDate || ''}" /></label>
+      <label>Дата рождения<input id="fBirthDate" type="date" value="${employee.birthDate || ''}" /></label>
+      <label>Город<input id="fCity" value="${employee.city || ''}" placeholder="Москва" /></label>
+      <label>Адрес<input id="fAddress" value="${employee.address || ''}" placeholder="ул. Пример, д. 1, кв. 1" /></label>
+      <label>Роль
+        <select id="fRole">
+          <option value="interviewer" ${currentRole==='interviewer' ? 'selected' : ''}>Интервьюер</option>
+          <option value="curator" ${currentRole==='curator' ? 'selected' : ''}>Куратор</option>
+          <option value="admin" ${currentRole==='admin' ? 'selected' : ''}>Администратор</option>
+        </select>
+      </label>
       <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3">${employee.notes || ''}</textarea></label>
     `;
     
@@ -235,7 +644,12 @@ async function renderEmployees() {
     const department = form.querySelector('#fDepartment').value.trim();
     const phone = form.querySelector('#fPhone').value.trim();
     const email = form.querySelector('#fEmail').value.trim();
+    const telegram = form.querySelector('#fTelegram').value.trim();
     const startDate = form.querySelector('#fStartDate').value;
+    const birthDate = form.querySelector('#fBirthDate').value;
+    const city = form.querySelector('#fCity').value.trim();
+    const address = form.querySelector('#fAddress').value.trim();
+    const role = form.querySelector('#fRole').value;
     const notes = form.querySelector('#fNotes').value.trim();
     
     if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
@@ -243,7 +657,7 @@ async function renderEmployees() {
     try {
       const updated = await api('/api/employees', { 
         method: 'PUT', 
-        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, startDate, notes }) 
+        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, role, notes }) 
       });
       
       // Update local list
@@ -257,7 +671,121 @@ async function renderEmployees() {
       setError(e.message); 
     }
   }
+
+  // expose edit helper for external callers (employee card)
+  window._openEditEmployee = (targetId) => {
+    const e = (items || []).find(x => x.id === targetId);
+    if (e) editEmployee(e);
+  };
 }
+
+// Detailed employee card with stats
+async function renderEmployeeCard(id) {
+  const view = el('#view');
+  // Default range: last 30 days
+  const to = new Date();
+  const from = new Date(to.getTime() - 29*24*60*60*1000);
+  let range = { from: from.toISOString().slice(0,10), to: to.toISOString().slice(0,10) };
+  let data = await Employee.get(id, { withStats: true, ...range });
+
+  function hoursFmt(h) {
+    if (!h) return '0 ч';
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return mm ? `${hh} ч ${mm} мин` : `${hh} ч`;
+  }
+
+  function render() {
+    const e = data;
+    const stats = e.stats || { eventsCount: 0, hoursTotal: 0, byDay: [] };
+    const byDayArr = Array.isArray(stats.byDay)
+      ? stats.byDay
+      : Object.entries(stats.byDay || {}).map(([date, count]) => ({ date, count }));
+    view.innerHTML = `
+      <section class="bar">
+        <button id="backToEmployees" class="ghost">← Назад</button>
+        <h2 style="margin:0 12px">${e.fullName}</h2>
+        <span style="flex:1"></span>
+        <label>Период: 
+          <input id="stFrom" type="date" value="${range.from}" /> — 
+          <input id="stTo" type="date" value="${range.to}" />
+        </label>
+        <button id="applyRange">Обновить</button>
+      </section>
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:16px">
+        <div class="card" style="padding:16px">
+          <h3 style="margin-top:0">Профиль</h3>
+          <div style="display:grid;gap:6px;font-size:14px">
+            ${e.position ? `<div><strong>Должность:</strong> ${e.position}</div>` : ''}
+            ${e.department ? `<div><strong>Отдел:</strong> ${e.department}</div>` : ''}
+            ${e.role ? `<div><strong>Роль:</strong> ${e.role}</div>` : ''}
+            ${e.phone ? `<div><strong>Телефон:</strong> ${e.phone}</div>` : ''}
+            ${e.email ? `<div><strong>Email:</strong> ${e.email}</div>` : ''}
+            ${e.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">${e.telegram}</a></div>` : ''}
+            ${e.startDate ? `<div><strong>Начало работы:</strong> ${e.startDate}</div>` : ''}
+            ${e.birthDate ? `<div><strong>Дата рождения:</strong> ${e.birthDate}</div>` : ''}
+            ${e.city ? `<div><strong>Город:</strong> ${e.city}</div>` : ''}
+            ${e.address ? `<div><strong>Адрес:</strong> ${e.address}</div>` : ''}
+            ${e.notes ? `<div style="white-space:pre-wrap"><strong>Заметки:</strong> ${e.notes}</div>` : ''}
+          </div>
+          ${(window.currentUser && (window.currentUser.role === 'root')) ? `
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button id="editEmployeeBtn">Редактировать</button>
+              <button id="deleteEmployeeBtn" style="background:#dc2626">Удалить</button>
+            </div>` : ''}
+        </div>
+        <div class="card" style="padding:16px">
+          <div style="display:flex;gap:24px;align-items:center;border-bottom:1px solid #1e1e1e;padding-bottom:8px;margin-bottom:12px">
+            <h3 style="margin:0">Статистика</h3>
+            <div style="color:var(--muted)">за период ${range.from} — ${range.to}</div>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px">
+            <div class="stat-badge"><div class="stat-value">${stats.eventsCount||0}</div><div class="stat-label">событий</div></div>
+            <div class="stat-badge"><div class="stat-value">${hoursFmt(stats.hoursTotal||0)}</div><div class="stat-label">отработано</div></div>
+          </div>
+          <div style="overflow:auto">
+            <table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse">
+              <thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Дата</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Кол-во</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Часы</th></tr></thead>
+              <tbody>
+                ${byDayArr.map(d => `<tr>
+                  <td style="padding:6px;border-bottom:1px solid #111">${d.date}</td>
+                  <td style="padding:6px;border-bottom:1px solid #111">${d.count||0}</td>
+                  <td style="padding:6px;border-bottom:1px solid #111">${(typeof d.hours === 'number') ? hoursFmt(d.hours) : '—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+
+    // Wire back
+    el('#backToEmployees').onclick = renderEmployees;
+    // Apply range
+    el('#applyRange').onclick = async () => {
+      const nf = el('#stFrom').value || range.from;
+      const nt = el('#stTo').value || range.to;
+      range = { from: nf, to: nt };
+      data = await Employee.get(id, { withStats: true, ...range });
+      render();
+    };
+    // Edit/Delete
+    const editBtn = el('#editEmployeeBtn');
+    if (editBtn) editBtn.onclick = async () => {
+      // Reuse list editor if present by temporarily rendering list and opening edit
+      await renderEmployees();
+      if (typeof window._openEditEmployee === 'function') window._openEditEmployee(id);
+    };
+    const delBtn = el('#deleteEmployeeBtn');
+    if (delBtn) delBtn.onclick = async () => {
+      await deleteEmployeeWithPassword({ id, fullName: data.fullName });
+    };
+  }
+
+  render();
+}
+
+// expose globally
+window.renderEmployeeCard = renderEmployeeCard;
 
 async function fetchMe() {
   try {
@@ -278,15 +806,18 @@ function renderAppShell(me) {
                 stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
           <ellipse cx="35" cy="20" rx="25" ry="15" stroke="#2bb3b1" stroke-width="2" fill="none" transform="rotate(-15 35 20)"/>
         </svg>
-        <span>MirrorCRM</span>
       </div>
       <nav>
-        ${(me.role === 'root' || me.role === 'admin') ? `
-          <button id="nav-models">Модели</button>
-          <button id="nav-schedule">Расписание</button>
-          <button id="nav-employees">Сотрудники</button>
-          <button id="nav-files">Файлы</button>
-        ` : ''}
+        ${
+          (me.role === 'root' || me.role === 'admin') ? `
+            <button id="nav-models">Модели</button>
+            <button id="nav-calendar">Календарь</button>
+            <button id="nav-employees">Сотрудники</button>
+            <button id="nav-files">Файлы</button>
+          ` : (me.role === 'interviewer') ? `
+            <button id="nav-calendar">Календарь</button>
+          ` : ''
+        }
       </nav>
       <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
         <button id="logout">Выход</button>
@@ -297,9 +828,11 @@ function renderAppShell(me) {
   el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
   if (me.role === 'root' || me.role === 'admin') {
     el('#nav-models').onclick = renderModels;
-    el('#nav-schedule').onclick = renderSchedule;
+    el('#nav-calendar').onclick = renderCalendar;
     el('#nav-employees').onclick = renderEmployees;
     el('#nav-files').onclick = renderFileSystem;
+  } else if (me.role === 'interviewer') {
+    el('#nav-calendar').onclick = renderCalendar;
   }
 }
 
@@ -422,19 +955,25 @@ async function renderModelCard(id) {
     return;
   }
   const view = el('#view');
-  const model = await api('/api/models?id=' + encodeURIComponent(id));
-  const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
+  const [model, filesRes] = await Promise.all([
+    api('/api/models?id=' + encodeURIComponent(id)),
+    api('/api/files?modelId=' + encodeURIComponent(id))
+  ]);
   let files = filesRes.items || [];
   
+  const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
       <div class="profile-header">
-        <div class="profile-main">
-          <h1>${model.name}</h1>
-          ${model.fullName ? `<h2 class="full-name">${model.fullName}</h2>` : ''}
-          <div class="profile-actions">
-            <button id="editProfile">Редактировать профиль</button>
-            <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+        <div class="profile-main" style="display:flex;gap:12px;align-items:center">
+          ${mainFile ? `<img src="${mainFile.url}" alt="main" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #1e1e1e"/>` : ''}
+          <div>
+            <h1 style="margin:0">${model.name}</h1>
+            ${model.fullName ? `<h2 class="full-name" style="margin:4px 0 0 0">${model.fullName}</h2>` : ''}
+            <div class="profile-actions" style="margin-top:8px">
+              <button id="editProfile">Редактировать профиль</button>
+              <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+            </div>
           </div>
         </div>
         <div class="profile-info">
@@ -483,6 +1022,15 @@ async function renderModelCard(id) {
         <div class="files-grid" id="filesGrid"></div>
         <div id="filePreview" style="margin-top:12px"></div>
       </div>
+
+      <div class="comments-section" style="margin-top:16px">
+        <h3>Комментарии</h3>
+        <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
+        <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
+          <button type="submit">Добавить</button>
+        </form>
+      </div>
     </div>`;
   const gridEl = el('#filesGrid');
   function applyFileSort(arr, mode){
@@ -492,12 +1040,16 @@ async function renderModelCard(id) {
     else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
     return a;
   }
+  // simple pagination
+  let page = 1;
+  const pageSize = 24;
   function renderFiles(){
     const q = (el('#fileSearch').value || '').toLowerCase();
     const mode = el('#fileSort').value;
     const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
     const sorted = applyFileSort(filtered, mode);
-    gridEl.innerHTML = sorted.map(f => {
+    const paged = sorted.slice(0, page*pageSize);
+    gridEl.innerHTML = paged.map(f => {
       const viewUrl = f.url;
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
       const canDownload = (window.currentUser && window.currentUser.role === 'root');
@@ -506,7 +1058,7 @@ async function renderModelCard(id) {
       const fileDate = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : '';
       return `
         <div class="file-card">
-          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" /></div>` : 
+          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" loading="lazy" /></div>` : 
             isVideo ? `<div class="file-thumb video"><span>📹</span></div>` : 
             `<div class="file-thumb doc"><span>📄</span></div>`}
           <div class="file-info">
@@ -514,54 +1066,38 @@ async function renderModelCard(id) {
             ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
             ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
             <div class="file-actions">
-              <a href="${viewUrl}" target="_blank" class="file-btn">Просмотр</a>
               ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+              ${isImage ? `<button class="file-btn make-main" data-id="${f.id}">Сделать главной</button>` : ''}
               ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
-    // attach inline preview on click of Просмотр without leaving page
-    [...gridEl.querySelectorAll('a')].forEach(a => {
-      if (a.textContent === 'Просмотр') {
-        a.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          const fileCard = a.closest('.file-card');
-          const name = fileCard.querySelector('.file-name')?.textContent || '';
-          const item = sorted.find(x => x.name === name);
-          const box = el('#filePreview');
-          if (!item) { window.open(a.href, '_blank'); return; }
-          const ct = (item.contentType || '').toLowerCase();
-          const src = a.href;
-          if (ct.startsWith('image/')) {
-            box.innerHTML = `<img src="${src}" alt="${name}" style="max-width:100%;max-height:60vh;object-fit:contain;border:1px solid #eee;padding:4px"/>`;
-          } else if (ct === 'application/pdf') {
-            box.innerHTML = `<iframe src="${src}" style="width:100%;height:60vh;border:1px solid #eee"></iframe>`;
-          } else if (ct.startsWith('audio/')) {
-            box.innerHTML = `<audio src="${src}" controls style="width:100%"></audio>`;
-          } else if (ct.startsWith('video/')) {
-            box.innerHTML = `<video src="${src}" controls style="width:100%;max-height:60vh;background:#000"></video>`;
-          } else {
-            window.open(src, '_blank');
-          }
-          box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
+    const moreBtnId = 'moreFilesBtn';
+    let moreBtn = document.getElementById(moreBtnId);
+    if (sorted.length > paged.length) {
+      if (!moreBtn) {
+        moreBtn = document.createElement('button');
+        moreBtn.id = moreBtnId;
+        moreBtn.textContent = 'Показать ещё';
+        moreBtn.className = 'file-btn';
+        gridEl.parentElement.appendChild(moreBtn);
+        moreBtn.onclick = () => { page++; renderFiles(); };
       }
-    });
+      moreBtn.style.display = '';
+    } else if (moreBtn) {
+      moreBtn.style.display = 'none';
+    }
+    // no inline preview, only download
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
   
-  // File deletion
+  // File actions: delete and set main photo
   document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('delete-file')) {
       const fileId = e.target.dataset.id;
       const fileName = e.target.closest('.file-card').querySelector('.file-name').textContent;
-      
-      if (window.currentUser.role === 'root') {
-        if (!await confirmRootPassword(`удаление файла "${fileName}"`)) return;
-      }
-      
       if (!confirm(`Удалить файл "${fileName}"?`)) return;
       try {
         await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
@@ -570,6 +1106,14 @@ async function renderModelCard(id) {
       } catch (err) {
         alert(err.message);
       }
+    }
+    if (e.target.classList.contains('make-main')) {
+      const fileId = e.target.dataset.id;
+      try {
+        await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, mainPhotoId: fileId }) });
+        model.mainPhotoId = fileId;
+        renderModelCard(id);
+      } catch (err) { alert(err.message); }
     }
   });
 
@@ -634,7 +1178,7 @@ async function renderModelCard(id) {
     
     if (!confirm(`Удалить модель "${model.name}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
     try {
-      await api('/api/models?id=' + encodeURIComponent(modelId), { method: 'DELETE' });
+      await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
       renderModels();
     } catch (err) {
       alert(err.message);
@@ -1273,8 +1817,10 @@ async function renderApp() {
   renderAppShell(me);
   if (me.role === 'root' || me.role === 'admin') {
     renderModels();
+  } else if (me.role === 'interviewer') {
+    renderCalendar();
   } else {
-    el('#view').innerHTML = `<div class="card"><h3>Добро пожаловать</h3><p>У вас нет доступа к административным разделам. Обратитесь к администратору.</p></div>`;
+    el('#view').innerHTML = `<div class="card"><h3>Добро пожаловать</h3><p>Нет доступных разделов для вашей роли.</p></div>`;
   }
 }
 

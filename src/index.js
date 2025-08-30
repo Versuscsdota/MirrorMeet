@@ -28,6 +28,8 @@ async function handleApi(request, env, ctx) {
   if (pathname === '/api/employees') {
     if (method === 'GET') return employees.onRequestGet({ env, request, context: ctx });
     if (method === 'POST') return employees.onRequestPost({ env, request, context: ctx });
+    if (method === 'PUT') return employees.onRequestPut({ env, request, context: ctx });
+    if (method === 'DELETE') return employees.onRequestDelete({ env, request, context: ctx });
   }
 
   // Models

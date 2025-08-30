@@ -120,7 +120,7 @@ bucket_name = "crm-files"
 
 ### Навигация
 - **Модели**: управление профилями и портфолио
-- **Расписание**: планирование встреч и съёмок
+- **Календарь**: управление слотами интервью и съёмок
 - **Сотрудники**: управление командой
 - **Файлы**: централизованная файловая система
 
@@ -129,8 +129,26 @@ bucket_name = "crm-files"
 ### Модели
 - `GET /api/models` - список моделей
 - `POST /api/models` - создание модели
+- `POST /api/models` c JSON `{ action: "ingestFromSlot", modelId, date, slotId }` — привязка файлов слота к модели и запись интервью в историю модели
 - `PUT /api/models` - обновление модели
 - `DELETE /api/models?id=<id>` - удаление модели
+
+### Календарь (слоты)
+- `GET /api/schedule?date=YYYY-MM-DD` — список слотов за день
+- `POST /api/schedule` — создать слот `{ date, start, end, title?, notes? }`
+- `PUT /api/schedule` — обновить слот `{ id, date, start?, end?, title?, notes?, interviewText?, comment? }`
+  - При изменении `start`/`end` обязателен `comment`
+- `DELETE /api/schedule?id=<id>&date=YYYY-MM-DD` — удалить слот (root/admin)
+
+### Файлы
+- `GET /api/files?modelId=<id>` — файлы модели (root/admin)
+- `GET /api/files?slotId=<id>` — файлы слота (root/admin/interviewer)
+- `GET /api/files?id=<id>` — получить файл (инлайн)
+  - slot-файлы доступны interviewer; model-файлы — только admin/root
+  - `&download=1` — скачать (только root)
+- `POST /api/files` (multipart/form-data)
+  - Параметры: `file`, `name`, и либо `modelId`, либо `slotId`
+  - Изображения/аудио/видео/документы согласно whitelist
 
 ### Расписание
 - `GET /api/schedule?date=YYYY-MM-DD` - события на дату

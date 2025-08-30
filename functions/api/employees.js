@@ -3,7 +3,7 @@ import { requireRole, newId, sha256, incUserCount } from '../_utils.js';
 
 // KV key: employee:<id>
 // Stored object shape:
-// { id, fullName, position, phone?, email?, department?, startDate?, notes? }
+// { id, fullName, position, phone?, email?, department?, startDate?, notes?, telegram?, birthDate?, address?, city? }
 
 function sanitizeStr(v, max = 120) {
   if (v == null) return '';
@@ -21,12 +21,51 @@ export async function onRequestGet(context) {
   
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
+  const withStats = url.searchParams.get('withStats') === 'true';
+  const from = url.searchParams.get('from'); // YYYY-MM-DD optional
+  const to = url.searchParams.get('to');     // YYYY-MM-DD optional
   
   if (id) {
     // Get single employee with full details
     const employee = await env.CRM_KV.get(`employee:${id}`, { type: 'json' });
     if (!employee) return json({ error: 'Employee not found' }, { status: 404 });
-    return json(employee);
+    // Attach associated user's role if exists
+    let role;
+    try {
+      const userList = await env.CRM_KV.list({ prefix: 'user:' });
+      const users = await Promise.all(userList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      const associatedUser = users.find(u => u && u.employeeId === id);
+      if (associatedUser) role = associatedUser.role;
+    } catch {}
+    const enriched = role ? { ...employee, role } : employee;
+    if (!withStats) return json(enriched);
+    // compute stats from slot:*
+    const list = await env.CRM_KV.list({ prefix: 'slot:' });
+    const slots = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+    const inRange = (s) => {
+      if (!s || !s.date) return false;
+      if (from && s.date < from) return false;
+      if (to && s.date > to) return false;
+      return true;
+    };
+    const mine = slots.filter(s => s && s.employeeId === id && inRange(s));
+    const parseHM = (hm) => {
+      const [h,m] = String(hm||'').split(':').map(n=>parseInt(n||'0',10));
+      if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+      return h*60 + m;
+    };
+    let minutes = 0;
+    const byDay = {};
+    for (const s of mine) {
+      minutes += Math.max(0, parseHM(s.end) - parseHM(s.start));
+      byDay[s.date] = (byDay[s.date] || 0) + 1;
+    }
+    const stats = {
+      eventsCount: mine.length,
+      hoursTotal: Math.round((minutes/60)*10)/10,
+      byDay
+    };
+    return json({ ...enriched, stats });
   }
   
   // Get list of employees
@@ -51,6 +90,11 @@ export async function onRequestPost(context) {
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
   let role = sanitizeStr(body.role || 'interviewer', 20);
+  // Additional optional fields
+  let telegram = sanitizeStr(body.telegram || '', 80);
+  let birthDate = sanitizeStr(body.birthDate || '', 20);
+  let address = sanitizeStr(body.address || '', 200);
+  let city = sanitizeStr(body.city || '', 80);
 
   if (!fullName || !position) return badRequest('fullName и position обязательны');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
@@ -65,7 +109,11 @@ export async function onRequestPost(context) {
     ...(email ? { email } : {}),
     ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
-    ...(notes ? { notes } : {})
+    ...(notes ? { notes } : {}),
+    ...(telegram ? { telegram } : {}),
+    ...(birthDate ? { birthDate } : {}),
+    ...(address ? { address } : {}),
+    ...(city ? { city } : {})
   };
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(employee));
 
@@ -130,13 +178,13 @@ export async function onRequestDelete(context) {
   }
   
   // Delete all schedule events for this employee
-  const scheduleList = await env.CRM_KV.list({ prefix: 'schedule:' });
-  const schedules = await Promise.all(scheduleList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-  const employeeEvents = schedules.filter(s => s && s.employeeId === id);
-  
-  await Promise.all(employeeEvents.map(event => 
-    env.CRM_KV.delete(`schedule:${event.id}`)
-  ));
+  const slotList = await env.CRM_KV.list({ prefix: 'slot:' });
+  const slotObjs = await Promise.all(slotList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const toDelete = slotList.keys
+    .map((k, i) => ({ key: k.name, obj: slotObjs[i] }))
+    .filter(x => x.obj && x.obj.employeeId === id)
+    .map(x => x.key);
+  await Promise.all(toDelete.map(k => env.CRM_KV.delete(k)));
   
   // Delete employee
   await env.CRM_KV.delete(`employee:${id}`);
@@ -166,6 +214,13 @@ export async function onRequestPut(context) {
   let department = sanitizeStr(body.department || '', 80);
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
+  // Additional optional fields
+  let telegram = sanitizeStr(body.telegram || '', 80);
+  let birthDate = sanitizeStr(body.birthDate || '', 20);
+  let address = sanitizeStr(body.address || '', 200);
+  let city = sanitizeStr(body.city || '', 80);
+  // Optional role update
+  let roleNew = sanitizeStr(body.role || '', 20);
 
   if (!fullName || !position) return badRequest('fullName и position обязательны');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
@@ -179,10 +234,26 @@ export async function onRequestPut(context) {
     ...(email ? { email } : {}),
     ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
-    ...(notes ? { notes } : {})
+    ...(notes ? { notes } : {}),
+    ...(telegram ? { telegram } : {}),
+    ...(birthDate ? { birthDate } : {}),
+    ...(address ? { address } : {}),
+    ...(city ? { city } : {})
   };
   
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(updatedEmployee));
+
+  // Update associated user's role if provided and valid
+  const allowedRoles = ['interviewer','curator','admin'];
+  if (roleNew && allowedRoles.includes(roleNew)) {
+    const userList = await env.CRM_KV.list({ prefix: 'user:' });
+    const users = await Promise.all(userList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+    const associatedUser = users.find(u => u && u.employeeId === id);
+    if (associatedUser) {
+      const updatedUser = { ...associatedUser, role: roleNew };
+      await env.CRM_KV.put(`user:${associatedUser.id}`, JSON.stringify(updatedUser));
+    }
+  }
   
   return json({ ok: true, employee: updatedEmployee });
 }
