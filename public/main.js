@@ -389,8 +389,11 @@ async function renderSchedule() {
   // Build a single grid with sticky left column
   view.innerHTML = `
     <section class="bar">
-      <button id="addEvent">Создать слот</button>
+      <button id="addEvent">+ Новый слот</button>
       <input id="pickDate" type="date" value="${date}" />
+      <span style="color: #94a3b8; font-size: 14px; margin-left: auto;">
+        ${events.length} слот${events.length === 1 ? '' : events.length < 5 ? 'а' : 'ов'} на ${new Date(date).toLocaleDateString('ru')}
+      </span>
     </section>
     <div class="sched-wrap">
       <div class="tl-scroll" id="schedScroll">
@@ -404,7 +407,10 @@ async function renderSchedule() {
           </div>
           ${(employees||[]).map((emp, idx)=>`
             <div class="sched-row" data-emp="${emp.id}" style="height:${ROW_H}px">
-              <div class="cell-left sticky"><div class="empl-name">${emp.fullName}</div></div>
+              <div class="cell-left sticky">
+                <div class="empl-name">${emp.fullName}</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">${emp.position || ''}</div>
+              </div>
               <div class="cell-right" style="width:${width}px">
                 <div class="row-grid"></div>
                 <div class="row-events"></div>
@@ -470,7 +476,6 @@ async function renderSchedule() {
     const target = e.target.closest('.tl-event');
     if (!target) return;
     e.preventDefault();
-    const rect = target.getBoundingClientRect();
     const startX = e.clientX;
     const isLeft = e.target.classList.contains('left');
     const isRight = e.target.classList.contains('right');
@@ -520,12 +525,8 @@ async function renderSchedule() {
     const toHM = (m)=> `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
     try{
       await api('/api/schedule', { method:'PUT', body: JSON.stringify({ id: node.dataset.id, date: node.dataset.date, start: toHM(startMin), end: toHM(endMin) }) });
-      // Success feedback
-      node.style.transform = 'scale(1.05)';
-      setTimeout(() => { node.style.transform = ''; }, 150);
     }catch(err){ 
       alert(err.message);
-      // Reset position on error
       renderEvents(events);
     }
   }
@@ -537,17 +538,18 @@ async function renderSchedule() {
     const defaultStart = timeStr(now);
     const defaultEnd = timeStr(new Date(now.getTime()+3600000));
     form.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <label>Начало<input id="evStart" placeholder="HH:MM" value="${defaultStart}" /></label>
-        <label>Конец<input id="evEnd" placeholder="HH:MM" value="${defaultEnd}" /></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Время начала<input id="evStart" placeholder="HH:MM" value="${defaultStart}" /></label>
+        <label>Время окончания<input id="evEnd" placeholder="HH:MM" value="${defaultEnd}" /></label>
       </div>
-      <label>Заголовок<input id="evTitle" placeholder="Название слота" /></label>
-      <label>Описание<textarea id="evDesc" placeholder="Дополнительная информация" rows="2" style="resize:vertical"></textarea></label>
+      <label>Название<input id="evTitle" placeholder="Встреча, консультация..." /></label>
       <label>Сотрудник
         <select id="evEmployee" required>
-          ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName}</option>`).join('')}
+          <option value="">Выберите сотрудника</option>
+          ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName} — ${e.position || 'Сотрудник'}</option>`).join('')}
         </select>
-      </label>`;
+      </label>
+      <label>Примечания<textarea id="evDesc" placeholder="Дополнительная информация" rows="2" style="resize:vertical"></textarea></label>`;
     const res = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
     if (!res) return;
     const { close, setError } = res;
@@ -560,18 +562,9 @@ async function renderSchedule() {
     try {
       const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, description, employeeId }) });
       events = [...events, created];
-      // keep order
       events.sort((a,b)=> (a.startISO < b.startISO ? -1 : 1));
       renderEvents(events);
       close();
-      // Success animation
-      setTimeout(() => {
-        const newSlot = document.querySelector(`[data-id="${created.id}"]`);
-        if (newSlot) {
-          newSlot.style.transform = 'scale(1.1)';
-          setTimeout(() => { newSlot.style.transform = ''; }, 200);
-        }
-      }, 100);
     } catch (e) { setError(e.message); }
   };
 
