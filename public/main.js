@@ -46,14 +46,24 @@ async function renderCalendar() {
   const view = el('#view');
   const today = new Date().toISOString().slice(0,10);
   let date = today;
+  let currentMonth = today.slice(0,7); // YYYY-MM
   let slots = [];
+  let monthDays = [];
 
   view.innerHTML = `
     <section class="bar" style="gap:8px;flex-wrap:wrap">
-      <label>Дата <input id="calDate" type="date" value="${today}" /></label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="mPrev" class="ghost" title="Предыдущий месяц">◀</button>
+        <strong id="mTitle"></strong>
+        <button id="mNext" class="ghost" title="Следующий месяц">▶</button>
+      </div>
+      <label style="margin-left:auto">Дата <input id="calDate" type="date" value="${today}" /></label>
       <span style="flex:1"></span>
       ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot">Создать слот</button>' : ''}
     </section>
+    <div class="card" style="padding:12px">
+      <div id="monthGrid"></div>
+    </div>
     <div class="card">
       <ul id="slotList" class="empl-list"></ul>
     </div>`;
@@ -62,6 +72,12 @@ async function renderCalendar() {
     const res = await api('/api/schedule?date=' + encodeURIComponent(date));
     slots = res.items || [];
     renderList();
+  }
+
+  async function loadMonth() {
+    const res = await api('/api/schedule?month=' + encodeURIComponent(currentMonth));
+    monthDays = res.days || [];
+    renderMonth();
   }
 
   function renderList() {
@@ -286,9 +302,21 @@ async function renderCalendar() {
     } catch (e) { setError(e.message); }
   }
 
-  el('#calDate').addEventListener('change', async (e) => { date = e.target.value; await load(); });
+  el('#calDate').addEventListener('change', async (e) => { date = e.target.value; currentMonth = date.slice(0,7); await Promise.all([loadMonth(), load()]); });
+  el('#mPrev').onclick = async () => {
+    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+    const d = new Date(y, m-2, 1);
+    currentMonth = d.toISOString().slice(0,7);
+    await loadMonth();
+  };
+  el('#mNext').onclick = async () => {
+    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+    const d = new Date(y, m, 1);
+    currentMonth = d.toISOString().slice(0,7);
+    await loadMonth();
+  };
   const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
-  await load();
+  await Promise.all([loadMonth(), load()]);
 }
 
 function renderLogin() {

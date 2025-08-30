@@ -15,6 +15,24 @@ export async function onRequestGet(context) {
   if (error) return error;
   const url = new URL(request.url);
   const date = url.searchParams.get('date');
+  const month = url.searchParams.get('month'); // YYYY-MM
+
+  if (month) {
+    const prefix = `slot:${month}-`;
+    const list = await env.CRM_KV.list({ prefix });
+    const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+    const items = fetched.filter(Boolean);
+    // aggregate by date
+    const days = {};
+    for (const s of items) {
+      if (!s || !s.date) continue;
+      days[s.date] = days[s.date] || { date: s.date, count: 0 };
+      days[s.date].count += 1;
+    }
+    const out = Object.values(days).sort((a,b)=> a.date.localeCompare(b.date));
+    return json({ days: out });
+  }
+
   if (!date) return badRequest('date required');
   const prefix = `slot:${date}:`;
   const list = await env.CRM_KV.list({ prefix });
