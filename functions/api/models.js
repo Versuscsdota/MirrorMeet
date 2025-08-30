@@ -2,7 +2,7 @@ import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
 
 // KV keys
-// model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, createdAt, createdBy }
+// model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
 
 export async function onRequestGet(context) {
   const { env, request } = context;
@@ -27,6 +27,37 @@ export async function onRequestPost(context) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
+
+  // Action: ingest slot into existing model (copy files and add interview history)
+  if (body.action === 'ingestFromSlot') {
+    const modelId = (body.modelId || '').trim();
+    const date = (body.date || '').trim();
+    const slotId = (body.slotId || '').trim();
+    if (!modelId || !date || !slotId) return badRequest('modelId/date/slotId required');
+    const model = await env.CRM_KV.get(`model:${modelId}`, { type: 'json' });
+    if (!model) return notFound('model');
+    const slot = await env.CRM_KV.get(`slot:${date}:${slotId}`, { type: 'json' });
+    if (!slot) return notFound('slot');
+
+    // Link files: scan all file metas for this slotId and create model-file metas pointing to same objectKey
+    const filesList = await env.CRM_KV.list({ prefix: 'file:' });
+    const metas = await Promise.all(filesList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+    const slotFiles = metas.filter(f => f && f.entity === 'slot' && f.slotId === slotId);
+    const linked = [];
+    for (const f of slotFiles) {
+      const id = newId('fil');
+      const meta = { id, entity: 'model', modelId, name: f.name, description: f.description, objectKey: f.objectKey, contentType: f.contentType, size: f.size, createdAt: Date.now() };
+      await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
+      linked.push({ ...meta, url: `/api/files?id=${id}` });
+    }
+
+    // Write history entry into model
+    model.history = model.history || [];
+    model.history.push({ ts: Date.now(), type: 'interview', slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title }, text: slot.interview?.text });
+    await env.CRM_KV.put(`model:${modelId}`, JSON.stringify(model));
+
+    return json({ ok: true, linkedCount: linked.length, files: linked, model });
+  }
   const name = (body.name || '').trim();
   const note = (body.note || '').trim();
   const fullName = (body.fullName || '').trim();
@@ -43,7 +74,7 @@ export async function onRequestPost(context) {
   const tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (!name) return badRequest('name required');
   const id = newId('mdl');
-  const model = { id, name, note, fullName, age, height, weight, measurements, contacts, tags, createdAt: Date.now(), createdBy: sess.user.id };
+  const model = { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt: Date.now(), createdBy: sess.user.id };
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
   return json(model);
 }

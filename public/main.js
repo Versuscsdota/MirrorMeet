@@ -162,6 +162,7 @@ async function renderCalendar() {
     const s = slots.find(x => x.id === id);
     if (!s) return;
     const box = document.createElement('div');
+    const canCreateModel = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
     box.innerHTML = `
       <div style="display:grid;gap:8px">
         <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
@@ -175,6 +176,11 @@ async function renderCalendar() {
             <button id="uploadBtn" type="button">Загрузить</button>
           </div>
         </div>
+        ${Array.isArray(s.history) && s.history.length ? `<div>
+          <h4>История</h4>
+          <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
+        </div>` : ''}
+        ${canCreateModel ? `<div style="margin-top:8px"><button id="createModelBtn" type="button">Создать модель из слота</button></div>` : ''}
       </div>`;
     const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
 
@@ -183,6 +189,7 @@ async function renderCalendar() {
         const res = await api('/api/files?slotId=' + encodeURIComponent(s.id));
         const items = res.items || [];
         const list = box.querySelector('#attList');
+        const canDelete = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
         list.innerHTML = items.map(f => {
           const ct = (f.contentType || '').toLowerCase();
           const isImg = ct.startsWith('image/');
@@ -196,8 +203,25 @@ async function renderCalendar() {
                 <div>${f.name}</div>
                 ${isAudio ? `<audio src="${f.url}" controls style="width:100%"></audio>` : ''}
               </div>
+              ${canDelete ? `<div><button class="del-slot-file" data-id="${f.id}" style="background:#dc2626">Удалить</button></div>` : ''}
             </div>`;
         }).join('');
+
+        if (canDelete) {
+          [...list.querySelectorAll('.del-slot-file')].forEach(btn => {
+            btn.onclick = async () => {
+              const fileId = btn.dataset.id;
+              if (window.currentUser.role === 'root') {
+                if (!await confirmRootPassword('удаление вложения слота')) return;
+              }
+              if (!confirm('Удалить файл?')) return;
+              try {
+                await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
+                await refreshFiles();
+              } catch (e) { alert(e.message); }
+            };
+          });
+        }
       } catch (e) {
         console.warn(e);
       }
@@ -205,6 +229,15 @@ async function renderCalendar() {
 
     // initial
     refreshFiles();
+    // render history if exists
+    const historyEl = box.querySelector('#slotHistory');
+    if (historyEl && Array.isArray(s.history)) {
+      const actionLabel = (a) => a === 'create' ? 'создание' : a === 'time_change' ? 'смена времени' : 'изменение';
+      historyEl.innerHTML = s.history
+        .sort((a,b)=> (a.ts||0)-(b.ts||0))
+        .map(h => `<li style="font-size:12px;color:#aaa">${new Date(h.ts||Date.now()).toLocaleString('ru-RU')} · ${actionLabel(h.action)}${h.comment ? ` — ${h.comment}` : ''}</li>`)
+        .join('');
+    }
 
     box.querySelector('#uploadBtn').onclick = async () => {
       const f = box.querySelector('#upFile').files[0];
@@ -221,6 +254,25 @@ async function renderCalendar() {
         await refreshFiles();
       } catch (e) { alert(e.message); }
     };
+
+    // Hook create model action (if visible)
+    if (canCreateModel) {
+      const btn = box.querySelector('#createModelBtn');
+      if (btn) btn.onclick = async () => {
+        const name = (s.title || `Модель от ${date} ${s.start || ''}`);
+        const note = (box.querySelector('#iText').value || '').trim();
+        try {
+          const model = await api('/api/models', { method: 'POST', body: JSON.stringify({ name, note }) });
+          // Ingest slot files and write interview history into model
+          await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date, slotId: s.id }) });
+          // Navigate to models and open the created model
+          renderModels();
+          if (model && model.id && typeof window.renderModelCard === 'function') {
+            window.renderModelCard(model.id);
+          }
+        } catch (e) { alert(e.message); }
+      };
+    }
 
     const m = await modalPromise;
     if (!m) return;
