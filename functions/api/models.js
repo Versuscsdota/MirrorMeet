@@ -16,11 +16,8 @@ export async function onRequestGet(context) {
     return json(model);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
-  const items = [];
-  for (const k of list.keys) {
-    const m = await env.CRM_KV.get(k.name, { type: 'json' });
-    if (m) items.push(m);
-  }
+  const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const items = fetched.filter(Boolean);
   items.sort((a,b) => b.createdAt - a.createdAt);
   return json({ items });
 }
