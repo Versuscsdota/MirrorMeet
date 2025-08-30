@@ -106,11 +106,18 @@ export async function onRequestDelete(context) {
   if (error) return error;
   
   const url = new URL(request.url);
-  const id = url.searchParams.get('id');
-  if (!id) return badRequest('id required');
+  let id = url.searchParams.get('id');
+  // Fallback: allow id in JSON body for DELETE as well
+  if (!id) {
+    try {
+      const body = await request.json();
+      if (body && body.id) id = String(body.id);
+    } catch {}
+  }
+  if (!id) return badRequest('Не указан id сотрудника (ожидается query ?id= или JSON { id })');
   
   const employee = await env.CRM_KV.get(`employee:${id}`, { type: 'json' });
-  if (!employee) return json({ error: 'Employee not found' }, { status: 404 });
+  if (!employee) return json({ error: 'Employee not found', id }, { status: 404 });
   
   // Find and delete associated user account
   const userList = await env.CRM_KV.list({ prefix: 'user:' });
