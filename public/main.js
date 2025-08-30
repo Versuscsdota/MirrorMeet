@@ -221,12 +221,27 @@ async function renderModels() {
     const mode = el('#sort').value;
     const filtered = items.filter(m => (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q));
     const sorted = applySort(filtered, mode);
-    grid.innerHTML = sorted.map(m => `
-      <div class="card">
-        <h3>${m.name}</h3>
-        <p>${m.note || ''}</p>
-        <button data-id="${m.id}" class="openModel">Открыть</button>
-      </div>`).join('');
+    grid.innerHTML = sorted.map(m => {
+      const tags = (m.tags || []).slice(0, 3).join(', ');
+      const moreTagsCount = Math.max(0, (m.tags || []).length - 3);
+      return `
+        <div class="card model-card">
+          <div class="model-header">
+            <h3>${m.name}</h3>
+            ${m.fullName ? `<div class="model-fullname">${m.fullName}</div>` : ''}
+          </div>
+          <div class="model-info">
+            ${m.age ? `<span class="info-item">${m.age} лет</span>` : ''}
+            ${m.height ? `<span class="info-item">${m.height} см</span>` : ''}
+            ${m.measurements ? `<span class="info-item">${m.measurements}</span>` : ''}
+          </div>
+          ${tags ? `<div class="model-tags">${tags}${moreTagsCount > 0 ? ` +${moreTagsCount}` : ''}</div>` : ''}
+          ${m.note ? `<p class="model-note">${m.note}</p>` : ''}
+          <div class="model-actions">
+            <button data-id="${m.id}" class="openModel">Открыть профиль</button>
+          </div>
+        </div>`;
+    }).join('');
     [...grid.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
   }
   el('#search').addEventListener('input', renderList);
@@ -235,15 +250,54 @@ async function renderModels() {
   const addBtn = el('#addModel');
   if (addBtn) {
     addBtn.onclick = async () => {
-      const name = prompt('Имя модели');
-      if (!name) return;
+      const form = document.createElement('div');
+      form.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Псевдоним/Никнейм<input id="mName" placeholder="Анна" required /></label>
+          <label>Полное имя<input id="mFullName" placeholder="Анна Владимировна Петрова" /></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <label>Возраст<input id="mAge" type="number" placeholder="25" min="18" max="50" /></label>
+          <label>Рост (см)<input id="mHeight" type="number" placeholder="170" min="150" max="200" /></label>
+          <label>Вес (кг)<input id="mWeight" type="number" placeholder="55" min="40" max="100" /></label>
+        </div>
+        <label>Параметры<input id="mMeasurements" placeholder="90-60-90" /></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Телефон<input id="mPhone" placeholder="+79991234567" /></label>
+          <label>Email<input id="mEmail" type="email" placeholder="anna@example.com" /></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Instagram<input id="mInstagram" placeholder="@anna_model" /></label>
+          <label>Telegram<input id="mTelegram" placeholder="@anna_tg" /></label>
+        </div>
+        <label>Теги<input id="mTags" placeholder="фотомодель, реклама, fashion" /></label>
+        <label>Примечания<textarea id="mNote" placeholder="Дополнительная информация" rows="3"></textarea></label>
+      `;
+      const res = await showModal({ title: 'Добавить модель', content: form, submitText: 'Создать' });
+      if (!res) return;
+      const { close, setError } = res;
+      const name = form.querySelector('#mName').value.trim();
+      const fullName = form.querySelector('#mFullName').value.trim();
+      const age = form.querySelector('#mAge').value;
+      const height = form.querySelector('#mHeight').value;
+      const weight = form.querySelector('#mWeight').value;
+      const measurements = form.querySelector('#mMeasurements').value.trim();
+      const phone = form.querySelector('#mPhone').value.trim();
+      const email = form.querySelector('#mEmail').value.trim();
+      const instagram = form.querySelector('#mInstagram').value.trim();
+      const telegram = form.querySelector('#mTelegram').value.trim();
+      const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
+      const note = form.querySelector('#mNote').value.trim();
+      if (!name) { setError('Укажите псевдоним модели'); return; }
       try {
-        const created = await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
-        // Optimistic update: prepend to list and re-render without refetch
+        const created = await api('/api/models', { method: 'POST', body: JSON.stringify({ 
+          name, fullName, age, height, weight, measurements, phone, email, instagram, telegram, tags, note 
+        }) });
         items = [created, ...items];
         renderList();
+        close();
       } catch (e) {
-        alert(e.message);
+        setError(e.message);
       }
     };
   }
@@ -258,31 +312,70 @@ async function renderModelCard(id) {
   const model = await api('/api/models?id=' + encodeURIComponent(id));
   const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
   let files = filesRes.items || [];
+  
   view.innerHTML = `
-    <div class="card">
-      <h2>${model.name}</h2>
-      <p>${model.note || ''}</p>
-      <section class="bar" style="gap:8px;flex-wrap:wrap">
-        <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
-          <input type="file" name="file" required />
-          <input name="name" placeholder="Название" required />
-          <input name="description" placeholder="Описание" />
-          <button>Загрузить</button>
-        </form>
-        <input id="fileSearch" placeholder="Поиск по файлам" />
-        <select id="fileSort">
-          <option value="name-asc">Имя ↑</option>
-          <option value="name-desc">Имя ↓</option>
-        </select>
-        <button id="exportCsv" type="button">Экспорт CSV</button>
-      </section>
-      <ul id="filesList"></ul>
-      <div id="filePreview" style="margin-top:12px"></div>
+    <div class="model-profile">
+      <div class="profile-header">
+        <div class="profile-main">
+          <h1>${model.name}</h1>
+          ${model.fullName ? `<h2 class="full-name">${model.fullName}</h2>` : ''}
+          <div class="profile-actions">
+            <button id="editProfile">Редактировать профиль</button>
+            <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+          </div>
+        </div>
+        <div class="profile-info">
+          <div class="info-grid">
+            ${model.age ? `<div class="info-item"><label>Возраст</label><span>${model.age} лет</span></div>` : ''}
+            ${model.height ? `<div class="info-item"><label>Рост</label><span>${model.height} см</span></div>` : ''}
+            ${model.weight ? `<div class="info-item"><label>Вес</label><span>${model.weight} кг</span></div>` : ''}
+            ${model.measurements ? `<div class="info-item"><label>Параметры</label><span>${model.measurements}</span></div>` : ''}
+          </div>
+          ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
+            <div class="contacts">
+              <h4>Контакты</h4>
+              ${model.contacts.phone ? `<div><strong>Телефон:</strong> <a href="tel:${model.contacts.phone}">${model.contacts.phone}</a></div>` : ''}
+              ${model.contacts.email ? `<div><strong>Email:</strong> <a href="mailto:${model.contacts.email}">${model.contacts.email}</a></div>` : ''}
+              ${model.contacts.instagram ? `<div><strong>Instagram:</strong> <a href="https://instagram.com/${model.contacts.instagram.replace('@', '')}" target="_blank">${model.contacts.instagram}</a></div>` : ''}
+              ${model.contacts.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${model.contacts.telegram.replace('@', '')}" target="_blank">${model.contacts.telegram}</a></div>` : ''}
+            </div>
+          ` : ''}
+          ${(model.tags && model.tags.length) ? `
+            <div class="tags-section">
+              <h4>Теги</h4>
+              <div class="tags">${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+            </div>
+          ` : ''}
+          ${model.note ? `<div class="notes-section"><h4>Примечания</h4><p>${model.note}</p></div>` : ''}
+        </div>
+      </div>
+      
+      <div class="files-section">
+        <h3>Файлы портфолио</h3>
+        <section class="bar" style="gap:8px;flex-wrap:wrap">
+          <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
+            <input type="file" name="file" required accept="image/*,video/*,.pdf" multiple />
+            <input name="name" placeholder="Название" required />
+            <input name="description" placeholder="Описание" />
+            <button>Загрузить</button>
+          </form>
+          <input id="fileSearch" placeholder="Поиск по файлам" />
+          <select id="fileSort">
+            <option value="name-asc">Имя ↑</option>
+            <option value="name-desc">Имя ↓</option>
+            <option value="date-desc">Дата ↓</option>
+          </select>
+          <button id="exportCsv" type="button">Экспорт CSV</button>
+        </section>
+        <div class="files-grid" id="filesGrid"></div>
+        <div id="filePreview" style="margin-top:12px"></div>
+      </div>
     </div>`;
-  const listEl = el('#filesList');
+  const gridEl = el('#filesGrid');
   function applyFileSort(arr, mode){
     const a = [...arr];
     if (mode === 'name-desc') a.sort((x,y)=> (y.name||'').localeCompare(x.name||''));
+    else if (mode === 'date-desc') a.sort((x,y)=> (y.createdAt||0) - (x.createdAt||0));
     else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
     return a;
   }
@@ -291,23 +384,36 @@ async function renderModelCard(id) {
     const mode = el('#fileSort').value;
     const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
     const sorted = applyFileSort(filtered, mode);
-    listEl.innerHTML = sorted.map(f => {
-      const viewUrl = f.url; // inline view
+    gridEl.innerHTML = sorted.map(f => {
+      const viewUrl = f.url;
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
       const canDownload = (window.currentUser && window.currentUser.role === 'root');
-      return `<li>
-        <strong>${f.name}</strong> — ${f.description || ''}
-        [<a href="${viewUrl}" target="_blank">Просмотр</a>]
-        ${canDownload ? `[<a href="${downloadUrl}">Скачать</a>]` : ''}
-      </li>`;
+      const isImage = (f.contentType || '').startsWith('image/');
+      const isVideo = (f.contentType || '').startsWith('video/');
+      const fileDate = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : '';
+      return `
+        <div class="file-card">
+          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" /></div>` : 
+            isVideo ? `<div class="file-thumb video"><span>📹</span></div>` : 
+            `<div class="file-thumb doc"><span>📄</span></div>`}
+          <div class="file-info">
+            <div class="file-name">${f.name}</div>
+            ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
+            ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
+            <div class="file-actions">
+              <a href="${viewUrl}" target="_blank" class="file-btn">Просмотр</a>
+              ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+            </div>
+          </div>
+        </div>`;
     }).join('');
     // attach inline preview on click of Просмотр without leaving page
-    [...listEl.querySelectorAll('a')].forEach(a => {
+    [...gridEl.querySelectorAll('a')].forEach(a => {
       if (a.textContent === 'Просмотр') {
         a.addEventListener('click', (ev) => {
           ev.preventDefault();
-          const li = a.closest('li');
-          const name = li.querySelector('strong')?.textContent || '';
+          const fileCard = a.closest('.file-card');
+          const name = fileCard.querySelector('.file-name')?.textContent || '';
           const item = sorted.find(x => x.name === name);
           const box = el('#filePreview');
           if (!item) { window.open(a.href, '_blank'); return; }
@@ -331,6 +437,71 @@ async function renderModelCard(id) {
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
+
+  // Edit profile functionality
+  el('#editProfile').onclick = async () => {
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Псевдоним/Никнейм<input id="mName" value="${model.name || ''}" required /></label>
+        <label>Полное имя<input id="mFullName" value="${model.fullName || ''}" /></label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <label>Возраст<input id="mAge" type="number" value="${model.age || ''}" min="18" max="50" /></label>
+        <label>Рост (см)<input id="mHeight" type="number" value="${model.height || ''}" min="150" max="200" /></label>
+        <label>Вес (кг)<input id="mWeight" type="number" value="${model.weight || ''}" min="40" max="100" /></label>
+      </div>
+      <label>Параметры<input id="mMeasurements" value="${model.measurements || ''}" placeholder="90-60-90" /></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Телефон<input id="mPhone" value="${(model.contacts && model.contacts.phone) || ''}" /></label>
+        <label>Email<input id="mEmail" type="email" value="${(model.contacts && model.contacts.email) || ''}" /></label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Instagram<input id="mInstagram" value="${(model.contacts && model.contacts.instagram) || ''}" /></label>
+        <label>Telegram<input id="mTelegram" value="${(model.contacts && model.contacts.telegram) || ''}" /></label>
+      </div>
+      <label>Теги<input id="mTags" value="${(model.tags || []).join(', ')}" placeholder="фотомодель, реклама, fashion" /></label>
+      <label>Примечания<textarea id="mNote" rows="3">${model.note || ''}</textarea></label>
+    `;
+    const res = await showModal({ title: 'Редактировать профиль', content: form, submitText: 'Сохранить' });
+    if (!res) return;
+    const { close, setError } = res;
+    const name = form.querySelector('#mName').value.trim();
+    const fullName = form.querySelector('#mFullName').value.trim();
+    const age = form.querySelector('#mAge').value;
+    const height = form.querySelector('#mHeight').value;
+    const weight = form.querySelector('#mWeight').value;
+    const measurements = form.querySelector('#mMeasurements').value.trim();
+    const phone = form.querySelector('#mPhone').value.trim();
+    const email = form.querySelector('#mEmail').value.trim();
+    const instagram = form.querySelector('#mInstagram').value.trim();
+    const telegram = form.querySelector('#mTelegram').value.trim();
+    const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
+    const note = form.querySelector('#mNote').value.trim();
+    if (!name) { setError('Укажите псевдоним модели'); return; }
+    try {
+      await api('/api/models', { method: 'PUT', body: JSON.stringify({ 
+        id, name, fullName, age, height, weight, measurements, 
+        contacts: { phone, email, instagram, telegram }, tags, note 
+      }) });
+      close();
+      renderModelCard(id); // refresh profile
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  // Delete model functionality
+  el('#deleteModel').onclick = async () => {
+    if (!confirm(`Удалить модель "${model.name}"? Это действие нельзя отменить.`)) return;
+    try {
+      await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      renderModels(); // back to models list
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   el('#exportCsv').addEventListener('click', () => {
     const mode = el('#fileSort').value;
     const q = (el('#fileSearch').value || '').toLowerCase();

@@ -227,3 +227,236 @@ textarea {
 .tl-resize.left{left:0}
 .tl-resize.right{right:0}
 
+/* Model profile styles */
+.model-profile {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.profile-main h1 {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  color: #f8fafc;
+}
+
+.full-name {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-item label {
+  font-size: 12px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.info-item span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.contacts, .tags-section, .notes-section {
+  margin-bottom: 24px;
+}
+
+.contacts h4, .tags-section h4, .notes-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contacts div {
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.contacts a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.contacts a:hover {
+  text-decoration: underline;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  background: #1e293b;
+  color: #94a3b8;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  border: 1px solid #334155;
+}
+
+.files-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  color: #f8fafc;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.file-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.file-thumb {
+  height: 120px;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.file-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.file-thumb.video, .file-thumb.doc {
+  font-size: 32px;
+}
+
+.file-info {
+  padding: 12px;
+}
+
+.file-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #f8fafc;
+  margin-bottom: 4px;
+}
+
+.file-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.file-date {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.file-btn {
+  background: #374151;
+  color: #e5e7eb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.file-btn:hover {
+  background: #4b5563;
+}
+
+/* Model cards in grid */
+.model-card {
+  transition: transform 0.2s ease;
+}
+
+.model-card:hover {
+  transform: translateY(-2px);
+}
+
+.model-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+}
+
+.model-fullname {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.model-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.model-info .info-item {
+  background: #1e293b;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.model-tags {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.model-note {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 8px 0;
+  line-height: 1.4;
+}
+
+.model-actions {
+  margin-top: 12px;
+}
+
