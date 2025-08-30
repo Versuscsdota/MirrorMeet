@@ -387,8 +387,14 @@ async function renderCalendar() {
       await loadMonth();
     };
   }
-  const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
-  el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const addBtn = el('#addSlot'); 
+  if (addBtn) addBtn.onclick = createSlot;
+  
+  const selectedDateEl = el('#selectedDate');
+  if (selectedDateEl) {
+    selectedDateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+  
   await Promise.all([loadMonth(), load()]);
 }
 
