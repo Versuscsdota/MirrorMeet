@@ -135,7 +135,9 @@ async function renderEmployees() {
       if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
       try {
         const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, phone, email }) });
-        items = await api('/api/employees');
+        // Optimistic update: add to local list and re-render without refetch
+        const toAdd = { id: created.id, fullName: created.fullName, position: created.position };
+        items = [toAdd, ...items];
         renderList();
         close();
         // Show generated credentials once
@@ -235,8 +237,14 @@ async function renderModels() {
     addBtn.onclick = async () => {
       const name = prompt('Имя модели');
       if (!name) return;
-      await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
-      renderModels();
+      try {
+        const created = await api('/api/models', { method: 'POST', body: JSON.stringify({ name }) });
+        // Optimistic update: prepend to list and re-render without refetch
+        items = [created, ...items];
+        renderList();
+      } catch (e) {
+        alert(e.message);
+      }
     };
   }
 }
@@ -345,8 +353,10 @@ async function renderModelCard(id) {
     try {
       const res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
       if (!res.ok) throw new Error(await res.text());
-      const fresh = await api('/api/files?modelId=' + encodeURIComponent(id));
-      files = fresh.items || [];
+      const data = await res.json();
+      if (data && data.file) {
+        files = [data.file, ...files];
+      }
       renderFiles();
     } catch (err) { alert(err.message); }
   });
@@ -373,6 +383,7 @@ async function renderSchedule() {
     api('/api/schedule?date=' + date),
     api('/api/employees')
   ]);
+  let events = data.items || [];
   view.innerHTML = `
     <section class="bar">
       <button id="addEvent">Создать слот</button>
@@ -439,7 +450,7 @@ async function renderSchedule() {
     });
   }
 
-  renderEvents(data.items || []);
+  renderEvents(events);
 
   // interactions: drag move and resize
   let drag = null;
@@ -521,9 +532,11 @@ async function renderSchedule() {
     const employeeId = form.querySelector('#evEmployee').value || null;
     if (!start || !end) { setError('Укажите время начала и конца'); return; }
     try {
-      await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
-      const fresh = await api('/api/schedule?date=' + date);
-      renderEvents(fresh.items || []);
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
+      events = [...events, created];
+      // keep order
+      events.sort((a,b)=> (a.startISO < b.startISO ? -1 : 1));
+      renderEvents(events);
       close();
     } catch (e) { setError(e.message); }
   };
@@ -531,7 +544,8 @@ async function renderSchedule() {
   el('#pickDate').addEventListener('change', async (e)=>{
     date = e.target.value;
     const fresh = await api('/api/schedule?date=' + date);
-    renderEvents(fresh.items || []);
+    events = fresh.items || [];
+    renderEvents(events);
   });
 }
 
