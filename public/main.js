@@ -367,18 +367,26 @@ async function renderCalendar() {
   }
 
   // Remove date input - navigation only via calendar clicks
-  el('#mPrev').onclick = async () => {
-    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
-    const d = new Date(y, m-2, 1);
-    currentMonth = d.toISOString().slice(0,7);
-    await loadMonth();
-  };
-  el('#mNext').onclick = async () => {
-    const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
-    const d = new Date(y, m, 1); // m is already 1-based, so this goes to next month
-    currentMonth = d.toISOString().slice(0,7);
-    await loadMonth();
-  };
+  const prevBtn = el('#mPrev');
+  const nextBtn = el('#mNext');
+  
+  if (prevBtn) {
+    prevBtn.onclick = async () => {
+      const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+      const d = new Date(y, m-2, 1);
+      currentMonth = d.toISOString().slice(0,7);
+      await loadMonth();
+    };
+  }
+  
+  if (nextBtn) {
+    nextBtn.onclick = async () => {
+      const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
+      const d = new Date(y, m, 1); // m is already 1-based, so this goes to next month
+      currentMonth = d.toISOString().slice(0,7);
+      await loadMonth();
+    };
+  }
   const addBtn = el('#addSlot'); if (addBtn) addBtn.onclick = createSlot;
   el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   await Promise.all([loadMonth(), load()]);
