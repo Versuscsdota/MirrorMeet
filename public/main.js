@@ -381,200 +381,520 @@ function renderLogin() {
       <p class="hint">Если это первый запуск — первый пользователь станет root.</p>
     </div>`;
 
-  // Инициализация табов
-  initTabs();
-  
-  // Обработчик формы комментариев
-  el('#commentForm').addEventListener('submit', async (e) => {
+  el('#loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = (el('#commentText').value || '').trim();
-    if (!text) {
-      alert('Введите текст комментария');
-      return;
-    }
-    
-    const submitBtn = el('.comment-submit');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = '⏳ Добавление...';
-    submitBtn.disabled = true;
-    
+    const fd = new FormData(e.target);
     try {
-      const res = await api('/api/models', { method: 'PUT', body: JSON.stringify({ action: 'addComment', modelId: id, text }) });
-      model.comments = res.model?.comments || model.comments || [];
-      el('#commentText').value = '';
-      renderComments();
-    } catch (err) { 
-      alert('Ошибка при добавлении комментария: ' + err.message); 
-    } finally {
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
+      const res = await api('/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ login: fd.get('login'), password: fd.get('password') }),
+      });
+      // First login: must change credentials
+      if (res && res.user && res.user.mustChange) {
+        const form = document.createElement('div');
+        form.innerHTML = `
+          <p style="color:var(--muted)">Это первый вход. Пожалуйста, задайте новый логин и пароль.</p>
+          <label>Новый логин<input id="newLogin" required /></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <label>Новый пароль<input id="newPass" type="password" required /></label>
+            <label>Ещё раз пароль<input id="newPass2" type="password" required /></label>
+          </div>`;
+        const m = await showModal({ title: 'Смена учётных данных', content: form, submitText: 'Сохранить' });
+        if (m) {
+          const { close, setError } = m;
+          const loginNew = form.querySelector('#newLogin').value.trim().toLowerCase();
+          const p1 = form.querySelector('#newPass').value;
+          const p2 = form.querySelector('#newPass2').value;
+          if (!loginNew || !p1) { setError('Заполните поля'); return; }
+          if (p1 !== p2) { setError('Пароли не совпадают'); return; }
+          try {
+            await api('/api/users', { method: 'PUT', body: JSON.stringify({ login: loginNew, password: p1 }) });
+            close();
+          } catch (err) {
+            setError(err.message);
+            return;
+          }
+        }
+      }
+      renderApp();
+    } catch (err) {
+      alert(err.message);
     }
   });
+}
 
-  function updateFileCount() {
-    const countEl = el('#fileCount');
-    if (countEl) countEl.textContent = files.length;
-  }
-
-  // Render comments
-  function renderComments() {
-    const list = el('#commentsList');
-    const comments = Array.isArray(model.comments) ? model.comments : [];
-    if (!list) return;
-    
-    if (comments.length === 0) {
-      list.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">💬</div>
-          <h4>Пока нет комментариев</h4>
-          <p>Добавьте первый комментарий, чтобы начать ведение заметок о модели</p>
-        </div>`;
-    } else {
-      list.innerHTML = comments.map((c, index) => {
-        const dt = new Date(c.ts || Date.now());
-        const timeStr = dt.toLocaleString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        
-        return `
-          <div class="comment-item">
-            <div class="comment-header">
-              <span class="comment-number">#${index + 1}</span>
-              <span class="comment-date">📅 ${timeStr}</span>
+async function renderEmployees() {
+  const view = el('#view');
+  let items = await api('/api/employees');
+  view.innerHTML = `
+    <section class="bar">
+      <input id="emplSearch" placeholder="Поиск по ФИО/должности" />
+      <span style="flex:1"></span>
+      ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
+    </section>
+    <div class="card">
+      <ul id="emplListFull" class="empl-list"></ul>
+    </div>
+  `;
+  const listEl = el('#emplListFull');
+  const isRoot = window.currentUser.role === 'root';
+  
+  function renderList(){
+    const q = (el('#emplSearch').value || '').toLowerCase();
+    const filtered = (items || []).filter(e => 
+      (e.fullName||'').toLowerCase().includes(q) || 
+      (e.position||'').toLowerCase().includes(q) ||
+      (e.department||'').toLowerCase().includes(q)
+    );
+    listEl.innerHTML = filtered.map(e => `
+      <li class="employee-item">
+        <div class="employee-info">
+          <div class="employee-header">
+            <div class="empl-name">${e.fullName}</div>
+            <div class="employee-actions">
+              ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
+              ${isRoot ? `<button class="delete-employee" data-id="${e.id}">Удалить</button>` : ''}
             </div>
-            <div class="comment-text">${(c.text||'').replace(/</g,'&lt;').replace(/\n/g, '<br>')}</div>
-          </div>`;
-      }).join('');
-    }
+          </div>
+          <div class="employee-details">
+            <div class="empl-pos">${e.position||''}</div>
+            ${e.department ? `<div class="empl-dept">${e.department}</div>` : ''}
+            ${e.phone ? `<div class="empl-contact">📞 ${e.phone}</div>` : ''}
+            ${e.email ? `<div class="empl-contact">✉️ ${e.email}</div>` : ''}
+            ${e.startDate ? `<div class="empl-start">Начало работы: ${e.startDate}</div>` : ''}
+          </div>
+          ${e.notes ? `<div class="empl-notes">${e.notes}</div>` : ''}
+        </div>
+      </li>
+    `).join('');
     
-    updateCommentCount();
+    // Add functionality
+    if (isRoot) {
+      [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
+        btn.onclick = async () => {
+          const employeeId = btn.dataset.id;
+          const employee = filtered.find(e => e.id === employeeId);
+          await deleteEmployeeWithPassword(employee);
+        };
+      });
+      
+      [...listEl.querySelectorAll('.edit-employee')].forEach(btn => {
+        btn.onclick = async () => {
+          const employeeId = btn.dataset.id;
+          const employee = filtered.find(e => e.id === employeeId);
+          await editEmployee(employee);
+        };
+      });
+    }
+  }
+  el('#emplSearch').addEventListener('input', renderList);
+  renderList();
+  const addBtn = el('#addEmployee');
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      const form = document.createElement('div');
+      form.innerHTML = `
+        <label>ФИО<input id="fFullName" placeholder="Иванов Иван Иванович" required /></label>
+        <label>Должность<input id="fPosition" placeholder="Фотограф" required /></label>
+        <label>Отдел<input id="fDepartment" placeholder="Студийная съёмка" /></label>
+        <label>Телефон<input id="fPhone" placeholder="+7 (999) 123-45-67" /></label>
+        <label>Email<input id="fEmail" placeholder="employee@example.com" /></label>
+        <label>Дата начала работы<input id="fStartDate" type="date" /></label>
+        <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3"></textarea></label>
+        <label>Роль
+          <select id="fRole">
+            <option value="interviewer">Интервьюер</option>
+            <option value="curator">Куратор</option>
+            <option value="admin">Администратор</option>
+          </select>
+        </label>
+      `;
+      const res = await showModal({ title: 'Добавить сотрудника', content: form, submitText: 'Создать' });
+      if (!res) return;
+      const { close, setError } = res;
+      const fullName = form.querySelector('#fFullName').value.trim();
+      const position = form.querySelector('#fPosition').value.trim();
+      const department = form.querySelector('#fDepartment').value.trim();
+      const phone = form.querySelector('#fPhone').value.trim();
+      const email = form.querySelector('#fEmail').value.trim();
+      const startDate = form.querySelector('#fStartDate').value;
+      const notes = form.querySelector('#fNotes').value.trim();
+      const role = form.querySelector('#fRole').value;
+      if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
+      try {
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, startDate, notes, role }) });
+        // Optimistic update: add to local list and re-render without refetch
+        items = [created, ...items];
+        renderList();
+        close();
+        // Show generated credentials once
+        if (created && created.credentials) {
+          const info = document.createElement('div');
+          info.innerHTML = `
+            <p>Учётная запись создана. Передайте сотруднику эти данные для первого входа:</p>
+            <div class="card" style="margin:0">
+              <div><strong>Логин:</strong> <code>${created.credentials.login}</code></div>
+              <div><strong>Пароль:</strong> <code>${created.credentials.password}</code></div>
+            </div>
+            <p style="color:var(--muted)">При первом входе система попросит задать собственные логин и пароль.</p>`;
+          await showModal({ title: 'Данные для входа', content: info, submitText: 'Готово' });
+        }
+      } catch (e) { setError(e.message); }
+    };
   }
 
-  function updateCommentCount() {
-    const countEl = el('#commentCount');
-    const comments = Array.isArray(model.comments) ? model.comments : [];
-    if (countEl) countEl.textContent = comments.length;
+  // Add edit employee function
+  async function editEmployee(employee) {
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <label>ФИО<input id="fFullName" value="${employee.fullName || ''}" placeholder="Иванов Иван Иванович" required /></label>
+      <label>Должность<input id="fPosition" value="${employee.position || ''}" placeholder="Фотограф" required /></label>
+      <label>Отдел<input id="fDepartment" value="${employee.department || ''}" placeholder="Студийная съёмка" /></label>
+      <label>Телефон<input id="fPhone" value="${employee.phone || ''}" placeholder="+7 (999) 123-45-67" /></label>
+      <label>Email<input id="fEmail" value="${employee.email || ''}" placeholder="employee@example.com" /></label>
+      <label>Дата начала работы<input id="fStartDate" type="date" value="${employee.startDate || ''}" /></label>
+      <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3">${employee.notes || ''}</textarea></label>
+    `;
+    
+    const res = await showModal({ title: 'Редактировать сотрудника', content: form, submitText: 'Сохранить' });
+    if (!res) return;
+    
+    const { close, setError } = res;
+    const fullName = form.querySelector('#fFullName').value.trim();
+    const position = form.querySelector('#fPosition').value.trim();
+    const department = form.querySelector('#fDepartment').value.trim();
+    const phone = form.querySelector('#fPhone').value.trim();
+    const email = form.querySelector('#fEmail').value.trim();
+    const startDate = form.querySelector('#fStartDate').value;
+    const notes = form.querySelector('#fNotes').value.trim();
+    
+    if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
+    
+    try {
+      const updated = await api('/api/employees', { 
+        method: 'PUT', 
+        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, startDate, notes }) 
+      });
+      
+      // Update local list
+      const index = items.findIndex(e => e.id === employee.id);
+      if (index !== -1) {
+        items[index] = updated.employee;
+        renderList();
+      }
+      close();
+    } catch (e) { 
+      setError(e.message); 
+    }
   }
+}
 
+async function fetchMe() {
+  try {
+    return await api('/api/users?me=1');
+  } catch {
+    return null;
+  }
+}
+
+function renderAppShell(me) {
+  el('#app').innerHTML = `
+    <header>
+      <div class="logo">
+        <svg width="120" height="48" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 45 Q25 35, 35 40 Q45 45, 50 35 Q55 25, 65 30 Q75 35, 80 25" 
+                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M90 55 Q100 45, 110 50 Q120 55, 125 45 Q130 35, 140 40 Q150 45, 155 35 Q160 25, 170 30 Q180 35, 185 25" 
+                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <ellipse cx="35" cy="20" rx="25" ry="15" stroke="#2bb3b1" stroke-width="2" fill="none" transform="rotate(-15 35 20)"/>
+        </svg>
+      </div>
+      <nav>
+        ${
+          (me.role === 'root' || me.role === 'admin') ? `
+            <button id="nav-models">Модели</button>
+            <button id="nav-calendar">Календарь</button>
+            <button id="nav-employees">Сотрудники</button>
+            <button id="nav-files">Файлы</button>
+          ` : (me.role === 'interviewer') ? `
+            <button id="nav-calendar">Календарь</button>
+          ` : ''
+        }
+      </nav>
+      <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
+        <button id="logout">Выход</button>
+      </div>
+    </header>
+    <main id="view"></main>
+  `;
+  el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
+  if (me.role === 'root' || me.role === 'admin') {
+    el('#nav-models').onclick = renderModels;
+    el('#nav-calendar').onclick = renderCalendar;
+    el('#nav-employees').onclick = renderEmployees;
+    el('#nav-files').onclick = renderFileSystem;
+  } else if (me.role === 'interviewer') {
+    el('#nav-calendar').onclick = renderCalendar;
+  }
+}
+
+async function renderModels() {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
+  const view = el('#view');
+  const data = await api('/api/models');
+  let items = data.items || [];
+  view.innerHTML = `
+    <section class="bar">
+      ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? '<button id="addModel">Добавить модель</button>' : ''}
+      <input id="search" placeholder="Поиск по имени/описанию" />
+      <select id="sort">
+        <option value="name-asc">Имя ↑</option>
+        <option value="name-desc">Имя ↓</option>
+      </select>
+    </section>
+    <div class="grid" id="modelsGrid"></div>
+  `;
+  const grid = el('#modelsGrid');
+  function applySort(list, mode){
+    const arr = [...list];
+    if (mode === 'name-desc') arr.sort((a,b)=> (b.name||'').localeCompare(a.name||''));
+    else arr.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+    return arr;
+  }
+  function renderList(){
+    const q = (el('#search').value || '').toLowerCase();
+    const mode = el('#sort').value;
+    const filtered = items.filter(m => (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q));
+    const sorted = applySort(filtered, mode);
+    grid.innerHTML = sorted.map(m => {
+      const tags = (m.tags || []).slice(0, 3).join(', ');
+      const moreTagsCount = Math.max(0, (m.tags || []).length - 3);
+      return `
+        <div class="card model-card">
+          <div class="model-header">
+            <h3>${m.name}</h3>
+            ${m.fullName ? `<div class="model-fullname">${m.fullName}</div>` : ''}
+          </div>
+          <div class="model-info">
+            ${m.age ? `<span class="info-item">${m.age} лет</span>` : ''}
+            ${m.height ? `<span class="info-item">${m.height} см</span>` : ''}
+            ${m.measurements ? `<span class="info-item">${m.measurements}</span>` : ''}
+          </div>
+          ${tags ? `<div class="model-tags">${tags}${moreTagsCount > 0 ? ` +${moreTagsCount}` : ''}</div>` : ''}
+          ${m.note ? `<p class="model-note">${m.note}</p>` : ''}
+          <div class="model-actions">
+            <button data-id="${m.id}" class="openModel">Открыть профиль</button>
+          </div>
+        </div>`;
+    }).join('');
+    [...grid.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
+  }
+  el('#search').addEventListener('input', renderList);
+  el('#sort').addEventListener('change', renderList);
+  renderList();
+  const addBtn = el('#addModel');
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      const form = document.createElement('div');
+      form.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Псевдоним/Никнейм<input id="mName" placeholder="Анна" required /></label>
+          <label>Полное имя<input id="mFullName" placeholder="Анна Владимировна Петрова" /></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <label>Возраст<input id="mAge" type="number" placeholder="25" min="18" max="50" /></label>
+          <label>Рост (см)<input id="mHeight" type="number" placeholder="170" min="150" max="200" /></label>
+          <label>Вес (кг)<input id="mWeight" type="number" placeholder="55" min="40" max="100" /></label>
+        </div>
+        <label>Параметры<input id="mMeasurements" placeholder="90-60-90" /></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Телефон<input id="mPhone" placeholder="+79991234567" /></label>
+          <label>Email<input id="mEmail" type="email" placeholder="anna@example.com" /></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Instagram<input id="mInstagram" placeholder="@anna_model" /></label>
+          <label>Telegram<input id="mTelegram" placeholder="@anna_tg" /></label>
+        </div>
+        <label>Теги<input id="mTags" placeholder="фотомодель, реклама, fashion" /></label>
+        <label>Примечания<textarea id="mNote" placeholder="Дополнительная информация" rows="3"></textarea></label>
+      `;
+      const res = await showModal({ title: 'Добавить модель', content: form, submitText: 'Создать' });
+      if (!res) return;
+      const { close, setError } = res;
+      const name = form.querySelector('#mName').value.trim();
+      const fullName = form.querySelector('#mFullName').value.trim();
+      const age = form.querySelector('#mAge').value;
+      const height = form.querySelector('#mHeight').value;
+      const weight = form.querySelector('#mWeight').value;
+      const measurements = form.querySelector('#mMeasurements').value.trim();
+      const phone = form.querySelector('#mPhone').value.trim();
+      const email = form.querySelector('#mEmail').value.trim();
+      const instagram = form.querySelector('#mInstagram').value.trim();
+      const telegram = form.querySelector('#mTelegram').value.trim();
+      const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
+      const note = form.querySelector('#mNote').value.trim();
+      if (!name) { setError('Укажите псевдоним модели'); return; }
+      try {
+        const created = await api('/api/models', { method: 'POST', body: JSON.stringify({ 
+          name, fullName, age, height, weight, measurements, phone, email, instagram, telegram, tags, note 
+        }) });
+        items = [created, ...items];
+        renderList();
+        close();
+      } catch (e) {
+        setError(e.message);
+      }
+    };
+  }
+}
+
+async function renderModelCard(id) {
+  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+    return;
+  }
+  const view = el('#view');
+  const model = await api('/api/models?id=' + encodeURIComponent(id));
+  const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
+  let files = filesRes.items || [];
+  
+  const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
+  view.innerHTML = `
+    <div class="model-profile">
+      <div class="profile-header">
+        <div class="profile-main" style="display:flex;gap:12px;align-items:center">
+          ${mainFile ? `<img src="${mainFile.url}" alt="main" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #1e1e1e"/>` : ''}
+          <div>
+            <h1 style="margin:0">${model.name}</h1>
+            ${model.fullName ? `<h2 class="full-name" style="margin:4px 0 0 0">${model.fullName}</h2>` : ''}
+            <div class="profile-actions" style="margin-top:8px">
+              <button id="editProfile">Редактировать профиль</button>
+              <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+            </div>
+          </div>
+        </div>
+        <div class="profile-info">
+          <div class="info-grid">
+            ${model.age ? `<div class="info-item"><label>Возраст</label><span>${model.age} лет</span></div>` : ''}
+            ${model.height ? `<div class="info-item"><label>Рост</label><span>${model.height} см</span></div>` : ''}
+            ${model.weight ? `<div class="info-item"><label>Вес</label><span>${model.weight} кг</span></div>` : ''}
+            ${model.measurements ? `<div class="info-item"><label>Параметры</label><span>${model.measurements}</span></div>` : ''}
+          </div>
+          ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
+            <div class="contacts">
+              <h4>Контакты</h4>
+              ${model.contacts.phone ? `<div><strong>Телефон:</strong> <a href="tel:${model.contacts.phone}">${model.contacts.phone}</a></div>` : ''}
+              ${model.contacts.email ? `<div><strong>Email:</strong> <a href="mailto:${model.contacts.email}">${model.contacts.email}</a></div>` : ''}
+              ${model.contacts.instagram ? `<div><strong>Instagram:</strong> <a href="https://instagram.com/${model.contacts.instagram.replace('@', '')}" target="_blank">${model.contacts.instagram}</a></div>` : ''}
+              ${model.contacts.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${model.contacts.telegram.replace('@', '')}" target="_blank">${model.contacts.telegram}</a></div>` : ''}
+            </div>
+          ` : ''}
+          ${(model.tags && model.tags.length) ? `
+            <div class="tags-section">
+              <h4>Теги</h4>
+              <div class="tags">${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+            </div>
+          ` : ''}
+          ${model.note ? `<div class="notes-section"><h4>Примечания</h4><p>${model.note}</p></div>` : ''}
+        </div>
+      </div>
+      
+      <div class="files-section">
+        <h3>Файлы портфолио</h3>
+        <section class="bar" style="gap:8px;flex-wrap:wrap">
+          <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
+            <input type="file" name="file" required accept="image/*,video/*,.pdf" multiple />
+            <input name="name" placeholder="Название" required />
+            <input name="description" placeholder="Описание" />
+            <button>Загрузить</button>
+          </form>
+          <input id="fileSearch" placeholder="Поиск по файлам" />
+          <select id="fileSort">
+            <option value="name-asc">Имя ↑</option>
+            <option value="name-desc">Имя ↓</option>
+            <option value="date-desc">Дата ↓</option>
+          </select>
+          <button id="exportCsv" type="button">Экспорт CSV</button>
+        </section>
+        <div class="files-grid" id="filesGrid"></div>
+        <div id="filePreview" style="margin-top:12px"></div>
+      </div>
+
+      <div class="comments-section" style="margin-top:16px">
+        <h3>Комментарии</h3>
+        <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
+        <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
+          <button type="submit">Добавить</button>
+        </form>
+      </div>
+    </div>`;
+  const gridEl = el('#filesGrid');
+  function applyFileSort(arr, mode){
+    const a = [...arr];
+    if (mode === 'name-desc') a.sort((x,y)=> (y.name||'').localeCompare(x.name||''));
+    else if (mode === 'date-desc') a.sort((x,y)=> (y.createdAt||0) - (x.createdAt||0));
+    else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
+    return a;
+  }
   function renderFiles(){
     const q = (el('#fileSearch').value || '').toLowerCase();
     const mode = el('#fileSort').value;
     const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
     const sorted = applyFileSort(filtered, mode);
-    
     gridEl.innerHTML = sorted.map(f => {
       const viewUrl = f.url;
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
       const canDownload = (window.currentUser && window.currentUser.role === 'root');
       const isImage = (f.contentType || '').startsWith('image/');
       const isVideo = (f.contentType || '').startsWith('video/');
-      const isPdf = (f.contentType || '').includes('pdf');
       const fileDate = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : '';
-      const fileSize = f.size ? formatFileSize(f.size) : '';
-      const isMainPhoto = f.id === model.mainPhotoId;
-      
       return `
-        <div class="file-card ${isMainPhoto ? 'main-photo-card' : ''}">
-          <div class="file-preview">
-            ${isImage ? `
-              <img src="${viewUrl}" alt="${f.name}" class="file-thumbnail" />
-              ${isMainPhoto ? '<div class="main-badge">👑 Главное</div>' : ''}
-            ` : isVideo ? `
-              <div class="file-icon video">🎬</div>
-              <span class="file-type">Видео</span>
-            ` : isPdf ? `
-              <div class="file-icon pdf">📄</div>
-              <span class="file-type">PDF</span>
-            ` : `
-              <div class="file-icon doc">📎</div>
-              <span class="file-type">Файл</span>
-            `}
-          </div>
-          
-          <div class="file-details">
-            <div class="file-header">
-              <h4 class="file-title">${f.name}</h4>
-              ${fileSize ? `<span class="file-size">${fileSize}</span>` : ''}
-            </div>
-            ${f.description ? `<p class="file-description">${f.description}</p>` : ''}
-            ${fileDate ? `<div class="file-meta">📅 ${fileDate}</div>` : ''}
-            
+        <div class="file-card">
+          ${isImage ? `<div class="file-thumb"><img src="${viewUrl}" alt="${f.name}" /></div>` : 
+            isVideo ? `<div class="file-thumb video"><span>📹</span></div>` : 
+            `<div class="file-thumb doc"><span>📄</span></div>`}
+          <div class="file-info">
+            <div class="file-name">${f.name}</div>
+            ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
+            ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
             <div class="file-actions">
-              ${canDownload ? `<a href="${downloadUrl}" class="action-btn download">⬇️ Скачать</a>` : ''}
-              ${isImage && !isMainPhoto ? `<button class="action-btn make-main" data-id="${f.id}">👑 Главное фото</button>` : ''}
-              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="action-btn delete" data-id="${f.id}">🗑️ Удалить</button>` : ''}
+              ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+              ${isImage ? `<button class="file-btn make-main" data-id="${f.id}">Сделать главной</button>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
-    
-    updateFileCount();
-  }
-  
-  function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Б';
-    const k = 1024;
-    const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    // no inline preview, only download
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
   
   // File actions: delete and set main photo
   document.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('delete')) {
+    if (e.target.classList.contains('delete-file')) {
       const fileId = e.target.dataset.id;
-      const fileName = e.target.closest('.file-card').querySelector('.file-title').textContent;
-      if (!confirm(`Удалить файл "${fileName}"?\n\nЭто действие нельзя отменить.`)) return;
-      
-      const btn = e.target;
-      const originalText = btn.textContent;
-      btn.textContent = '⏳ Удаление...';
-      btn.disabled = true;
-      
+      const fileName = e.target.closest('.file-card').querySelector('.file-name').textContent;
+      if (!confirm(`Удалить файл "${fileName}"?`)) return;
       try {
         await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
         files = files.filter(f => f.id !== fileId);
-        // Если удаляем главное фото, сбрасываем его
-        if (model.mainPhotoId === fileId) {
-          model.mainPhotoId = null;
-        }
         renderFiles();
-        // Обновляем главное фото в обзоре если нужно
-        if (model.mainPhotoId === fileId) {
-          renderModelCard(id);
-        }
       } catch (err) {
-        alert('Ошибка при удалении файла: ' + err.message);
-        btn.textContent = originalText;
-        btn.disabled = false;
+        alert(err.message);
       }
     }
-    
     if (e.target.classList.contains('make-main')) {
       const fileId = e.target.dataset.id;
-      const fileName = e.target.closest('.file-card').querySelector('.file-title').textContent;
-      
-      const btn = e.target;
-      const originalText = btn.textContent;
-      btn.textContent = '⏳ Установка...';
-      btn.disabled = true;
-      
       try {
         await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, mainPhotoId: fileId }) });
         model.mainPhotoId = fileId;
-        renderFiles(); // Обновляем список файлов
-        renderModelCard(id); // Полностью перерисовываем профиль
-      } catch (err) { 
-        alert('Ошибка при установке главного фото: ' + err.message);
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
+        renderModelCard(id);
+      } catch (err) { alert(err.message); }
     }
   });
 
@@ -661,24 +981,10 @@ function renderLogin() {
     URL.revokeObjectURL(link.href);
   });
   renderFiles();
-  // Обработчик загрузки файлов
   el('#fileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const fileInput = e.target.querySelector('input[type="file"]');
-    
-    if (!fileInput.files.length) {
-      alert('Выберите файлы для загрузки');
-      return;
-    }
-    
     fd.append('modelId', id);
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = '⏳ Загрузка...';
-    submitBtn.disabled = true;
-    
     try {
       const res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
       if (!res.ok) throw new Error(await res.text());
@@ -687,20 +993,8 @@ function renderLogin() {
         files = [data.file, ...files];
       }
       renderFiles();
-      e.target.reset(); // Очищаем форму
-    } catch (err) { 
-      alert('Ошибка при загрузке файла: ' + err.message); 
-    } finally {
-      submitBtn.textContent = originalText;
-      submitBtn.disabled = false;
-    }
+    } catch (err) { alert(err.message); }
   });
-  
-  // Инициализация
-  renderFiles();
-  renderComments();
-  updateFileCount();
-  updateCommentCount();
 }
 
 function timeStr(d) { return d.toTimeString().slice(0,5); }
