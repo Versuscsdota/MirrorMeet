@@ -1655,4 +1655,4 @@ async function renderApp() {
   }
 }
 
-renderApp();
+renderApp()}
