@@ -447,11 +447,9 @@ async function renderEmployees() {
       <span style="flex:1"></span>
       ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
     </section>
-    <div class="card">
-      <ul id="emplListFull" class="empl-list"></ul>
-    </div>
+    <div class="grid" id="emplGrid"></div>
   `;
-  const listEl = el('#emplListFull');
+  const gridEl = el('#emplGrid');
   const isRoot = window.currentUser.role === 'root';
   
   function renderList(){
@@ -461,38 +459,55 @@ async function renderEmployees() {
       (e.position||'').toLowerCase().includes(q) ||
       (e.department||'').toLowerCase().includes(q)
     );
-    listEl.innerHTML = filtered.map(e => `
-      <li class="employee-item">
-        <div class="employee-info">
-          <div class="employee-header">
-            <button class="empl-name open-employee" data-id="${e.id}">${e.fullName}</button>
-            <div class="employee-actions">
-              ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
-              ${isRoot ? `<button class="delete-employee" data-id="${e.id}">Удалить</button>` : ''}
+    gridEl.innerHTML = filtered.map(e => {
+      const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">${e.email}</a></span>` : '';
+      const contactTg = e.telegram ? `<span class="info-item"><a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">@${String(e.telegram).replace('@','')}</a></span>` : '';
+      return `
+        <div class="card model-card employee-card">
+          <div class="model-header">
+            <h3>${e.fullName || 'Сотрудник'}</h3>
+            ${e.position ? `<div class="model-fullname">${e.position}</div>` : ''}
+          </div>
+          <div class="model-info">
+            ${contactEmail}
+            ${contactTg}
+          </div>
+          ${e.notes ? `<p class="model-note">${e.notes}</p>` : ''}
+          <div class="model-actions" style="gap:8px;flex-wrap:wrap">
+            <button data-id="${e.id}" class="openEmployee">Открыть профиль</button>
+            <button data-id="${e.id}" class="toggleMore">Показать подробнее</button>
+            ${isRoot ? `<button class="edit-employee" data-id="${e.id}">Редактировать</button>` : ''}
+            ${isRoot ? `<button class="delete-employee" data-id="${e.id}" style="background:#dc2626">Удалить</button>` : ''}
+          </div>
+          <div class="employee-more" data-id="${e.id}" style="display:none;margin-top:8px">
+            <div class="model-info" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              ${e.department ? `<span class="info-item">Отдел: ${e.department}</span>` : ''}
+              ${e.phone ? `<span class="info-item">Тел: ${e.phone}</span>` : ''}
+              ${e.startDate ? `<span class="info-item">Начал: ${e.startDate}</span>` : ''}
             </div>
           </div>
-          <div class="employee-details">
-            <div class="empl-pos">${e.position||''}</div>
-            ${e.department ? `<div class="empl-dept">${e.department}</div>` : ''}
-            ${e.phone ? `<div class="empl-contact">📞 ${e.phone}</div>` : ''}
-            ${e.email ? `<div class="empl-contact">✉️ ${e.email}</div>` : ''}
-            ${e.startDate ? `<div class="empl-start">Начало работы: ${e.startDate}</div>` : ''}
-          </div>
-          ${e.notes ? `<div class="empl-notes">${e.notes}</div>` : ''}
-        </div>
-      </li>
-    `).join('');
-    
+        </div>`;
+    }).join('');
+
     // Open profile
-    [...listEl.querySelectorAll('.open-employee')].forEach(btn => {
+    [...gridEl.querySelectorAll('.openEmployee')].forEach(btn => {
       btn.onclick = () => {
         if (typeof window.renderEmployeeCard === 'function') window.renderEmployeeCard(btn.dataset.id);
       };
     });
 
+    // Toggle more
+    [...gridEl.querySelectorAll('.toggleMore')].forEach(btn => {
+      btn.onclick = () => {
+        const more = gridEl.querySelector(`.employee-more[data-id="${btn.dataset.id}"]`);
+        if (more) more.style.display = (more.style.display === 'none' || more.style.display === '') ? 'block' : 'none';
+        btn.textContent = (more && more.style.display === 'block') ? 'Скрыть' : 'Показать подробнее';
+      };
+    });
+
     // Add functionality
     if (isRoot) {
-      [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
+      [...gridEl.querySelectorAll('.delete-employee')].forEach(btn => {
         btn.onclick = async () => {
           const employeeId = btn.dataset.id;
           const employee = filtered.find(e => e.id === employeeId);
@@ -500,7 +515,7 @@ async function renderEmployees() {
         };
       });
       
-      [...listEl.querySelectorAll('.edit-employee')].forEach(btn => {
+      [...gridEl.querySelectorAll('.edit-employee')].forEach(btn => {
         btn.onclick = async () => {
           const employeeId = btn.dataset.id;
           const employee = filtered.find(e => e.id === employeeId);
