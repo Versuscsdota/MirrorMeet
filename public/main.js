@@ -448,7 +448,16 @@ async function renderSchedule() {
       node.style.width = widthPx + 'px';
       node.dataset.id = ev.id;
       node.dataset.date = ev.date;
-      node.innerHTML = `<span class="tl-title">${ev.title || 'Слот'}</span><span class="tl-resize left"></span><span class="tl-resize right"></span>`;
+      const duration = Math.round((e - s) / 60 * 10) / 10; // hours with 1 decimal
+      const timeLabel = `${hmFromISO(ev.startISO)}–${hmFromISO(ev.endISO)} (${duration}ч)`;
+      node.innerHTML = `
+        <div class="tl-content">
+          <span class="tl-title">${ev.title || 'Слот'}</span>
+          <span class="tl-time">${timeLabel}</span>
+        </div>
+        <span class="tl-resize left"></span>
+        <span class="tl-resize right"></span>
+      `;
       row.querySelector('.row-events').appendChild(node);
     });
   }
@@ -460,6 +469,7 @@ async function renderSchedule() {
   function onDown(e){
     const target = e.target.closest('.tl-event');
     if (!target) return;
+    e.preventDefault();
     const rect = target.getBoundingClientRect();
     const startX = e.clientX;
     const isLeft = e.target.classList.contains('left');
@@ -474,6 +484,8 @@ async function renderSchedule() {
       node: target,
     };
     drag = ev;
+    target.classList.add('dragging');
+    document.body.style.cursor = ev.mode === 'move' ? 'grabbing' : 'col-resize';
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp, { once: true });
   }
@@ -499,6 +511,8 @@ async function renderSchedule() {
     const node = drag.node;
     const leftPx = parseFloat(node.style.left);
     const widthPx = parseFloat(node.style.width);
+    node.classList.remove('dragging');
+    document.body.style.cursor = '';
     drag = null;
     // convert to HM
     const startMin = Math.round(leftPx / PX_PER_MIN) + DAY_START;
@@ -506,7 +520,14 @@ async function renderSchedule() {
     const toHM = (m)=> `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
     try{
       await api('/api/schedule', { method:'PUT', body: JSON.stringify({ id: node.dataset.id, date: node.dataset.date, start: toHM(startMin), end: toHM(endMin) }) });
-    }catch(err){ alert(err.message); }
+      // Success feedback
+      node.style.transform = 'scale(1.05)';
+      setTimeout(() => { node.style.transform = ''; }, 150);
+    }catch(err){ 
+      alert(err.message);
+      // Reset position on error
+      renderEvents(events);
+    }
   }
   // delegate mousedown to all rows
   document.querySelector('.sched-table').addEventListener('mousedown', onDown);
@@ -521,6 +542,7 @@ async function renderSchedule() {
         <label>Конец<input id="evEnd" placeholder="HH:MM" value="${defaultEnd}" /></label>
       </div>
       <label>Заголовок<input id="evTitle" placeholder="Название слота" /></label>
+      <label>Описание<textarea id="evDesc" placeholder="Дополнительная информация" rows="2" style="resize:vertical"></textarea></label>
       <label>Сотрудник
         <select id="evEmployee" required>
           ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName}</option>`).join('')}
@@ -532,15 +554,24 @@ async function renderSchedule() {
     const start = form.querySelector('#evStart').value.trim();
     const end = form.querySelector('#evEnd').value.trim();
     const title = form.querySelector('#evTitle').value.trim();
+    const description = form.querySelector('#evDesc').value.trim();
     const employeeId = form.querySelector('#evEmployee').value;
     if (!start || !end || !employeeId) { setError('Укажите время начала и конца и выберите сотрудника'); return; }
     try {
-      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, employeeId }) });
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, description, employeeId }) });
       events = [...events, created];
       // keep order
       events.sort((a,b)=> (a.startISO < b.startISO ? -1 : 1));
       renderEvents(events);
       close();
+      // Success animation
+      setTimeout(() => {
+        const newSlot = document.querySelector(`[data-id="${created.id}"]`);
+        if (newSlot) {
+          newSlot.style.transform = 'scale(1.1)';
+          setTimeout(() => { newSlot.style.transform = ''; }, 200);
+        }
+      }, 100);
     } catch (e) { setError(e.message); }
   };
 
