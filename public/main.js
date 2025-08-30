@@ -105,6 +105,60 @@ async function renderCalendar() {
     [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
   }
 
+  // Month grid with slot previews
+  function renderMonth() {
+    const grid = el('#monthGrid');
+    const [y, m] = currentMonth.split('-').map(x=>parseInt(x,10));
+    const d0 = new Date(y, m-1, 1);
+    const monthName = d0.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+    const titleEl = el('#mTitle');
+    if (titleEl) titleEl.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    const startDow = (d0.getDay()+6)%7; // Mon=0
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const cells = [];
+    for (let i=0;i<startDow;i++) cells.push(null);
+    for (let day=1; day<=daysInMonth; day++) cells.push(new Date(y, m-1, day));
+    while (cells.length % 7) cells.push(null);
+
+    const byDate = new Map((monthDays||[]).map(d => [d.date, d]));
+    const todayStr = new Date().toISOString().slice(0,10);
+
+    grid.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:12px;color:var(--muted);margin-bottom:6px">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">
+        ${cells.map(c => {
+          if (!c) return `<div style=\"height:84px;border:1px solid #1e1e1e;background:#0e0e0e\"></div>`;
+          const dstr = c.toISOString().slice(0,10);
+          const info = byDate.get(dstr);
+          const isToday = dstr === todayStr;
+          const isSelected = dstr === date;
+          const slotsHtml = info && Array.isArray(info.slots) ? info.slots.map(sl => {
+            const t = (sl.start || '').slice(0,5);
+            const title = (sl.title || '').slice(0,20);
+            return `<div style=\"font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bbb\">${t} ${title}</div>`;
+          }).join('') : '';
+          const countBadge = info && info.count ? `<span style=\"align-self:flex-start;background:${isSelected ? '#2bb3b1' : '#222'};color:${isSelected ? '#000' : '#ccc'};font-size:11px;padding:2px 6px;border-radius:10px\">${info.count}</span>` : '';
+          return `
+            <button class=\"cal-cell\" data-date=\"${dstr}\" style=\"height:84px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;padding:6px;border:1px solid ${isSelected ? '#2bb3b1' : '#1e1e1e'};background:${isToday ? '#0f1f1f' : '#0e0e0e'}\">
+              <div style=\"width:100%;display:flex;align-items:center;justify-content:space-between\">
+                ${countBadge}
+                <span style=\"font-size:12px;color:${isSelected ? '#2bb3b1' : '#aaa'}\">${c.getDate()}</span>
+              </div>
+              <div style=\"width:100%;margin-top:4px;display:grid;gap:2px\">${slotsHtml}</div>
+            </button>`;
+        }).join('')}
+      </div>`;
+
+    [...grid.querySelectorAll('.cal-cell')].forEach(btn => btn.onclick = async () => {
+      date = btn.dataset.date;
+      const dateInput = el('#calDate'); if (dateInput) dateInput.value = date;
+      await load();
+      renderMonth();
+    });
+  }
+
   async function createSlot() {
     const form = document.createElement('div');
     form.innerHTML = `
