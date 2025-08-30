@@ -76,3 +76,41 @@ export async function onRequestPost(context) {
 
   return json({ ...employee, credentials: { login, password } }, { status: 201 });
 }
+
+export async function onRequestDelete(context) {
+  const { env, request } = context;
+  // Only root can delete employees
+  const { error } = await requireRole(env, request, ['root']);
+  if (error) return error;
+  
+  const url = new URL(request.url);
+  const id = url.searchParams.get('id');
+  if (!id) return badRequest('id required');
+  
+  const employee = await env.CRM_KV.get(`employee:${id}`, { type: 'json' });
+  if (!employee) return json({ error: 'Employee not found' }, { status: 404 });
+  
+  // Find and delete associated user account
+  const userList = await env.CRM_KV.list({ prefix: 'user:' });
+  const users = await Promise.all(userList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const associatedUser = users.find(u => u && u.employeeId === id);
+  
+  if (associatedUser) {
+    await env.CRM_KV.delete(`user:${associatedUser.id}`);
+    await env.CRM_KV.delete(`user_login:${associatedUser.login}`);
+  }
+  
+  // Delete all schedule events for this employee
+  const scheduleList = await env.CRM_KV.list({ prefix: 'schedule:' });
+  const schedules = await Promise.all(scheduleList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const employeeEvents = schedules.filter(s => s && s.employeeId === id);
+  
+  await Promise.all(employeeEvents.map(event => 
+    env.CRM_KV.delete(`schedule:${event.id}`)
+  ));
+  
+  // Delete employee
+  await env.CRM_KV.delete(`employee:${id}`);
+  
+  return json({ ok: true });
+}

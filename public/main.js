@@ -107,10 +107,31 @@ async function renderEmployees() {
     </div>
   `;
   const listEl = el('#emplListFull');
+  const isRoot = window.currentUser.role === 'root';
+  
   function renderList(){
     const q = (el('#emplSearch').value || '').toLowerCase();
     const filtered = (items || []).filter(e => (e.fullName||'').toLowerCase().includes(q) || (e.position||'').toLowerCase().includes(q));
-    listEl.innerHTML = filtered.map(e => `<li><div class="empl-name">${e.fullName}</div><div class="empl-pos">${e.position||''}</div></li>`).join('');
+    listEl.innerHTML = filtered.map(e => `
+      <li class="employee-item">
+        <div class="employee-info">
+          <div class="empl-name">${e.fullName}</div>
+          <div class="empl-pos">${e.position||''}</div>
+        </div>
+        ${isRoot ? `<button class="delete-employee ghost" data-id="${e.id}" style="color: var(--danger); border-color: var(--danger);">Удалить</button>` : ''}
+      </li>
+    `).join('');
+    
+    // Add delete functionality
+    if (isRoot) {
+      [...listEl.querySelectorAll('.delete-employee')].forEach(btn => {
+        btn.onclick = async () => {
+          const employeeId = btn.dataset.id;
+          const employee = filtered.find(e => e.id === employeeId);
+          await deleteEmployeeWithPassword(employee);
+        };
+      });
+    }
   }
   el('#emplSearch').addEventListener('input', renderList);
   renderList();
@@ -455,6 +476,11 @@ async function renderModelCard(id) {
     if (e.target.classList.contains('delete-file')) {
       const fileId = e.target.dataset.id;
       const fileName = e.target.closest('.file-card').querySelector('.file-name').textContent;
+      
+      if (window.currentUser.role === 'root') {
+        if (!await confirmRootPassword(`удаление файла "${fileName}"`)) return;
+      }
+      
       if (!confirm(`Удалить файл "${fileName}"?`)) return;
       try {
         await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
@@ -521,12 +547,16 @@ async function renderModelCard(id) {
 
   // Delete model functionality
   el('#deleteModel').onclick = async () => {
-    if (!confirm(`Удалить модель "${model.name}"? Это действие нельзя отменить.`)) return;
+    if (window.currentUser.role === 'root') {
+      if (!await confirmRootPassword(`удаление модели "${model.name}"`)) return;
+    }
+    
+    if (!confirm(`Удалить модель "${model.name}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
     try {
-      await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
-      renderModels(); // back to models list
-    } catch (e) {
-      alert(e.message);
+      await api('/api/models?id=' + encodeURIComponent(modelId), { method: 'DELETE' });
+      renderModels();
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -846,6 +876,68 @@ async function renderSchedule() {
   });
 }
 
+// Password confirmation for root operations
+async function confirmRootPassword(operation) {
+  if (window.currentUser.role !== 'root') {
+    throw new Error('Недостаточно прав');
+  }
+  
+  const form = document.createElement('div');
+  form.innerHTML = `
+    <p style="margin-bottom: 16px; color: var(--muted);">
+      Для выполнения операции "${operation}" введите ваш пароль:
+    </p>
+    <label>Пароль<input id="rootPassword" type="password" placeholder="Введите пароль" required /></label>
+  `;
+  
+  const result = await showModal({
+    title: 'Подтверждение root операции',
+    content: form,
+    submitText: 'Подтвердить'
+  });
+  
+  if (!result) return false;
+  
+  const password = el('#rootPassword').value;
+  if (!password) {
+    result.setError('Пароль обязателен');
+    return false;
+  }
+  
+  try {
+    // Verify password by attempting to login
+    await api('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        login: window.currentUser.login,
+        password: password
+      })
+    });
+    result.close();
+    return true;
+  } catch (err) {
+    result.setError('Неверный пароль');
+    return false;
+  }
+}
+
+async function deleteEmployeeWithPassword(employee) {
+  if (!await confirmRootPassword(`удаление сотрудника "${employee.fullName}"`)) {
+    return;
+  }
+  
+  if (!confirm(`Вы уверены, что хотите удалить сотрудника "${employee.fullName}"?\n\nЭто действие:\n• Удалит аккаунт пользователя\n• Удалит все события в расписании\n• Необратимо`)) {
+    return;
+  }
+  
+  try {
+    await api('/api/employees?id=' + encodeURIComponent(employee.id), { method: 'DELETE' });
+    renderEmployees(); // Refresh the list
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 async function renderFileSystem() {
   if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
     el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
@@ -1045,6 +1137,11 @@ async function renderFileSystem() {
       btn.onclick = async () => {
         const fileId = btn.dataset.id;
         const file = filteredFiles.find(f => f.id === fileId);
+        
+        if (window.currentUser.role === 'root') {
+          if (!await confirmRootPassword(`удаление файла "${file.name}"`)) return;
+        }
+        
         if (!confirm(`Удалить файл "${file.name}"?`)) return;
         try {
           await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });

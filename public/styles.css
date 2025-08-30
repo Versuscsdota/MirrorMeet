@@ -65,6 +65,29 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   background: var(--accent-weak);
   border-color: var(--accent);
 }
+
+/* Employee list styles */
+.employee-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.employee-item:last-child {
+  border-bottom: none;
+}
+
+.employee-info {
+  flex: 1;
+}
+
+.employee-position {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 4px 0 0 0;
+}
 .empl-name { 
   font-weight: 600; 
   font-size: 15px; 
