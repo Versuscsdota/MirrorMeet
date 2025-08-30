@@ -1016,12 +1016,41 @@ async function renderModelCard(id) {
       renderFiles();
     } catch (err) { alert(err.message); }
   });
-}
 
-function timeStr(d) { return d.toTimeString().slice(0,5); }
+  function renderComments() {
+    const wrap = el('#commentsList');
+    const list = Array.isArray(model.comments) ? model.comments : [];
+    if (!wrap) return;
+    if (!list.length) { wrap.innerHTML = '<div style="color:var(--muted);font-size:12px">Нет комментариев</div>'; return; }
+    wrap.innerHTML = list
+      .sort((a,b)=> (a.ts||0) - (b.ts||0))
+      .map(c => {
+        const when = c.ts ? new Date(c.ts).toLocaleString('ru-RU') : '';
+        const who = c.user && c.user.login ? c.user.login : '—';
+        return `<div class=\"card\" style=\"margin:0;padding:12px\">\n          <div style=\"font-size:12px;color:var(--muted)\">${when} · ${who}</div>\n          <div style=\"margin-top:6px;white-space:pre-wrap\">${(c.text||'')}</div>\n        </div>`;
+      }).join('');
 
-function hmFromISO(iso) { return iso.slice(11,16); }
-function minutesFromHM(hm) { const [h,m] = hm.split(':').map(Number); return h*60 + m; }
+    const commentForm = el('#commentsList') ? el('#commentForm') : null;
+    const commentBtn = el('#commentSubmit');
+    async function submitComment() {
+      const ta = el('#commentText');
+      const text = (ta.value || '').trim();
+      if (!text) return;
+      try {
+        const res = await api('/api/models', { method: 'PUT', body: JSON.stringify({ action: 'addComment', modelId: id, text }) });
+        if (res && res.comment) {
+          model.comments = (model.comments || []).concat([res.comment]);
+        }
+        ta.value = '';
+        renderComments();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    if (commentForm) commentForm.addEventListener('submit', (e) => { e.preventDefault(); });
+    if (commentBtn) commentBtn.addEventListener('click', submitComment);
+  }
+
 function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
 async function renderSchedule() {
@@ -1626,4 +1655,4 @@ async function renderApp() {
   }
 }
 
-renderApp();
+renderApp()}
