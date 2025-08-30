@@ -74,7 +74,7 @@ export async function onRequestPost(context) {
   const tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (!name) return badRequest('name required');
   const id = newId('mdl');
-  const model = { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt: Date.now(), createdBy: sess.user.id };
+  const model = { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], comments: [], mainPhotoId: null, createdAt: Date.now(), createdBy: sess.user.id };
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
   return json(model);
 }
@@ -84,6 +84,19 @@ export async function onRequestPut(context) {
   const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
+  // Action: immutable comments append
+  if (body.action === 'addComment') {
+    const modelId = (body.modelId || '').trim();
+    const text = (body.text || '').trim();
+    if (!modelId || !text) return badRequest('modelId and text required');
+    const cur = await env.CRM_KV.get(`model:${modelId}`, { type: 'json' });
+    if (!cur) return notFound('model');
+    cur.comments = Array.isArray(cur.comments) ? cur.comments : [];
+    const entry = { ts: Date.now(), text };
+    cur.comments.push(entry);
+    await env.CRM_KV.put(`model:${modelId}`, JSON.stringify(cur));
+    return json({ ok: true, comment: entry, model: cur });
+  }
   const id = body.id; if (!id) return badRequest('id required');
   const cur = await env.CRM_KV.get(`model:${id}`, { type: 'json' });
   if (!cur) return notFound('model');
@@ -102,6 +115,7 @@ export async function onRequestPut(context) {
     if (body.contacts.telegram !== undefined) cur.contacts.telegram = body.contacts.telegram.trim();
   }
   if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
+  if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));
   return json(cur);
 }

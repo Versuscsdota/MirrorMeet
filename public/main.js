@@ -608,7 +608,6 @@ function renderAppShell(me) {
                 stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
           <ellipse cx="35" cy="20" rx="25" ry="15" stroke="#2bb3b1" stroke-width="2" fill="none" transform="rotate(-15 35 20)"/>
         </svg>
-        <span>MirrorCRM</span>
       </div>
       <nav>
         ${
@@ -762,15 +761,19 @@ async function renderModelCard(id) {
   const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
   let files = filesRes.items || [];
   
+  const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
       <div class="profile-header">
-        <div class="profile-main">
-          <h1>${model.name}</h1>
-          ${model.fullName ? `<h2 class="full-name">${model.fullName}</h2>` : ''}
-          <div class="profile-actions">
-            <button id="editProfile">Редактировать профиль</button>
-            <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+        <div class="profile-main" style="display:flex;gap:12px;align-items:center">
+          ${mainFile ? `<img src="${mainFile.url}" alt="main" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #1e1e1e"/>` : ''}
+          <div>
+            <h1 style="margin:0">${model.name}</h1>
+            ${model.fullName ? `<h2 class="full-name" style="margin:4px 0 0 0">${model.fullName}</h2>` : ''}
+            <div class="profile-actions" style="margin-top:8px">
+              <button id="editProfile">Редактировать профиль</button>
+              <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+            </div>
           </div>
         </div>
         <div class="profile-info">
@@ -819,6 +822,15 @@ async function renderModelCard(id) {
         <div class="files-grid" id="filesGrid"></div>
         <div id="filePreview" style="margin-top:12px"></div>
       </div>
+
+      <div class="comments-section" style="margin-top:16px">
+        <h3>Комментарии</h3>
+        <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
+        <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
+          <button type="submit">Добавить</button>
+        </form>
+      </div>
     </div>`;
   const gridEl = el('#filesGrid');
   function applyFileSort(arr, mode){
@@ -850,54 +862,23 @@ async function renderModelCard(id) {
             ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
             ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
             <div class="file-actions">
-              <a href="${viewUrl}" target="_blank" class="file-btn">Просмотр</a>
               ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
+              ${isImage ? `<button class="file-btn make-main" data-id="${f.id}">Сделать главной</button>` : ''}
               ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
-    // attach inline preview on click of Просмотр without leaving page
-    [...gridEl.querySelectorAll('a')].forEach(a => {
-      if (a.textContent === 'Просмотр') {
-        a.addEventListener('click', (ev) => {
-          ev.preventDefault();
-          const fileCard = a.closest('.file-card');
-          const name = fileCard.querySelector('.file-name')?.textContent || '';
-          const item = sorted.find(x => x.name === name);
-          const box = el('#filePreview');
-          if (!item) { window.open(a.href, '_blank'); return; }
-          const ct = (item.contentType || '').toLowerCase();
-          const src = a.href;
-          if (ct.startsWith('image/')) {
-            box.innerHTML = `<img src="${src}" alt="${name}" style="max-width:100%;max-height:60vh;object-fit:contain;border:1px solid #eee;padding:4px"/>`;
-          } else if (ct === 'application/pdf') {
-            box.innerHTML = `<iframe src="${src}" style="width:100%;height:60vh;border:1px solid #eee"></iframe>`;
-          } else if (ct.startsWith('audio/')) {
-            box.innerHTML = `<audio src="${src}" controls style="width:100%"></audio>`;
-          } else if (ct.startsWith('video/')) {
-            box.innerHTML = `<video src="${src}" controls style="width:100%;max-height:60vh;background:#000"></video>`;
-          } else {
-            window.open(src, '_blank');
-          }
-          box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
-    });
+    // no inline preview, only download
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
   
-  // File deletion
+  // File actions: delete and set main photo
   document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('delete-file')) {
       const fileId = e.target.dataset.id;
       const fileName = e.target.closest('.file-card').querySelector('.file-name').textContent;
-      
-      if (window.currentUser.role === 'root') {
-        if (!await confirmRootPassword(`удаление файла "${fileName}"`)) return;
-      }
-      
       if (!confirm(`Удалить файл "${fileName}"?`)) return;
       try {
         await api('/api/files?id=' + encodeURIComponent(fileId), { method: 'DELETE' });
@@ -906,6 +887,14 @@ async function renderModelCard(id) {
       } catch (err) {
         alert(err.message);
       }
+    }
+    if (e.target.classList.contains('make-main')) {
+      const fileId = e.target.dataset.id;
+      try {
+        await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, mainPhotoId: fileId }) });
+        model.mainPhotoId = fileId;
+        renderModelCard(id);
+      } catch (err) { alert(err.message); }
     }
   });
 
@@ -970,7 +959,7 @@ async function renderModelCard(id) {
     
     if (!confirm(`Удалить модель "${model.name}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
     try {
-      await api('/api/models?id=' + encodeURIComponent(modelId), { method: 'DELETE' });
+      await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
       renderModels();
     } catch (err) {
       alert(err.message);
