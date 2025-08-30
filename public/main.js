@@ -1012,7 +1012,7 @@ async function deleteEmployeeWithPassword(employee) {
   }
   
   try {
-    await api('/api/employees', { method: 'DELETE', body: JSON.stringify({ id: employee.id }) });
+    await api('/api/employees?id=' + encodeURIComponent(employee.id), { method: 'DELETE', body: JSON.stringify({ id: employee.id }) });
     renderEmployees(); // Refresh the list
   } catch (err) {
     alert('Ошибка удаления: ' + (err.message || 'Unknown error'));
