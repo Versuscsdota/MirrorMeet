@@ -36,11 +36,69 @@ export function parseCookies(req) {
   return out;
 }
 
+// --- Stateless session (HMAC signed) helpers ---
+function b64urlEncode(buf) {
+  const bin = (typeof buf === 'string') ? new TextEncoder().encode(buf) : buf;
+  let str = btoa(String.fromCharCode(...new Uint8Array(bin)));
+  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+}
+function b64urlDecode(str) {
+  const pad = '='.repeat((4 - (str.length % 4)) % 4);
+  const s = (str + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(s);
+  const arr = new Uint8Array([...bin].map(c => c.charCodeAt(0)));
+  return arr;
+}
+async function hmacSign(secret, data) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data));
+  return new Uint8Array(sig);
+}
+export async function makeJwt(payload, secret) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const p = { ...payload };
+  const h64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(header)));
+  const p64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(p)));
+  const toSign = `${h64}.${p64}`;
+  const sig = await hmacSign(secret, toSign);
+  const s64 = b64urlEncode(sig);
+  return `${h64}.${p64}.${s64}`;
+}
+async function verifyJwt(token, secret) {
+  try {
+    const [h64, p64, s64] = String(token || '').split('.');
+    if (!h64 || !p64 || !s64) return null;
+    const toSign = `${h64}.${p64}`;
+    const sigCalc = await hmacSign(secret, toSign);
+    const sigCalc64 = b64urlEncode(sigCalc);
+    if (sigCalc64 !== s64) return null;
+    const payloadJson = new TextDecoder().decode(b64urlDecode(p64));
+    const payload = JSON.parse(payloadJson);
+    return payload;
+  } catch { return null; }
+}
+
 export async function getSessionUser(env, req) {
   const cookies = parseCookies(req);
-  const sidName = env.SESSION_COOKIE_NAME || 'sid';
-  const sid = cookies[sidName];
-  if (!sid) return null;
+  const sidName = env.SESSION_COOKIE_NAME || 'mirrorsid';
+  const cookieVal = cookies[sidName];
+  if (!cookieVal) return null;
+  // Try stateless JWT cookie first (prefixed 'jwt.')
+  if (cookieVal.startsWith('jwt.')) {
+    const secret = env.SESSION_HMAC_SECRET;
+    if (secret) {
+      const token = cookieVal.slice(4);
+      const payload = await verifyJwt(token, secret);
+      if (payload && payload.exp && Date.now() < payload.exp) {
+        // Option A: trust payload and not hit KV; Option B (safer): read user to ensure still exists
+        const user = await env.CRM_KV.get(`user:${payload.userId}`, { type: 'json' });
+        if (!user) return null;
+        return { user, sid: null };
+      }
+    }
+    // fallthrough to KV session if verification failed
+  }
+  const sid = cookieVal;
   const raw = await env.CRM_KV.get(`session:${sid}`, { type: 'json' });
   if (!raw) return null;
   if (raw.exp && Date.now() > raw.exp) {
