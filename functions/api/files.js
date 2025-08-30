@@ -78,11 +78,8 @@ export async function onRequestGet(context) {
   if (error) return error;
   if (!modelId) return badRequest('modelId required');
   const list = await env.CRM_KV.list({ prefix: 'file:' });
-  const items = [];
-  for (const k of list.keys) {
-    const f = await env.CRM_KV.get(k.name, { type: 'json' });
-    if (f && f.modelId === modelId) items.push({ ...f, url: `/api/files?id=${f.id}` });
-  }
+  const metas = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const items = metas.filter(f => f && f.modelId === modelId).map(f => ({ ...f, url: `/api/files?id=${f.id}` }));
   items.sort((a,b)=> b.createdAt - a.createdAt);
   return json({ items });
 }

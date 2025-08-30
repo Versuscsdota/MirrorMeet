@@ -18,11 +18,8 @@ export async function onRequestGet(context) {
   if (!date) return badRequest('date required');
   const prefix = `event:${date}:`;
   const list = await env.CRM_KV.list({ prefix });
-  const items = [];
-  for (const k of list.keys) {
-    const ev = await env.CRM_KV.get(k.name, { type: 'json' });
-    if (ev) items.push(ev);
-  }
+  const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const items = fetched.filter(Boolean);
   items.sort((a,b)=> (a.startISO < b.startISO ? -1 : 1));
   return json({ items });
 }

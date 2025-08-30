@@ -19,11 +19,8 @@ export async function onRequestGet(context) {
   const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const list = await env.CRM_KV.list({ prefix: 'employee:' });
-  const items = [];
-  for (const k of list.keys) {
-    const e = await env.CRM_KV.get(k.name, { type: 'json' });
-    if (e) items.push({ id: e.id, fullName: e.fullName, position: e.position });
-  }
+  const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const items = fetched.filter(Boolean).map(e => ({ id: e.id, fullName: e.fullName, position: e.position }));
   items.sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||''));
   return json(items);
 }
