@@ -381,7 +381,7 @@ async function renderCalendar() {
     prevBtn.onclick = async () => {
       const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
       const d = new Date(y, m-2, 1);
-      const nextVal = d.toISOString().slice(0,7);
+      const nextVal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       console.debug('[calendar] prev click', { from: currentMonth, to: nextVal });
       currentMonth = nextVal;
       await loadMonth();
@@ -392,7 +392,7 @@ async function renderCalendar() {
     nextBtn.onclick = async () => {
       const [y,m] = currentMonth.split('-').map(n=>parseInt(n,10));
       const d = new Date(y, m, 1); // m is already 1-based, so this goes to next month
-      const nextVal = d.toISOString().slice(0,7);
+      const nextVal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       console.debug('[calendar] next click', { from: currentMonth, to: nextVal });
       currentMonth = nextVal;
       await loadMonth();
