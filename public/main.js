@@ -924,7 +924,7 @@ async function renderEmployees() {
   let items = await api('/api/employees');
   view.innerHTML = `
     <section class="bar">
-      <input id="emplSearch" placeholder="Поиск по ФИО/должности" />
+      <input id="emplSearch" placeholder="Поиск по ФИО" />
       <span style="flex:1"></span>
       ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
     </section>
@@ -936,10 +936,10 @@ async function renderEmployees() {
   function renderList(){
     const q = (el('#emplSearch').value || '').toLowerCase();
     const filtered = (items || []).filter(e => 
-      (e.fullName||'').toLowerCase().includes(q) || 
-      (e.position||'').toLowerCase().includes(q) ||
-      (e.department||'').toLowerCase().includes(q) ||
-      (e.city||'').toLowerCase().includes(q)
+      (e.fullName||'').toLowerCase().includes(q) ||
+      (e.email||'').toLowerCase().includes(q) ||
+      (String(e.telegram||'').toLowerCase().includes(q)) ||
+      (e.phone||'').toLowerCase().includes(q)
     );
     gridEl.innerHTML = filtered.map(e => {
       const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">📧 ${e.email}</a></span>` : '';
@@ -951,7 +951,6 @@ async function renderEmployees() {
           <div class="model-header">
             <div>
               <h3>${e.fullName || 'Сотрудник'}</h3>
-              ${e.position ? `<div class="model-fullname">${e.position}</div>` : ''}
             </div>
             <div class="employee-status">
               <span class="status-badge active">Активен</span>
@@ -976,12 +975,9 @@ async function renderEmployees() {
           
           <div class="employee-more" data-id="${e.id}" style="display:none">
             <div class="model-info expanded-info">
-              ${e.department ? `<span class="info-item">🏢 ${e.department}</span>` : ''}
               ${contactPhone}
               ${e.startDate ? `<span class="info-item">📅 Начал работу: ${e.startDate}</span>` : ''}
               ${e.birthDate ? `<span class="info-item">🎂 Дата рождения: ${e.birthDate}</span>` : ''}
-              ${e.city ? `<span class="info-item">🏙️ ${e.city}</span>` : ''}
-              ${e.address ? `<span class="info-item">📍 ${e.address}</span>` : ''}
             </div>
           </div>
         </div>`;
@@ -1030,15 +1026,11 @@ async function renderEmployees() {
       const form = document.createElement('div');
       form.innerHTML = `
         <label>ФИО<input id="fFullName" placeholder="Иванов Иван Иванович" required /></label>
-        <label>Должность<input id="fPosition" placeholder="Фотограф" required /></label>
-        <label>Отдел<input id="fDepartment" placeholder="Студийная съёмка" /></label>
         <label>Телефон<input id="fPhone" placeholder="+7 (999) 123-45-67" /></label>
         <label>Email<input id="fEmail" placeholder="employee@example.com" /></label>
         <label>Telegram<input id="fTelegram" placeholder="@username" /></label>
         <label>Дата начала работы<input id="fStartDate" type="date" /></label>
         <label>Дата рождения<input id="fBirthDate" type="date" /></label>
-        <label>Город<input id="fCity" placeholder="Москва" /></label>
-        <label>Адрес<input id="fAddress" placeholder="ул. Пример, д. 1, кв. 1" /></label>
         <label>Заметки<textarea id="fNotes" placeholder="Дополнительная информация о сотруднике" rows="3"></textarea></label>
         <label>Роль
           <select id="fRole">
@@ -1052,20 +1044,16 @@ async function renderEmployees() {
       if (!res) return;
       const { close, setError } = res;
       const fullName = form.querySelector('#fFullName').value.trim();
-      const position = form.querySelector('#fPosition').value.trim();
-      const department = form.querySelector('#fDepartment').value.trim();
       const phone = form.querySelector('#fPhone').value.trim();
       const email = form.querySelector('#fEmail').value.trim();
       const telegram = form.querySelector('#fTelegram').value.trim();
       const startDate = form.querySelector('#fStartDate').value;
       const birthDate = form.querySelector('#fBirthDate').value;
-      const city = form.querySelector('#fCity').value.trim();
-      const address = form.querySelector('#fAddress').value.trim();
       const notes = form.querySelector('#fNotes').value.trim();
       const role = form.querySelector('#fRole').value;
-      if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
+      if (!fullName) { setError('Заполните ФИО'); return; }
       try {
-        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, notes, role }) });
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, phone, email, telegram, startDate, birthDate, notes, role }) });
         // Optimistic update: add to local list and re-render without refetch
         items = [created, ...items];
         renderList();
@@ -1097,15 +1085,11 @@ async function renderEmployees() {
     const form = document.createElement('div');
     form.innerHTML = `
       <label>ФИО<input id="fFullName" value="${employee.fullName || ''}" placeholder="Иванов Иван Иванович" required /></label>
-      <label>Должность<input id="fPosition" value="${employee.position || ''}" placeholder="Фотограф" required /></label>
-      <label>Отдел<input id="fDepartment" value="${employee.department || ''}" placeholder="Студийная съёмка" /></label>
       <label>Телефон<input id="fPhone" value="${employee.phone || ''}" placeholder="+7 (999) 123-45-67" /></label>
       <label>Email<input id="fEmail" value="${employee.email || ''}" placeholder="employee@example.com" /></label>
       <label>Telegram<input id="fTelegram" value="${employee.telegram || ''}" placeholder="@username" /></label>
       <label>Дата начала работы<input id="fStartDate" type="date" value="${employee.startDate || ''}" /></label>
       <label>Дата рождения<input id="fBirthDate" type="date" value="${employee.birthDate || ''}" /></label>
-      <label>Город<input id="fCity" value="${employee.city || ''}" placeholder="Москва" /></label>
-      <label>Адрес<input id="fAddress" value="${employee.address || ''}" placeholder="ул. Пример, д. 1, кв. 1" /></label>
       <label>Роль
         <select id="fRole">
           <option value="interviewer" ${currentRole==='interviewer' ? 'selected' : ''}>Интервьюер</option>
@@ -1121,24 +1105,20 @@ async function renderEmployees() {
     
     const { close, setError } = res;
     const fullName = form.querySelector('#fFullName').value.trim();
-    const position = form.querySelector('#fPosition').value.trim();
-    const department = form.querySelector('#fDepartment').value.trim();
     const phone = form.querySelector('#fPhone').value.trim();
     const email = form.querySelector('#fEmail').value.trim();
     const telegram = form.querySelector('#fTelegram').value.trim();
     const startDate = form.querySelector('#fStartDate').value;
     const birthDate = form.querySelector('#fBirthDate').value;
-    const city = form.querySelector('#fCity').value.trim();
-    const address = form.querySelector('#fAddress').value.trim();
     const role = form.querySelector('#fRole').value;
     const notes = form.querySelector('#fNotes').value.trim();
     
-    if (!fullName || !position) { setError('Заполните ФИО и должность'); return; }
+    if (!fullName) { setError('Заполните ФИО'); return; }
     
     try {
       const updated = await api('/api/employees', { 
         method: 'PUT', 
-        body: JSON.stringify({ id: employee.id, fullName, position, department, phone, email, telegram, startDate, birthDate, city, address, role, notes }) 
+        body: JSON.stringify({ id: employee.id, fullName, phone, email, telegram, startDate, birthDate, role, notes }) 
       });
       
       // Update local list

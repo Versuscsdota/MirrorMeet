@@ -2,8 +2,8 @@ import { json, badRequest, forbidden } from '../_utils.js';
 import { requireRole, newId, sha256, incUserCount } from '../_utils.js';
 
 // KV key: employee:<id>
-// Stored object shape:
-// { id, fullName, position, phone?, email?, department?, startDate?, notes?, telegram?, birthDate?, address?, city? }
+// Stored object shape (simplified):
+// { id, fullName, phone?, email?, startDate?, notes?, telegram?, birthDate?, role? }
 
 function sanitizeStr(v, max = 120) {
   if (v == null) return '';
@@ -83,20 +83,17 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch { return badRequest('Invalid JSON'); }
   let fullName = sanitizeStr(body.fullName, 160);
-  let position = sanitizeStr(body.position, 80);
   let phone = sanitizeStr(body.phone || '', 40);
   let email = sanitizeStr(body.email || '', 120);
-  let department = sanitizeStr(body.department || '', 80);
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
   let role = sanitizeStr(body.role || 'interviewer', 20);
   // Additional optional fields
   let telegram = sanitizeStr(body.telegram || '', 80);
   let birthDate = sanitizeStr(body.birthDate || '', 20);
-  let address = sanitizeStr(body.address || '', 200);
-  let city = sanitizeStr(body.city || '', 80);
+  // legacy fields (ignored): position, department, address, city
 
-  if (!fullName || !position) return badRequest('fullName и position обязательны');
+  if (!fullName) return badRequest('fullName обязателен');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
   if (phone && !isPhone(phone)) return badRequest('Некорректный телефон');
   const allowedRoles = ['interviewer','curator','admin'];
@@ -104,16 +101,14 @@ export async function onRequestPost(context) {
 
   const id = newId('emp');
   const employee = { 
-    id, fullName, position, 
+    id, fullName, 
     ...(phone ? { phone } : {}), 
     ...(email ? { email } : {}),
-    ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
     ...(notes ? { notes } : {}),
     ...(telegram ? { telegram } : {}),
     ...(birthDate ? { birthDate } : {}),
-    ...(address ? { address } : {}),
-    ...(city ? { city } : {})
+    ...(role ? { role } : {})
   };
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(employee));
 
@@ -208,37 +203,29 @@ export async function onRequestPut(context) {
   if (!employee) return json({ error: 'Employee not found' }, { status: 404 });
   
   let fullName = sanitizeStr(body.fullName, 160);
-  let position = sanitizeStr(body.position, 80);
   let phone = sanitizeStr(body.phone || '', 40);
   let email = sanitizeStr(body.email || '', 120);
-  let department = sanitizeStr(body.department || '', 80);
   let startDate = sanitizeStr(body.startDate || '', 20);
   let notes = sanitizeStr(body.notes || '', 500);
   // Additional optional fields
   let telegram = sanitizeStr(body.telegram || '', 80);
   let birthDate = sanitizeStr(body.birthDate || '', 20);
-  let address = sanitizeStr(body.address || '', 200);
-  let city = sanitizeStr(body.city || '', 80);
   // Optional role update
   let roleNew = sanitizeStr(body.role || '', 20);
 
-  if (!fullName || !position) return badRequest('fullName и position обязательны');
+  if (!fullName) return badRequest('fullName обязателен');
   if (email && !isEmail(email)) return badRequest('Некорректный email');
   if (phone && !isPhone(phone)) return badRequest('Некорректный телефон');
 
   const updatedEmployee = { 
     ...employee,
     fullName, 
-    position, 
     ...(phone ? { phone } : {}), 
     ...(email ? { email } : {}),
-    ...(department ? { department } : {}),
     ...(startDate ? { startDate } : {}),
     ...(notes ? { notes } : {}),
     ...(telegram ? { telegram } : {}),
-    ...(birthDate ? { birthDate } : {}),
-    ...(address ? { address } : {}),
-    ...(city ? { city } : {})
+    ...(birthDate ? { birthDate } : {})
   };
   
   await env.CRM_KV.put(`employee:${id}`, JSON.stringify(updatedEmployee));
