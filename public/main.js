@@ -638,10 +638,9 @@ async function renderCalendar() {
         form.innerHTML = `
           <div style="display:grid;gap:10px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/\"/g,'&quot;')}" placeholder="Иванов Иван" required /></label>
+              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/\"/g,'&quot;')}" placeholder="Иванов Иван" /></label>
               <label>Телефон
-                <input id="rPhone" type="tel" value="${guessedPhone}" placeholder="+7 999 123-45-67" 
-                  pattern="^\\+?[1-9]\\d{9,14}$" title="Международный формат: +71234567890 (10-15 цифр)" />
+                <input id="rPhone" type="tel" value="${guessedPhone}" placeholder="+7 999 123-45-67" />
               </label>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -657,7 +656,7 @@ async function renderCalendar() {
                 </select>
               </label>
               <label>Серия и номер / Номер
-                <input id="rDocNum" placeholder="0000 000000" title="Паспорт РФ: 4 цифры и 6 цифр. Иначе 5-20 символов (буквы/цифры/пробел/тире)" />
+                <input id="rDocNum" placeholder="0000 000000" />
               </label>
             </div>
             <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
@@ -680,21 +679,7 @@ async function renderCalendar() {
         const docType = form.querySelector('#rDocType').value;
         const docNumber = form.querySelector('#rDocNum').value.trim();
         const comment = form.querySelector('#rComment').value.trim();
-        if (!fullName) { setError('Укажите ФИО'); return; }
-        // Optional validations
-        if (phone) {
-          const phoneRe = /^\+?[1-9]\d{9,14}$/;
-          if (!phoneRe.test(phone)) { setError('Телефон: используйте международный формат +71234567890 (10-15 цифр)'); return; }
-        }
-        if (docNumber) {
-          const passRe = /^\d{4}\s?\d{6}$/; // 4+6 цифр
-          const genericRe = /^[A-Za-zА-Яа-я0-9\-\s]{5,20}$/;
-          if (docType === 'passport') {
-            if (!passRe.test(docNumber)) { setError('Паспорт: укажите 4 цифры серии и 6 цифр номера (например 1234 567890)'); return; }
-          } else {
-            if (!genericRe.test(docNumber)) { setError('Номер документа: 5-20 символов (буквы/цифры/пробел/тире)'); return; }
-          }
-        }
+        // Валидация убрана по просьбе: сохраняем без проверок полей
         try {
           // Create model from slot
           const payload = {
