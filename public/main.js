@@ -162,17 +162,18 @@ async function renderCalendar() {
     const list = el('#slotList');
     if (!slots.length) { list.innerHTML = '<li class="employee-item"><div class="employee-info">Слотов нет</div></li>'; return; }
     list.innerHTML = slots.map(s => `
-      <li class="employee-item">
-        <div class="employee-info">
-          <div class="employee-header">
-            <div class="empl-name">${s.start || ''}–${s.end || ''} ${s.title ? '· ' + s.title : ''}</div>
-            <div class="employee-actions" style="display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;">
+      <li class="slot-item">
+        <div class="slot-card">
+          <div class="slot-header">
+            <div class="slot-time">${s.start || ''}–${s.end || ''}</div>
+            <div class="slot-actions">
               <button type="button" class="open-slot" data-id="${s.id}">Открыть</button>
               ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
               ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
             </div>
           </div>
-          ${s.notes ? `<div class="empl-notes">${s.notes}</div>` : ''}
+          <div class="slot-title">${s.title || ''}</div>
+          ${s.notes ? `<div class="slot-notes">${s.notes}</div>` : ''}
         </div>
       </li>
     `).join('');
