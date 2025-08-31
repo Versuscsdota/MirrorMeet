@@ -125,9 +125,20 @@ async function renderCalendar() {
     `).join('');
 
     // Wire actions
+    // Direct bindings (kept), plus delegate to be robust after re-renders
     [...list.querySelectorAll('.open-slot')].forEach(b => b.onclick = () => openSlot(b.dataset.id));
     [...list.querySelectorAll('.edit-slot')].forEach(b => b.onclick = () => editSlot(b.dataset.id));
     [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
+
+    // Event delegation fallback
+    list.onclick = (e) => {
+      const del = e.target.closest && e.target.closest('.delete-slot');
+      if (del) { e.preventDefault(); e.stopPropagation(); return deleteSlot(del.dataset.id); }
+      const edt = e.target.closest && e.target.closest('.edit-slot');
+      if (edt) { e.preventDefault(); e.stopPropagation(); return editSlot(edt.dataset.id); }
+      const op = e.target.closest && e.target.closest('.open-slot');
+      if (op) { e.preventDefault(); e.stopPropagation(); return openSlot(op.dataset.id); }
+    };
   }
 
   // Month grid with slot previews
