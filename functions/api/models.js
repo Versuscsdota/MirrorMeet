@@ -251,12 +251,19 @@ export async function onRequestPut(context) {
   const id = body.id; if (!id) return badRequest('id required');
   const cur = await env.CRM_KV.get(`model:${id}`, { type: 'json' });
   if (!cur) return notFound('model');
-  cur.name = (body.name ?? cur.name).trim();
-  cur.note = (body.note ?? cur.note).trim();
-  if (body.fullName !== undefined) cur.fullName = body.fullName.trim();
+  // Safely update string fields; avoid .trim() on undefined for legacy records
+  const safeTrim = (v, fallback) => {
+    if (v === undefined || v === null) return fallback;
+    const s = String(v).trim();
+    return s;
+  };
+
+  if ('name' in body) cur.name = safeTrim(body.name, typeof cur.name === 'string' ? cur.name : '');
+  if ('note' in body) cur.note = safeTrim(body.note, typeof cur.note === 'string' ? cur.note : '');
+  if ('fullName' in body) cur.fullName = safeTrim(body.fullName, typeof cur.fullName === 'string' ? cur.fullName : '');
   if (body.contacts !== undefined) {
     cur.contacts = cur.contacts || {};
-    if (body.contacts.phone !== undefined) cur.contacts.phone = body.contacts.phone.trim();
+    if ('phone' in body.contacts) cur.contacts.phone = safeTrim(body.contacts.phone, typeof cur.contacts.phone === 'string' ? cur.contacts.phone : '');
   }
   if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
