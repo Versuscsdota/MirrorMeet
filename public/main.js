@@ -396,45 +396,40 @@ async function renderCalendar() {
       <label>ФИО<input id="sTitle" value="${s.title || ''}" placeholder="Иванов Иван" /></label>
       <label>Комментарий<textarea id="sNotes" rows="3" placeholder="Дополнительно (необязательно)">${s.notes || ''}</textarea></label>
       <div id="timeCommentWrap" style="display:none"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"></textarea></label></div>`;
-    const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
-    if (!m) return;
-    const { close, setError } = m;
     // Show comment field only when time changed
     const timeSel = form.querySelector('#sTime');
     const wrap = form.querySelector('#timeCommentWrap');
     const toggleWrap = () => {
-      const val = (timeSel.value || '').slice(0,5);
-      wrap.style.display = (val !== currStart) ? 'block' : 'none';
+      const timeChanged = (timeSel.value || '').slice(0,5) !== currStart;
+      wrap.style.display = timeChanged ? 'block' : 'none';
     };
-    if (timeSel && wrap) timeSel.addEventListener('change', toggleWrap);
+    timeSel.onchange = toggleWrap;
     toggleWrap();
 
-    const handleSubmit = async () => {
-      setError('');
-      const start = (timeSel.value || '').slice(0,5);
-      // compute end = start + 30 minutes
-      const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
-      const total = hh * 60 + mm + 30;
-      const eh = Math.floor((total % (24 * 60)) / 60);
-      const em = total % 60;
-      const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-      const title = form.querySelector('#sTitle').value.trim();
-      const notes = form.querySelector('#sNotes').value.trim();
-      const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
-      const timeChanged = (start !== currStart);
-      const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
-      if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
-      try {
-        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
-        slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
-        renderList();
-        close();
-      } catch (e) { setError(e.message); }
-    };
+    const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
+    if (!m) return;
+    const { close, setError } = m;
 
-    // Bind Save button handler (no auto-submit)
-    const okBtn = document.querySelector('.modal .actions button:last-child');
-    if (okBtn) okBtn.onclick = async (e) => { e.preventDefault(); await handleSubmit(); };
+    const start = (timeSel.value || '').slice(0,5);
+    // compute end = start + 30 minutes
+    const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+    const total = hh * 60 + mm + 30;
+    const eh = Math.floor((total % (24 * 60)) / 60);
+    const em = total % 60;
+    const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+    const title = form.querySelector('#sTitle').value.trim();
+    const notes = form.querySelector('#sNotes').value.trim();
+    const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
+    const timeChanged = (start !== currStart);
+    const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
+    if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
+    if (!title) { setError('Заполните ФИО'); return; }
+    try {
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
+      slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+      renderList();
+      close();
+    } catch (e) { setError(e.message); }
   }
 
   async function deleteSlot(id) {
