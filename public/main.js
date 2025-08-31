@@ -346,37 +346,63 @@ async function renderCalendar() {
         </select>
       </label>
       <label>Комментарий<textarea id="sComment" rows="3" placeholder="Дополнительно (необязательно)"></textarea></label>`;
-    const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
-    if (!m) return;
-    const { close, setError } = m;
-    const fullName = form.querySelector('#sFullName').value.trim();
-    const phone = form.querySelector('#sPhone').value.trim();
-    const selectedTime = (form.querySelector('#sTime').value || '').trim();
-    const comment = form.querySelector('#sComment').value.trim();
-    if (!fullName || !phone || !selectedTime) { setError('Заполните ФИО, телефон и время'); return; }
-    // Use selected calendar date and selected time; end = +30 минут
-    let dateStr = '', start = '', end = '';
-    try {
-      dateStr = date; // selected day in calendar
-      start = selectedTime.slice(0,5);
-      // compute end = start + 30 minutes
-      const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
-      const total = hh * 60 + mm + 30;
-      const eh = Math.floor((total % (24 * 60)) / 60);
-      const em = total % 60;
-      end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-    } catch {
-      setError('Неверный формат времени');
-      return;
-    }
-    const title = fullName;
-    const notes = `Телефон: ${phone}` + (comment ? `\nКомментарий: ${comment}` : '');
-    try {
-      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date: dateStr, start, end, title, notes }) });
-      slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
-      renderList();
-      close();
-    } catch (e) { setError(e.message); }
+
+    // Custom modal (like editSlot) so Save can be clicked repeatedly after validation errors
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    const header = document.createElement('header');
+    header.innerHTML = `<h3>Создать слот</h3>`;
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'ghost';
+    cancelBtn.textContent = 'Отмена';
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'Создать';
+    actions.append(cancelBtn, okBtn);
+    const err = document.createElement('div');
+    err.style.color = 'var(--danger)'; err.style.fontSize = '12px'; err.style.minHeight = '16px'; err.style.marginTop = '4px';
+    modal.append(header, form, err, actions);
+    backdrop.appendChild(modal);
+    document.body.appendChild(backdrop);
+
+    const close = () => { backdrop.remove(); };
+    const setError = (m) => { err.textContent = m || ''; };
+
+    cancelBtn.onclick = () => close();
+    okBtn.onclick = async () => {
+      setError('');
+      const fullName = form.querySelector('#sFullName').value.trim();
+      const phone = form.querySelector('#sPhone').value.trim();
+      const selectedTime = (form.querySelector('#sTime').value || '').trim();
+      const comment = form.querySelector('#sComment').value.trim();
+      if (!fullName || !phone || !selectedTime) { setError('Заполните ФИО, телефон и время'); return; }
+      // Use selected calendar date and selected time; end = +30 минут
+      let dateStr = '', start = '', end = '';
+      try {
+        dateStr = date; // selected day in calendar
+        start = selectedTime.slice(0,5);
+        // compute end = start + 30 минут
+        const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+        const total = hh * 60 + mm + 30;
+        const eh = Math.floor((total % (24 * 60)) / 60);
+        const em = total % 60;
+        end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+      } catch {
+        setError('Неверный формат времени');
+        return;
+      }
+      const title = fullName;
+      const notes = `Телефон: ${phone}` + (comment ? `\nКомментарий: ${comment}` : '');
+      try {
+        const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date: dateStr, start, end, title, notes }) });
+        slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+        renderList();
+        close();
+      } catch (e) { setError(e.message); }
+    };
   }
 
   async function editSlot(id) {
