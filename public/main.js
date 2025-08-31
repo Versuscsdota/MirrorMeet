@@ -1053,8 +1053,8 @@ async function renderEmployees() {
       const role = form.querySelector('#fRole').value;
       if (!fullName) { setError('Заполните ФИО'); return; }
       try {
-        // Include legacy fields with empty values for backward compatibility (older servers may require them)
-        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, phone, email, telegram, startDate, birthDate, notes, role, position: '', department: '', city: '', address: '' }) });
+        // Include legacy fields with non-empty placeholders for backward compatibility (older servers may require them non-empty)
+        const created = await api('/api/employees', { method: 'POST', body: JSON.stringify({ fullName, phone, email, telegram, startDate, birthDate, notes, role, position: 'N/A', department: 'N/A', city: 'N/A', address: 'N/A' }) });
         // Optimistic update: add to local list and re-render without refetch
         items = [created, ...items];
         renderList();
@@ -1117,10 +1117,10 @@ async function renderEmployees() {
     if (!fullName) { setError('Заполните ФИО'); return; }
     
     try {
-      // Include legacy fields with empty values for backward compatibility (older servers may require them)
+      // Include legacy fields with non-empty placeholders for backward compatibility (older servers may require them non-empty)
       const updated = await api('/api/employees', { 
         method: 'PUT', 
-        body: JSON.stringify({ id: employee.id, fullName, phone, email, telegram, startDate, birthDate, role, notes, position: '', department: '', city: '', address: '' }) 
+        body: JSON.stringify({ id: employee.id, fullName, phone, email, telegram, startDate, birthDate, role, notes, position: 'N/A', department: 'N/A', city: 'N/A', address: 'N/A' }) 
       });
       
       // Update local list
