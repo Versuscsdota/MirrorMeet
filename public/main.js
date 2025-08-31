@@ -71,7 +71,6 @@ async function renderCalendar() {
   let date = today;
   let currentMonth = today.slice(0,7); // YYYY-MM
   let slots = [];
-  let employees = [];
   let monthDays = [];
   // Snackbar state for undo
   let _snackbar = null;
@@ -102,17 +101,6 @@ async function renderCalendar() {
     const res = await api('/api/schedule?date=' + encodeURIComponent(date));
     slots = res.items || [];
     renderList();
-  }
-
-  async function loadEmployees() {
-    try {
-      const list = await Employee.getAll();
-      employees = Array.isArray(list) ? list : [];
-    } catch (e) {
-      // If not permitted (e.g. interviewer without access), keep empty list
-      console.warn('[employees] load failed', e);
-      employees = [];
-    }
   }
 
   // Simple snackbar with Undo
@@ -184,35 +172,22 @@ async function renderCalendar() {
       }
     }
     
-    // Build rows list: prefer loaded employees; if none available, fallback to names from slots
-    const byEmployeeId = new Map();
-    const byEmployeeName = new Map();
+    // Group slots by employee name (title)
+    const byEmployee = new Map();
     (slots || []).forEach(s => {
-      if (s.employeeId) {
-        if (!byEmployeeId.has(s.employeeId)) byEmployeeId.set(s.employeeId, []);
-        byEmployeeId.get(s.employeeId).push(s);
-      } else {
-        const nm = s.title || 'Без имени';
-        if (!byEmployeeName.has(nm)) byEmployeeName.set(nm, []);
-        byEmployeeName.get(nm).push(s);
-      }
+      const emp = s.title || 'Без имени';
+      if (!byEmployee.has(emp)) byEmployee.set(emp, []);
+      byEmployee.get(emp).push(s);
     });
-
-    // rows: [{ key, label, slots: [] }]
-    let rows = [];
-    if (employees && employees.length) {
-      rows = employees.map(e => ({ key: e.id, label: e.fullName || 'Сотрудник', slots: byEmployeeId.get(e.id) || [] }))
-        .sort((a,b)=> (a.label||'').localeCompare(b.label||''));
-    } else {
-      rows = Array.from(byEmployeeName.keys()).sort().map(nm => ({ key: nm, label: nm, slots: byEmployeeName.get(nm) || [] }));
-    }
-
-    // If no rows at all, show empty timeline
-    if (!rows.length) {
+    
+    const employees = Array.from(byEmployee.keys()).sort();
+    
+    // If no slots, show empty timeline
+    if (!employees.length) {
       table.innerHTML = `
         <div class="sched-header" style="display:grid;grid-template-columns:150px repeat(${timeSlots.length}, 1fr);">
           <div class="sched-cell" style="padding:8px;font-weight:600">Сотрудник</div>
-          ${timeSlots.map(t => `<div class=\"sched-cell\" style=\"padding:4px;text-align:center;font-size:11px\">${t}</div>`).join('')}
+          ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
         </div>
         <div class="empty-state">Слотов нет</div>
       `;
@@ -224,11 +199,11 @@ async function renderCalendar() {
         <div class="sched-cell" style="padding:8px;font-weight:600">Сотрудник</div>
         ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
       </div>
-      ${rows.map(row => {
-        const empSlots = row.slots || [];
+      ${employees.map(emp => {
+        const empSlots = byEmployee.get(emp) || [];
         return `
           <div class="sched-row" style="display:grid;grid-template-columns:150px repeat(${timeSlots.length}, 1fr);">
-            <div class="sched-cell" style="padding:8px;font-weight:500;border-right:1px solid var(--border);text-align:left">${row.label}</div>
+            <div class="sched-cell" style="padding:8px;font-weight:500;border-right:1px solid var(--border);text-align:left">${emp}</div>
             ${timeSlots.map(t => {
               const slot = empSlots.find(s => (s.start || '').slice(0,5) === t);
               return `
@@ -340,11 +315,6 @@ async function renderCalendar() {
     // Determine default time = first available (count < 2) or 12:00
     const firstFree = times.find(t => (counts.get(t) || 0) < 2) || times[0];
     form.innerHTML = `
-      <label>Сотрудник
-        <select id="sEmployee" required>
-          ${(employees || []).map(e => `<option value="${e.id}">${e.fullName || 'Сотрудник'}</option>`).join('')}
-        </select>
-      </label>
       <label>ФИО<input id="sFullName" placeholder="Иванов Иван" required /></label>
       <label>Номер телефона<input id="sPhone" placeholder="+7 999 123-45-67" required /></label>
       <label>Время
@@ -363,12 +333,10 @@ async function renderCalendar() {
     const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
     if (!m) return;
     const { close, setError } = m;
-    const employeeId = (form.querySelector('#sEmployee') && form.querySelector('#sEmployee').value) || '';
     const fullName = form.querySelector('#sFullName').value.trim();
     const phone = form.querySelector('#sPhone').value.trim();
     const selectedTime = (form.querySelector('#sTime').value || '').trim();
     const comment = form.querySelector('#sComment').value.trim();
-    if (!employeeId) { setError('Выберите сотрудника'); return; }
     if (!fullName || !phone || !selectedTime) { setError('Заполните ФИО, телефон и время'); return; }
     // Use selected calendar date and selected time; end = +30 минут
     let dateStr = '', start = '', end = '';
@@ -388,7 +356,7 @@ async function renderCalendar() {
     const title = fullName;
     const notes = `Телефон: ${phone}` + (comment ? `\nКомментарий: ${comment}` : '');
     try {
-      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date: dateStr, start, end, title, notes, employeeId }) });
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date: dateStr, start, end, title, notes }) });
       slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       renderList();
       close();
@@ -440,7 +408,7 @@ async function renderCalendar() {
       slots = slots.filter(x => x.id !== s.id);
       renderList();
       // Offer undo
-      const backup = { date: s.date || date, start: s.start, end: s.end, title: s.title, notes: s.notes, ...(s.employeeId ? { employeeId: s.employeeId } : {}) };
+      const backup = { date: s.date || date, start: s.start, end: s.end, title: s.title, notes: s.notes };
       showUndoSnackbar({
         message: 'Слот удалён',
         actionText: 'Отменить',
@@ -624,7 +592,7 @@ async function renderCalendar() {
     selectedDateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   }
   
-  await Promise.all([loadMonth(), loadEmployees(), load()]);
+  await Promise.all([loadMonth(), load()]);
 }
 
 function renderLogin() {

@@ -15,22 +15,15 @@ function isPhone(v){ return /^[+0-9 ()-]{6,}$/.test(v); }
 
 export async function onRequestGet(context) {
   const { env, request } = context;
+  // Only admin/root can read list
+  const { error } = await requireRole(env, request, ['root','admin']);
+  if (error) return error;
+  
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const withStats = url.searchParams.get('withStats') === 'true';
   const from = url.searchParams.get('from'); // YYYY-MM-DD optional
   const to = url.searchParams.get('to');     // YYYY-MM-DD optional
-
-  // Permissions:
-  // - List (no id): root/admin/interviewer
-  // - Single employee (id) or stats: root/admin only
-  if (id || withStats) {
-    const { error } = await requireRole(env, request, ['root','admin']);
-    if (error) return error;
-  } else {
-    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
-    if (error) return error;
-  }
   
   if (id) {
     // Get single employee with full details
