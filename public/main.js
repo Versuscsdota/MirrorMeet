@@ -1464,7 +1464,6 @@ async function renderModelCard(id) {
           </div>
           <div class="profile-info">
             ${(() => { const reg = model.registration || {}; const primary = model.name || reg.fullName || 'Модель'; return `<h1 class=\"profile-name\">${primary}</h1>`; })()}
-            ${(() => { const reg = model.registration || {}; const primary = model.name || reg.fullName || 'Модель'; return (reg.fullName && reg.fullName !== primary) ? `<h2 class=\"profile-fullname\">${reg.fullName}</h2>` : ''; })()}
             ${(() => {
               const reg = model.registration || {};
               // 1) explicit registeredAt
