@@ -1453,8 +1453,9 @@ async function renderModelCard(id) {
             ${mainFile ? `<img src="${mainFile.url}" alt="${model.name}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${(model.name || '').charAt(0).toUpperCase()}</span></div>`}
           </div>
           <div class="profile-info">
-            <h1 class="profile-name">${model.name}</h1>
-            ${model.fullName ? `<h2 class="profile-fullname">${model.fullName}</h2>` : ''}
+            <h1 class="profile-name">${model.name || (model.registration && model.registration.fullName) || 'Модель'}</h1>
+            ${(model.registration && model.registration.fullName) ? `<h2 class="profile-fullname">${model.registration.fullName}</h2>` : ''}
+            ${(model.registration && model.registration.slotRef) ? `<div class="profile-meta" style="color:#94a3b8;font-size:12px;margin-top:4px">Зарегистрирована: ${new Date(model.registration.slotRef.date).toLocaleDateString('ru-RU')} ${model.registration.slotRef.start ? model.registration.slotRef.start.slice(0,5) : ''}</div>` : ''}
             <div class="status-badges">
               ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })()}
               ${model.status2 ? `<span class=\"status-badge secondary\">${({arrived:'Пришла',no_show:'Не пришла',other:'Другое'})[model.status2]||model.status2}</span>` : ''}
@@ -1476,7 +1477,7 @@ async function renderModelCard(id) {
       <div class="profile-body">
         <div class="profile-stats">
           <div class="stats-grid">
-            ${model.age ? `<div class="stat-card"><div class="stat-value">${model.age}</div><div class="stat-label">лет</div></div>` : ''}
+            ${(() => { const bd = model.registration && model.registration.birthDate; if (bd) { const a = Math.max(0, Math.floor((Date.now() - new Date(bd).getTime()) / (365.25*24*60*60*1000))); return a ? `<div class="stat-card"><div class="stat-value">${a}</div><div class="stat-label">лет</div></div>` : ''; } return model.age ? `<div class="stat-card"><div class="stat-value">${model.age}</div><div class="stat-label">лет</div></div>` : ''; })()}
             ${model.height ? `<div class="stat-card"><div class="stat-value">${model.height}</div><div class="stat-label">см</div></div>` : ''}
             ${model.weight ? `<div class="stat-card"><div class="stat-value">${model.weight}</div><div class="stat-label">кг</div></div>` : ''}
             ${model.measurements ? `<div class="stat-card measurements"><div class="stat-value">${model.measurements}</div><div class="stat-label">параметры</div></div>` : ''}
@@ -1507,17 +1508,17 @@ async function renderModelCard(id) {
             </div>
           </div>
         ` : ''}
-        ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
+        ${(() => { const phone = (model.contacts && model.contacts.phone) || (model.registration && model.registration.phone); const email = model.contacts && model.contacts.email; const ig = model.contacts && model.contacts.instagram; const tg = model.contacts && model.contacts.telegram; return (phone || email || ig || tg) ? `
           <div class="info-section contacts-section">
             <h3 class="section-title">📞 Контакты</h3>
             <div class="contact-cards">
-              ${model.contacts.phone ? `<a href="tel:${model.contacts.phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${model.contacts.phone}</div></div></a>` : ''}
-              ${model.contacts.email ? `<a href="mailto:${model.contacts.email}" class="contact-card email"><div class="contact-icon">📧</div><div class="contact-info"><div class="contact-label">Email</div><div class="contact-value">${model.contacts.email}</div></div></a>` : ''}
-              ${model.contacts.instagram ? `<a href="https://instagram.com/${model.contacts.instagram.replace('@', '')}" target="_blank" class="contact-card instagram"><div class="contact-icon">📷</div><div class="contact-info"><div class="contact-label">Instagram</div><div class="contact-value">${model.contacts.instagram}</div></div></a>` : ''}
-              ${model.contacts.telegram ? `<a href="https://t.me/${model.contacts.telegram.replace('@', '')}" target="_blank" class="contact-card telegram"><div class="contact-icon">✈️</div><div class="contact-info"><div class="contact-label">Telegram</div><div class="contact-value">${model.contacts.telegram}</div></div></a>` : ''}
+              ${phone ? `<a href="tel:${phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${phone}</div></div></a>` : ''}
+              ${email ? `<a href="mailto:${email}" class="contact-card email"><div class="contact-icon">📧</div><div class="contact-info"><div class="contact-label">Email</div><div class="contact-value">${email}</div></div></a>` : ''}
+              ${ig ? `<a href="https://instagram.com/${ig.replace('@', '')}" target="_blank" class="contact-card instagram"><div class="contact-icon">📷</div><div class="contact-info"><div class="contact-label">Instagram</div><div class="contact-value">${ig}</div></div></a>` : ''}
+              ${tg ? `<a href="https://t.me/${tg.replace('@', '')}" target="_blank" class="contact-card telegram"><div class="contact-icon">✈️</div><div class="contact-info"><div class="contact-label">Telegram</div><div class="contact-value">${tg}</div></div></a>` : ''}
             </div>
           </div>
-        ` : ''}
+        ` : '' })()}
         ${(model.tags && model.tags.length) ? `
           <div class="info-section tags-section">
             <h3 class="section-title">🏷️ Теги</h3>
