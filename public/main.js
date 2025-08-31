@@ -181,9 +181,12 @@ async function renderCalendar() {
     });
     for (const [t, arr] of byTime.entries()) arr.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
 
-    // Helper to render a slot block
-    const renderBlock = (slot) => `
-      <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
+    // Helper to render a slot block, color by status1
+    const renderBlock = (slot) => {
+      const s1 = slot.status1 || 'not_confirmed';
+      const bg = s1 === 'confirmed' ? 'var(--accent)' : s1 === 'fail' ? 'var(--danger)' : '#334155';
+      return `
+      <div class="slot-block" data-id="${slot.id}" style="background:${bg};color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
         <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
           <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
           <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${(slot.title||'Слот').split(' ')[0]}</span>
@@ -194,6 +197,7 @@ async function renderCalendar() {
           ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type=\"button\" class=\"delete-slot\" data-id=\"${slot.id}\" style=\"padding:6px;font-size:12px;border:none;background:var(--danger);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center\" title=\"Удалить\">🗑</button>` : ''}
         </div>
       </div>`;
+    };
 
     const emptyCell = `<div style="height:32px;border:1px dashed rgba(148, 163, 184, 0.2);border-radius:6px;opacity:0.4;background:rgba(148, 163, 184, 0.02);transition:all 0.2s ease"></div>`;
 
@@ -382,6 +386,13 @@ async function renderCalendar() {
           }).join('')}
         </select>
       </label>
+      <label>Статус подтверждения
+        <select id="sStatus1">
+          <option value="confirmed" ${s.status1 === 'confirmed' ? 'selected' : ''}>Подтвердилось</option>
+          <option value="not_confirmed" ${!s.status1 || s.status1 === 'not_confirmed' ? 'selected' : ''}>Не подтвердилось</option>
+          <option value="fail" ${s.status1 === 'fail' ? 'selected' : ''}>Слив</option>
+        </select>
+      </label>
       <label>ФИО<input id="sTitle" value="${s.title || ''}" placeholder="Иванов Иван" /></label>
       <label>Комментарий<textarea id="sNotes" rows="3" placeholder="Дополнительно (необязательно)">${s.notes || ''}</textarea></label>
       <div id="timeCommentWrap" style="display:none"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"></textarea></label></div>`;
@@ -409,11 +420,12 @@ async function renderCalendar() {
       const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
       const title = form.querySelector('#sTitle').value.trim();
       const notes = form.querySelector('#sNotes').value.trim();
+      const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
       const timeChanged = (start !== currStart);
       const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
       if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
       try {
-        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
+        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
         slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
         renderList();
         close();
@@ -474,6 +486,17 @@ async function renderCalendar() {
         <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
         <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
+          <label>Статус посещения
+            <select id="s2">
+              <option value="" ${!s.status2 ? 'selected' : ''}>—</option>
+              <option value="arrived" ${s.status2 === 'arrived' ? 'selected' : ''}>Пришла</option>
+              <option value="no_show" ${s.status2 === 'no_show' ? 'selected' : ''}>Не пришла</option>
+              <option value="other" ${s.status2 === 'other' ? 'selected' : ''}>Другое</option>
+            </select>
+          </label>
+          <label id="s2cWrap" style="display:${s.status2 === 'other' ? 'block' : 'none'}">Комментарий к статусу<textarea id="s2c" rows="2" placeholder="Уточните причину">${s.status2Comment || ''}</textarea></label>
+        </div>
+        <div>
           <h4>Вложения</h4>
           <div id="attList" style="display:grid;gap:8px"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -486,7 +509,10 @@ async function renderCalendar() {
           <h4>История</h4>
           <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
         </div>` : ''}
-        ${canCreateModel ? `<div style="margin-top:8px"><button id="createModelBtn" type="button">Создать модель из слота</button></div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          ${canCreateModel ? `<button id="createModelBtn" type="button">Регистрация</button>` : ''}
+          <button id="status3Btn" type="button">Статус</button>
+        </div>
       </div>`;
     const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
 
@@ -533,6 +559,13 @@ async function renderCalendar() {
       }
     }
 
+    // status2 UI toggle
+    const s2 = box.querySelector('#s2');
+    const s2cWrap = box.querySelector('#s2cWrap');
+    if (s2 && s2cWrap) {
+      s2.onchange = () => { s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none'; };
+    }
+
     // initial
     refreshFiles();
     // render history if exists
@@ -571,6 +604,8 @@ async function renderCalendar() {
           const model = await api('/api/models', { method: 'POST', body: JSON.stringify({ name, note }) });
           // Ingest slot files and write interview history into model
           await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date, slotId: s.id }) });
+          // Mark status3 = registration
+          try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, status3: 'registration' }) }); } catch {}
           // Navigate to models and open the created model
           renderModels();
           if (model && model.id && typeof window.renderModelCard === 'function') {
@@ -580,13 +615,44 @@ async function renderCalendar() {
       };
     }
 
+    // Status3 button: prompt and save
+    const status3Btn = box.querySelector('#status3Btn');
+    if (status3Btn) status3Btn.onclick = async () => {
+      const form = document.createElement('div');
+      form.innerHTML = `
+        <label>Статус
+          <select id="s3">
+            <option value="" ${!s.status3 ? 'selected' : ''}>—</option>
+            <option value="thinking" ${s.status3 === 'thinking' ? 'selected' : ''}>Думает</option>
+            <option value="reject_us" ${s.status3 === 'reject_us' ? 'selected' : ''}>Отказ с нашей</option>
+            <option value="reject_candidate" ${s.status3 === 'reject_candidate' ? 'selected' : ''}>Отказ кандидата</option>
+          </select>
+        </label>`;
+      const m = await showModal({ title: 'Статус', content: form, submitText: 'Сохранить' });
+      if (!m) return;
+      const { close, setError } = m;
+      try {
+        const val = form.querySelector('#s3').value || undefined;
+        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, status3: val }) });
+        // update local slot
+        slots = slots.map(x => x.id === s.id ? updated : x);
+        renderList();
+        close();
+      } catch (e) { setError(e.message); }
+    };
+
     const m = await modalPromise;
     if (!m) return;
     const { close, setError } = m;
     try {
-      // save interview text
+      // save interview text + status2
       const text = () => (box.querySelector('#iText').value || '').trim();
-      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, interviewText: text() }) });
+      const s2v = (box.querySelector('#s2') && box.querySelector('#s2').value) || '';
+      const s2c = (box.querySelector('#s2c') && box.querySelector('#s2c').value || '').trim();
+      const body = { id: s.id, date, interviewText: text() };
+      if (s2v) body.status2 = s2v;
+      body.status2Comment = s2c || undefined;
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
       slots = slots.map(x => x.id === s.id ? updated : x);
       close();
     } catch (e) { setError(e.message); }

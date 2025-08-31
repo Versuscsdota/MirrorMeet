@@ -79,6 +79,11 @@ export async function onRequestPost(context) {
   const slot = { 
     id, date, start, end, title,
     notes: notesStr || undefined,
+    // statuses
+    status1: (body.status1 || 'not_confirmed'), // confirmed|not_confirmed|fail
+    status2: (body.status2 || undefined),       // arrived|no_show|other
+    status2Comment: (body.status2Comment || undefined),
+    status3: (body.status3 || undefined),       // thinking|reject_us|reject_candidate|registration
     // optional assignment to employee
     employeeId: (body.employeeId || '').trim() || undefined,
     interview: { text: (body.interviewText || '').trim() || undefined },
@@ -136,6 +141,26 @@ export async function onRequestPut(context) {
     if (n.length > 2000) return badRequest('notes too long (max 2000)');
     cur.notes = n || undefined;
   }
+  // Status updates
+  if ('status1' in body) {
+    const s1 = String(body.status1);
+    if (!['confirmed','not_confirmed','fail'].includes(s1)) return badRequest('invalid status1');
+    cur.status1 = s1;
+  }
+  if ('status2' in body) {
+    const s2 = body.status2 ? String(body.status2) : undefined;
+    if (s2 && !['arrived','no_show','other'].includes(s2)) return badRequest('invalid status2');
+    cur.status2 = s2;
+  }
+  if ('status2Comment' in body) {
+    const cmt = (body.status2Comment || '').trim();
+    cur.status2Comment = cmt || undefined;
+  }
+  if ('status3' in body) {
+    const s3 = body.status3 ? String(body.status3) : undefined;
+    if (s3 && !['thinking','reject_us','reject_candidate','registration'].includes(s3)) return badRequest('invalid status3');
+    cur.status3 = s3;
+  }
   if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};
@@ -146,10 +171,12 @@ export async function onRequestPut(context) {
   const timeChanged = (cur.start !== prevStart) || (cur.end !== prevEnd);
   if (timeChanged && !body.comment) return badRequest('comment required for time change');
 
-  cur.history = cur.history || [];
-  cur.history.push({ ts: Date.now(), userId: sess.user.id, action: timeChanged ? 'time_change' : 'update', comment: body.comment || undefined });
-
-  await env.CRM_KV.put(key, JSON.stringify(cur));
+  // Save
+  await env.CRM_KV.put(key, JSON.stringify({ ...cur, history: [
+    ...(Array.isArray(cur.history) ? cur.history : []),
+    ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
+    ...(('status1' in body || 'status2' in body || 'status3' in body) ? [{ ts: Date.now(), userId: sess.user.id, action: 'status_change', status1: cur.status1, status2: cur.status2, status3: cur.status3, status2Comment: cur.status2Comment }] : []),
+  ] }));
   return json(cur);
 }
 
