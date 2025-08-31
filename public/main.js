@@ -1428,11 +1428,19 @@ async function renderModelCard(id) {
     return;
   }
   const view = el('#view');
-  const [model, filesRes] = await Promise.all([
-    api('/api/models?id=' + encodeURIComponent(id)),
-    api('/api/files?modelId=' + encodeURIComponent(id))
-  ]);
-  let files = filesRes.items || [];
+  const me = window.currentUser || {};
+  const isAdmin = (me.role === 'root' || me.role === 'admin');
+  const model = await api('/api/models?id=' + encodeURIComponent(id));
+  let files = [];
+  if (isAdmin) {
+    try {
+      const filesRes = await api('/api/files?modelId=' + encodeURIComponent(id));
+      files = filesRes.items || [];
+    } catch (e) {
+      // Ignore files errors for robust rendering
+      files = [];
+    }
+  }
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
