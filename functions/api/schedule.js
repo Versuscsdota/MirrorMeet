@@ -144,6 +144,7 @@ export async function onRequestPut(context) {
   // Status updates
   if ('status1' in body) {
     const s1 = String(body.status1);
+    console.log('[schedule PUT] status1 update:', { received: body.status1, converted: s1, current: cur.status1 });
     if (!['confirmed','not_confirmed','fail'].includes(s1)) return badRequest('invalid status1');
     cur.status1 = s1;
   }

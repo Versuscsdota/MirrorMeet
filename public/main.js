@@ -446,10 +446,13 @@ async function renderCalendar() {
         const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
         const timeChanged = (start !== currStart);
         const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
+        console.log('[editSlot] Form values:', { status1, title, notes, timeChanged, comment });
         if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
         if (!title) { setError('Заполните ФИО'); return; }
         try {
-          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
+          const payload = { id: s.id, date, start, end, title, notes, comment, status1 };
+          console.log('[editSlot] API payload:', payload);
+          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
           slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
           renderList();
           close();
