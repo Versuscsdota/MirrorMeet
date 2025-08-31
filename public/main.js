@@ -1782,17 +1782,25 @@ async function renderModelCard(id) {
   };
 
   // Delete model functionality
-  el('#deleteModel').onclick = async () => {
+  const _delBtn = el('#deleteModel');
+  if (_delBtn) _delBtn.onclick = async () => {
     if (window.currentUser.role === 'root') {
       if (!await confirmRootPassword(`удаление модели "${model.name}"`)) return;
     }
-    
+
     if (!confirm(`Удалить модель "${model.name}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
+    if (_delBtn.disabled) return;
     try {
+      _delBtn.disabled = true;
+      console.debug('[model/delete] sending DELETE /api/models', { id });
       await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      console.debug('[model/delete] success');
       renderModels();
     } catch (err) {
+      console.warn('[model/delete] failed', err);
       alert(err.message);
+    } finally {
+      _delBtn.disabled = false;
     }
   };
 
