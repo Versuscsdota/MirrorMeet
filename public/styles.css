@@ -48,6 +48,37 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
+}
+
+.model-contact-info {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.model-contact-info div {
+  margin: 2px 0;
+}
+
+.contact-info {
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.contact-item {
+  display: flex;
+  margin: 6px 0;
+}
+
+.contact-label {
+  color: var(--muted);
+  min-width: 80px;
+  font-weight: 500;
+}
+
+.contact-value {
+  color: var(--text);
+  font-weight: 400;
   display: flex;
   align-items: center;
   gap: 16px;

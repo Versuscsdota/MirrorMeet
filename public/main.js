@@ -1437,12 +1437,16 @@ async function renderModels() {
       })() : '';
       return `
         <div class="model-card-redesigned">
-          <div class="model-avatar">
-            ${photoUrl ? `<img src="${photoUrl}" alt="${m.name}" />` : `<div class="avatar-initials">${initials || '?'}</div>`}
+          <div class="model-avatar" style="width: 80px; height: 80px;">
+            ${photoUrl ? `<img src="${photoUrl}" alt="${m.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />` : `<div class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 32px;">${initials || '?'}</div>`}
           </div>
           <div class="model-info">
             <div class="model-name">${m.fullName || m.name}</div>
-            <div class="model-statuses">${s1}${s2}${s3}</div>
+            <div class="model-contact-info">
+              ${m.telegram ? `<div>Telegram: @${m.telegram}</div>` : ''}
+              ${m.phone ? `<div>Телефон: ${m.phone}</div>` : ''}
+              ${m.surname ? `<div>Фамилия: ${m.surname}</div>` : ''}
+            </div>
           </div>
           <button title="Открыть профиль" data-id="${m.id}" class="openModel model-open-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1516,10 +1520,10 @@ async function renderModelCard(id) {
               }
               return '';
             })()}
-            <div class="status-badges">
-              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })()}
-              ${model.status2 ? `<span class=\"status-badge secondary\">${({arrived:'Пришла',no_show:'Не пришла',other:'Другое'})[model.status2]||model.status2}</span>` : ''}
-              ${model.status3 ? `<span class=\"status-badge secondary\">${({thinking:'Думает',reject_us:'Отказ с нашей',reject_candidate:'Отказ кандидата',registration:'Регистрация'})[model.status3]||model.status3}</span>` : ''}
+            <div class="contact-info">
+              ${model.telegram ? `<div class="contact-item"><span class="contact-label">Telegram:</span> <span class="contact-value">@${model.telegram}</span></div>` : ''}
+              ${model.phone ? `<div class="contact-item"><span class="contact-label">Телефон:</span> <span class="contact-value">${model.phone}</span></div>` : ''}
+              ${model.surname ? `<div class="contact-item"><span class="contact-label">Фамилия:</span> <span class="contact-value">${model.surname}</span></div>` : ''}
             </div>
             <div class="profile-actions">
               <button id="editProfile" class="icon-btn" title="Редактировать профиль">
