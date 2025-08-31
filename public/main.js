@@ -1287,9 +1287,10 @@ function renderAppShell(me) {
             <button id="nav-calendar">Календарь</button>
             <button id="nav-employees">Сотрудники</button>
             <button id="nav-files">Файлы</button>
+            <button id="nav-logs">Логи</button>
           ` : (me.role === 'interviewer') ? `
-            <button id=\"nav-models\">Модели</button>
-            <button id=\"nav-calendar\">Календарь</button>
+            <button id="nav-models">Модели</button>
+            <button id="nav-calendar">Календарь</button>
           ` : ''
         }
       </nav>
@@ -1305,6 +1306,8 @@ function renderAppShell(me) {
     el('#nav-calendar').onclick = renderCalendar;
     el('#nav-employees').onclick = renderEmployees;
     el('#nav-files').onclick = renderFileSystem;
+    const logsBtn = document.getElementById('nav-logs');
+    if (logsBtn) logsBtn.onclick = () => { window.location.href = '/audit.html'; };
   } else if (me.role === 'interviewer') {
     el('#nav-calendar').onclick = renderCalendar;
     el('#nav-models').onclick = renderModels;
