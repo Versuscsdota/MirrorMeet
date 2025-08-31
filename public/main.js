@@ -74,7 +74,7 @@ async function renderCalendar() {
           <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
         </div>
         <div id="monthGrid"></div>
-        ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
+        ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
       </div>
       <div class="card">
         <div style="padding:16px;border-bottom:1px solid #1e1e1e">
@@ -181,6 +181,9 @@ async function renderCalendar() {
     form.innerHTML = `
       <label>Начало<input id="sStart" type="time" required /></label>
       <label>Конец<input id="sEnd" type="time" required /></label>
+      <label>ФИО клиента<input id="sFullName" placeholder="ФИО" /></label>
+      <label>Телефон клиента<input id="sPhone" placeholder="+7 (999) 123-45-67" /></label>
+      <label>Комментарий<textarea id="sApplicantComment" rows="2" placeholder="Комментарий (необязательно)"></textarea></label>
       <label>Заголовок<input id="sTitle" /></label>
       <label>Заметки<textarea id="sNotes" rows="3"></textarea></label>`;
     const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
@@ -188,11 +191,14 @@ async function renderCalendar() {
     const { close, setError } = m;
     const start = form.querySelector('#sStart').value.trim();
     const end = form.querySelector('#sEnd').value.trim();
+    const applicantFullName = form.querySelector('#sFullName').value.trim();
+    const applicantPhone = form.querySelector('#sPhone').value.trim();
+    const applicantComment = form.querySelector('#sApplicantComment').value.trim();
     const title = form.querySelector('#sTitle').value.trim();
     const notes = form.querySelector('#sNotes').value.trim();
     if (!start || !end) { setError('Укажите время начала и конца'); return; }
     try {
-      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, notes }) });
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, notes, applicantFullName, applicantPhone, applicantComment }) });
       slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       renderList();
       close();
@@ -202,10 +208,14 @@ async function renderCalendar() {
   async function editSlot(id) {
     const s = slots.find(x => x.id === id);
     if (!s) return;
+    const isAdmin = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
     const form = document.createElement('div');
     form.innerHTML = `
-      <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
-      <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" /></label>
+      <label>Начало<input id="sStart" type="time" value="${s.start || ''}" ${isAdmin ? '' : 'disabled'} /></label>
+      <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" ${isAdmin ? '' : 'disabled'} /></label>
+      <label>ФИО клиента<input id="sFullName" value="${(s.applicant && s.applicant.fullName) || ''}" ${isAdmin ? '' : 'disabled'} placeholder="ФИО" /></label>
+      <label>Телефон клиента<input id="sPhone" value="${(s.applicant && s.applicant.phone) || ''}" ${isAdmin ? '' : 'disabled'} placeholder="+7 (999) 123-45-67" /></label>
+      <label>Комментарий клиента<textarea id="sApplicantComment" rows="2" placeholder="Комментарий">${(s.applicant && s.applicant.comment) || ''}</textarea></label>
       <label>Заголовок<input id="sTitle" value="${s.title || ''}" /></label>
       <label>Заметки<textarea id="sNotes" rows="3">${s.notes || ''}</textarea></label>
       <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"/></label></div>`;
@@ -214,13 +224,19 @@ async function renderCalendar() {
     const { close, setError } = m;
     const start = form.querySelector('#sStart').value.trim();
     const end = form.querySelector('#sEnd').value.trim();
+    const applicantFullName = form.querySelector('#sFullName').value.trim();
+    const applicantPhone = form.querySelector('#sPhone').value.trim();
+    const applicantComment = form.querySelector('#sApplicantComment').value.trim();
     const title = form.querySelector('#sTitle').value.trim();
     const notes = form.querySelector('#sNotes').value.trim();
     const timeChanged = (start !== (s.start||'')) || (end !== (s.end||''));
     const comment = timeChanged ? (form.querySelector('#sComment').value || '').trim() : '';
     if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
     try {
-      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
+      const payload = { id: s.id, date, title, notes, comment };
+      if (isAdmin) { payload.start = start; payload.end = end; payload.applicantFullName = applicantFullName; payload.applicantPhone = applicantPhone; }
+      payload.applicantComment = applicantComment;
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
       slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       renderList();
       close();
