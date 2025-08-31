@@ -169,6 +169,12 @@ export async function onRequestPut(context) {
     if (s3 && !['thinking','reject_us','reject_candidate','registration'].includes(s3)) return badRequest('invalid status3');
     cur.status3 = s3;
   }
+  // Auto-set status3 to registration when both conditions met and not explicitly provided
+  if (!('status3' in body)) {
+    if (cur.status1 === 'confirmed' && cur.status2 === 'arrived' && !cur.status3) {
+      cur.status3 = 'registration';
+    }
+  }
   if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};

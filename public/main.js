@@ -543,9 +543,13 @@ async function renderCalendar() {
           <h4>История</h4>
           <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
         </div>` : ''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
           ${canCreateModel ? `<button id="createModelBtn" type="button">Регистрация</button>` : ''}
-          <button id="status3Btn" type="button">Статус</button>
+          <div id="s3Group" style="display:flex;gap:6px">
+            <button type="button" class="s3btn" data-v="thinking" title="Думает">🤔</button>
+            <button type="button" class="s3btn" data-v="reject_us" title="Отказ с нашей">⛔</button>
+            <button type="button" class="s3btn" data-v="reject_candidate" title="Отказ кандидата">🙅‍♀️</button>
+          </div>
         </div>
       </div>`;
     const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
@@ -597,7 +601,44 @@ async function renderCalendar() {
     const s2 = box.querySelector('#s2');
     const s2cWrap = box.querySelector('#s2cWrap');
     if (s2 && s2cWrap) {
-      s2.onchange = () => { s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none'; };
+      s2.onchange = () => { 
+        s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
+        // Toggle registration availability based on status1 + status2
+        const regBtn = box.querySelector('#createModelBtn');
+        if (regBtn) regBtn.disabled = !(s.status1 === 'confirmed' && s2.value === 'arrived');
+      };
+    }
+
+    // Initialize registration button state
+    const regBtnInit = box.querySelector('#createModelBtn');
+    if (regBtnInit) regBtnInit.disabled = !(s.status1 === 'confirmed' && (s.status2 === 'arrived'));
+
+    // status3 buttons behavior: highlight current and save on click
+    const s3Group = box.querySelector('#s3Group');
+    const highlightS3 = (val) => {
+      if (!s3Group) return;
+      [...s3Group.querySelectorAll('.s3btn')].forEach(b => {
+        const active = b.dataset.v === val;
+        b.style.background = active ? 'var(--accent)' : '';
+        b.style.color = active ? 'var(--bg)' : '';
+        b.style.border = '1px solid #1f2937';
+        b.style.borderRadius = '6px';
+        b.style.padding = '6px 8px';
+        if (active) b.setAttribute('data-selected', 'true'); else b.removeAttribute('data-selected');
+      });
+    };
+    highlightS3(s.status3 || '');
+    if (s3Group) {
+      s3Group.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.s3btn');
+        if (!btn) return;
+        const val = btn.dataset.v;
+        try {
+          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status3: val }) });
+          Object.assign(s, updated);
+          highlightS3(updated.status3 || '');
+        } catch (err) { alert(err.message); }
+      });
     }
 
     // initial
@@ -686,7 +727,8 @@ async function renderCalendar() {
           // Read from the slot modal container `box` where these controls live
           const selS1 = (box && box.querySelector('#sStatus1') ? box.querySelector('#sStatus1').value : (s.status1 || 'not_confirmed'));
           const selS2 = (box && box.querySelector('#s2') ? box.querySelector('#s2').value : (s.status2 || ''));
-          const selS3 = (box && box.querySelector('#s3') ? box.querySelector('#s3').value : (s.status3 || ''));
+          const selS3Btn = box && box.querySelector('#s3Group .s3btn[data-selected="true"]');
+          const selS3 = selS3Btn ? selS3Btn.dataset.v : (s.status3 || '');
           const payload = {
             action: 'registerFromSlot',
             date: (s.date || date),
