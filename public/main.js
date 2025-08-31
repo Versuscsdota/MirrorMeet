@@ -1264,7 +1264,6 @@ async function renderModels() {
   let items = data.items || [];
   view.innerHTML = `
     <section class="bar">
-      ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? '<button id="addModel">Добавить модель</button>' : ''}
       <input id="search" placeholder="Поиск по имени/описанию" />
       <select id="sort">
         <option value="name-asc">Имя ↑</option>
@@ -1311,60 +1310,6 @@ async function renderModels() {
   el('#search').addEventListener('input', renderList);
   el('#sort').addEventListener('change', renderList);
   renderList();
-  const addBtn = el('#addModel');
-  if (addBtn) {
-    addBtn.onclick = async () => {
-      const form = document.createElement('div');
-      form.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Псевдоним/Никнейм<input id="mName" placeholder="Анна" required /></label>
-          <label>Полное имя<input id="mFullName" placeholder="Анна Владимировна Петрова" /></label>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-          <label>Возраст<input id="mAge" type="number" placeholder="25" min="18" max="50" /></label>
-          <label>Рост (см)<input id="mHeight" type="number" placeholder="170" min="150" max="200" /></label>
-          <label>Вес (кг)<input id="mWeight" type="number" placeholder="55" min="40" max="100" /></label>
-        </div>
-        <label>Параметры<input id="mMeasurements" placeholder="90-60-90" /></label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Телефон<input id="mPhone" placeholder="+79991234567" /></label>
-          <label>Email<input id="mEmail" type="email" placeholder="anna@example.com" /></label>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <label>Instagram<input id="mInstagram" placeholder="@anna_model" /></label>
-          <label>Telegram<input id="mTelegram" placeholder="@anna_tg" /></label>
-        </div>
-        <label>Теги<input id="mTags" placeholder="фотомодель, реклама, fashion" /></label>
-        <label>Примечания<textarea id="mNote" placeholder="Дополнительная информация" rows="3"></textarea></label>
-      `;
-      const res = await showModal({ title: 'Добавить модель', content: form, submitText: 'Создать' });
-      if (!res) return;
-      const { close, setError } = res;
-      const name = form.querySelector('#mName').value.trim();
-      const fullName = form.querySelector('#mFullName').value.trim();
-      const age = form.querySelector('#mAge').value;
-      const height = form.querySelector('#mHeight').value;
-      const weight = form.querySelector('#mWeight').value;
-      const measurements = form.querySelector('#mMeasurements').value.trim();
-      const phone = form.querySelector('#mPhone').value.trim();
-      const email = form.querySelector('#mEmail').value.trim();
-      const instagram = form.querySelector('#mInstagram').value.trim();
-      const telegram = form.querySelector('#mTelegram').value.trim();
-      const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
-      const note = form.querySelector('#mNote').value.trim();
-      if (!name) { setError('Укажите псевдоним модели'); return; }
-      try {
-        const created = await api('/api/models', { method: 'POST', body: JSON.stringify({ 
-          name, fullName, age, height, weight, measurements, phone, email, instagram, telegram, tags, note 
-        }) });
-        items = [created, ...items];
-        renderList();
-        close();
-      } catch (e) {
-        setError(e.message);
-      }
-    };
-  }
 }
 
 async function renderModelCard(id) {
