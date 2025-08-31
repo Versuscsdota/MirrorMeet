@@ -205,6 +205,21 @@ async function renderCalendar() {
       <div class="sched-header" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
         ${timeSlots.map(t => `<div class=\"sched-cell\" style=\"padding:4px;text-align:center;font-size:11px\">${t}</div>`).join('')}
       </div>
+
+      ${Array.isArray(model.history) && model.history.length ? `
+      <div class="info-section history-section">
+        <h3 class="section-title">🕓 История</h3>
+        <div class="timeline">
+          ${[...model.history].sort((a,b)=> (a.ts||0)-(b.ts||0)).map(h => {
+            const when = h.ts ? new Date(h.ts).toLocaleString('ru-RU') : '';
+            const slot = h.slot ? ` · ${h.slot.date || ''} ${h.slot.start || ''} ${h.slot.title || ''}` : '';
+            const text = (h.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const type = ({registration:'Регистрация',interview:'Интервью'})[h.type] || 'Событие';
+            return `<div class=\"timeline-item\"><div class=\"tl-dot\"></div><div class=\"tl-content\"><div class=\"tl-head\">${type}<span class=\"tl-time\">${when}${slot}</span></div>${text?`<div class=\"tl-text\">${text}</div>`:''}</div></div>`;
+          }).join('')}
+        </div>
+      </div>
+      ` : ''}
       ${[0,1].map(row => `
         <div class=\"sched-row\" style=\"display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);\">
           ${timeSlots.map(t => {
@@ -1396,9 +1411,9 @@ async function renderModelCard(id) {
             <h1 class="profile-name">${model.name}</h1>
             ${model.fullName ? `<h2 class="profile-fullname">${model.fullName}</h2>` : ''}
             <div class="status-badges">
-              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class="status-badge ${cls}">status1: ${t}</span>`; })()}
-              ${model.status2 ? `<span class="status-badge secondary">status2: ${model.status2}</span>` : ''}
-              ${model.status3 ? `<span class="status-badge secondary">status3: ${model.status3}</span>` : ''}
+              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })()}
+              ${model.status2 ? `<span class=\"status-badge secondary\">${({arrived:'Пришла',no_show:'Не пришла',other:'Другое'})[model.status2]||model.status2}</span>` : ''}
+              ${model.status3 ? `<span class=\"status-badge secondary\">${({thinking:'Думает',reject_us:'Отказ с нашей',reject_candidate:'Отказ кандидата',registration:'Регистрация'})[model.status3]||model.status3}</span>` : ''}
             </div>
             <div class="profile-actions">
               <button id="editProfile" class="btn btn-primary">Редактировать профиль</button>
@@ -1421,10 +1436,11 @@ async function renderModelCard(id) {
           <div class="info-section registration-section">
             <h3 class="section-title">📋 Регистрация</h3>
             <div class="info-cards">
-              ${model.registration.birthDate ? `<div class="info-card"><div class="info-icon">🎂</div><div class="info-content"><div class="info-label">Дата рождения</div><div class="info-value">${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
-              ${model.registration.docType || model.registration.docNumber ? `<div class="info-card"><div class="info-icon">📄</div><div class="info-content"><div class="info-label">Документ</div><div class="info-value">${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div></div></div>` : ''}
-              ${model.registration.internshipDate ? `<div class="info-card"><div class="info-icon">🎓</div><div class="info-content"><div class="info-label">Первая стажировка</div><div class="info-value">${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
-              ${model.registration.comment ? `<div class="info-card full-width"><div class="info-icon">💬</div><div class="info-content"><div class="info-label">Комментарий</div><div class="info-value">${model.registration.comment}</div></div></div>` : ''}
+              ${(() => { const ref = model.registration.slotRef; if (!ref) return ''; const tm = (ref.start?ref.start.slice(0,5):'') + (ref.end?`–${ref.end.slice(0,5)}`:''); return `<div class=\"info-card full-width\"><div class=\"info-icon\">🗓️</div><div class=\"info-content\"><div class=\"info-label\">Источник</div><div class=\"info-value\">${new Date(ref.date).toLocaleDateString('ru-RU')} ${tm} ${ref.title?`· ${ref.title}`:''}</div></div></div>`; })()}
+              ${model.registration.birthDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎂</div><div class=\"info-content\"><div class=\"info-label\">Дата рождения</div><div class=\"info-value\">${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
+              ${model.registration.docType || model.registration.docNumber ? `<div class=\"info-card\"><div class=\"info-icon\">📄</div><div class=\"info-content\"><div class=\"info-label\">Документ</div><div class=\"info-value\">${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div></div></div>` : ''}
+              ${model.registration.internshipDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎓</div><div class=\"info-content\"><div class=\"info-label\">Первая стажировка</div><div class=\"info-value\">${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
+              ${model.registration.comment ? `<div class=\"info-card full-width\"><div class=\"info-icon\">💬</div><div class=\"info-content\"><div class=\"info-label\">Комментарий</div><div class=\"info-value\">${model.registration.comment}</div></div></div>` : ''}
             </div>
           </div>
         ` : ''}
