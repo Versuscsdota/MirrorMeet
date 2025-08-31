@@ -264,7 +264,8 @@ async function renderCalendar() {
     }
     if (!confirm('Удалить слот?')) return;
     try {
-      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(date)}`, { method: 'DELETE' });
+      // Use slot's own date to avoid mismatch if selected date changed
+      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(s.date || date)}`, { method: 'DELETE' });
       slots = slots.filter(x => x.id !== s.id);
       renderList();
     } catch (e) { alert(e.message); }
