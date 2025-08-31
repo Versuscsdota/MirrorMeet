@@ -280,21 +280,17 @@ async function renderCalendar() {
     const selectedTime = (form.querySelector('#sTime').value || '').trim();
     const comment = form.querySelector('#sComment').value.trim();
     if (!fullName || !phone || !selectedTime) { setError('Заполните ФИО, телефон и время'); return; }
-    // Use selected calendar date and selected time; end = +1 hour
+    // Use selected calendar date and selected time; end = +30 минут
     let dateStr = '', start = '', end = '';
     try {
       dateStr = date; // selected day in calendar
       start = selectedTime.slice(0,5);
-      // compute end = start + 1 hour
+      // compute end = start + 30 minutes
       const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
-      const endH = String((hh + 1) % 24).padStart(2,'0');
-      end = `${endH}:${mm.toString().padStart(2,'0')}`;
-      if (end <= start) {
-        // ensure end > start by bumping to +1:01 if wrap-around
-        const mm2 = (mm + 1) % 60;
-        const h2 = (mm2 === 0) ? ((hh + 2) % 24) : ((hh + 1) % 24);
-        end = `${String(h2).padStart(2,'0')}:${String(mm2).padStart(2,'0')}`;
-      }
+      const total = hh * 60 + mm + 30;
+      const eh = Math.floor((total % (24 * 60)) / 60);
+      const em = total % 60;
+      end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
     } catch {
       setError('Неверный формат времени');
       return;
