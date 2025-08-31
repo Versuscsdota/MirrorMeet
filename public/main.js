@@ -1269,10 +1269,41 @@ async function renderModels() {
         <option value="name-asc">Имя ↑</option>
         <option value="name-desc">Имя ↓</option>
       </select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+        <label style="display:flex;gap:6px;align-items:center">status1
+          <select id="fStatus1" multiple size="3">
+            <option value="confirmed">confirmed</option>
+            <option value="not_confirmed">not_confirmed</option>
+            <option value="fail">fail</option>
+          </select>
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">status2
+          <select id="fStatus2" multiple size="4">
+            <option value="">(пусто)</option>
+            <option value="arrived">arrived</option>
+            <option value="no_show">no_show</option>
+            <option value="other">other</option>
+          </select>
+        </label>
+        <label style="display:flex;gap:6px;align-items:center">status3
+          <select id="fStatus3" multiple size="5">
+            <option value="">(пусто)</option>
+            <option value="thinking">thinking</option>
+            <option value="reject_us">reject_us</option>
+            <option value="reject_candidate">reject_candidate</option>
+            <option value="registration">registration</option>
+          </select>
+        </label>
+      </div>
     </section>
     <div class="grid" id="modelsGrid"></div>
   `;
   const grid = el('#modelsGrid');
+  const getSelected = (id) => {
+    const elSel = el(id);
+    if (!elSel) return [];
+    return [...elSel.selectedOptions].map(o => o.value);
+  };
   function applySort(list, mode){
     const arr = [...list];
     if (mode === 'name-desc') arr.sort((a,b)=> (b.name||'').localeCompare(a.name||''));
@@ -1282,7 +1313,19 @@ async function renderModels() {
   function renderList(){
     const q = (el('#search').value || '').toLowerCase();
     const mode = el('#sort').value;
-    const filtered = items.filter(m => (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q));
+    const s1 = getSelected('#fStatus1');
+    const s2 = getSelected('#fStatus2');
+    const s3 = getSelected('#fStatus3');
+    const filtered = items.filter(m => {
+      const matchesText = (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q);
+      const v1 = (m.status1 || 'not_confirmed');
+      const v2 = (m.status2 || '');
+      const v3 = (m.status3 || '');
+      const pass1 = s1.length === 0 ? true : s1.includes(v1);
+      const pass2 = s2.length === 0 ? true : s2.includes(v2);
+      const pass3 = s3.length === 0 ? true : s3.includes(v3);
+      return matchesText && pass1 && pass2 && pass3;
+    });
     const sorted = applySort(filtered, mode);
     grid.innerHTML = sorted.map(m => {
       const tags = (m.tags || []).slice(0, 3).join(', ');
@@ -1309,6 +1352,12 @@ async function renderModels() {
   }
   el('#search').addEventListener('input', renderList);
   el('#sort').addEventListener('change', renderList);
+  const s1El = el('#fStatus1');
+  const s2El = el('#fStatus2');
+  const s3El = el('#fStatus3');
+  if (s1El) s1El.addEventListener('change', renderList);
+  if (s2El) s2El.addEventListener('change', renderList);
+  if (s3El) s3El.addEventListener('change', renderList);
   renderList();
 }
 
