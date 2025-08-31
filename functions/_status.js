@@ -1,6 +1,6 @@
 // Unified status system for slots and models
 
-export const STATUS_DEFINITIONS = {
+const STATUS_DEFINITIONS = {
   status1: {
     values: ['confirmed', 'not_confirmed', 'fail'],
     default: 'not_confirmed',
