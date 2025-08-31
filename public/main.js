@@ -72,6 +72,9 @@ async function renderCalendar() {
   let currentMonth = today.slice(0,7); // YYYY-MM
   let slots = [];
   let monthDays = [];
+  // Snackbar state for undo
+  let _snackbar = null;
+  let _snackbarTimer = null;
 
   view.innerHTML = `
     <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;height:calc(100vh - 120px)">
@@ -98,6 +101,47 @@ async function renderCalendar() {
     const res = await api('/api/schedule?date=' + encodeURIComponent(date));
     slots = res.items || [];
     renderList();
+  }
+
+  // Simple snackbar with Undo
+  function showUndoSnackbar({ message, actionText = 'Отменить', timeoutMs = 12000, onAction }) {
+    // cleanup previous
+    if (_snackbarTimer) { clearTimeout(_snackbarTimer); _snackbarTimer = null; }
+    if (_snackbar) { _snackbar.remove(); _snackbar = null; }
+    const bar = document.createElement('div');
+    bar.className = 'snackbar';
+    bar.style.position = 'fixed';
+    bar.style.left = '50%';
+    bar.style.bottom = '20px';
+    bar.style.transform = 'translateX(-50%)';
+    bar.style.background = '#111';
+    bar.style.border = '1px solid #2b2b2b';
+    bar.style.padding = '10px 12px';
+    bar.style.borderRadius = '8px';
+    bar.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+    bar.style.display = 'flex';
+    bar.style.gap = '12px';
+    bar.style.alignItems = 'center';
+    bar.style.zIndex = '9999';
+    const txt = document.createElement('div');
+    txt.textContent = message;
+    const btn = document.createElement('button');
+    btn.textContent = actionText;
+    btn.className = 'ghost';
+    btn.style.border = '1px solid #2bb3b1';
+    btn.style.color = '#2bb3b1';
+    btn.onclick = () => {
+      if (_snackbarTimer) { clearTimeout(_snackbarTimer); _snackbarTimer = null; }
+      if (_snackbar) { _snackbar.remove(); _snackbar = null; }
+      if (typeof onAction === 'function') onAction();
+    };
+    bar.append(txt, btn);
+    document.body.appendChild(bar);
+    _snackbar = bar;
+    _snackbarTimer = setTimeout(() => {
+      if (_snackbar) { _snackbar.remove(); _snackbar = null; }
+      _snackbarTimer = null;
+    }, timeoutMs);
   }
 
   // Removed global document-level fallback to prevent double triggering
@@ -279,13 +323,28 @@ async function renderCalendar() {
       alert('Недостаточно прав для удаления');
       return;
     }
-    if (!confirm('Удалить слот?')) { console.debug('[deleteSlot] cancelled by user'); return; }
     try {
       if (btn) btn.disabled = true;
       // Use slot's own date to avoid mismatch if selected date changed
       await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(s.date || date)}`, { method: 'DELETE' });
       slots = slots.filter(x => x.id !== s.id);
       renderList();
+      // Offer undo
+      const backup = { date: s.date || date, start: s.start, end: s.end, title: s.title, notes: s.notes };
+      showUndoSnackbar({
+        message: 'Слот удалён',
+        actionText: 'Отменить',
+        timeoutMs: 12000,
+        onAction: async () => {
+          try {
+            const restored = await api('/api/schedule', { method: 'POST', body: JSON.stringify(backup) });
+            slots = [...slots, restored].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+            renderList();
+          } catch (e) {
+            alert('Не удалось восстановить слот: ' + e.message);
+          }
+        }
+      });
     } catch (e) {
       console.warn('[deleteSlot] error', e);
       alert(e.message);
