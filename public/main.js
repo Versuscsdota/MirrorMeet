@@ -689,7 +689,6 @@ async function renderCalendar() {
         // Prefill from slot
         const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
         const form = document.createElement('div');
-        const canUpload = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
         form.innerHTML = `
           <div style="display:grid;gap:10px">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -715,7 +714,6 @@ async function renderCalendar() {
               </label>
             </div>
             <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
-            ${canUpload ? `
             <div>
               <h4>Фото документов</h4>
               <input id="rDocs" type="file" multiple accept="image/*,.pdf" />
@@ -724,7 +722,6 @@ async function renderCalendar() {
               <h4>Фотографии</h4>
               <input id="rPhotos" type="file" multiple accept="image/*,video/*" />
             </div>
-            ` : `<p class="hint">Загрузка файлов доступна только администраторам.</p>`}
           </div>`;
         const res = await showModal({ title: 'Регистрация модели', content: form, submitText: 'Зарегистрировать' });
         if (!res) return;
@@ -762,28 +759,25 @@ async function renderCalendar() {
             status3: selS3 || undefined
           };
           const model = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
-          // Upload grouped files (only for admins)
-          if (canUpload) {
-            const docs = form.querySelector('#rDocs').files;
-            const photos = form.querySelector('#rPhotos').files;
-            async function uploadGroup(files, category){
-              if (!files || files.length === 0) return;
-              const fd = new FormData();
-              fd.append('modelId', model.id);
-              fd.append('category', category);
-              for (const f of files) fd.append('file', f);
-              await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
-            }
-            await uploadGroup(docs, 'doc');
-            await uploadGroup(photos, 'photo');
+          // Upload grouped files
+          const docs = form.querySelector('#rDocs').files;
+          const photos = form.querySelector('#rPhotos').files;
+          async function uploadGroup(files, category){
+            if (!files || files.length === 0) return;
+            const fd = new FormData();
+            fd.append('modelId', model.id);
+            fd.append('category', category);
+            for (const f of files) fd.append('file', f);
+            await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
           }
+          await uploadGroup(docs, 'doc');
+          await uploadGroup(photos, 'photo');
           // Mark slot status3
           try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
           close();
-          // Navigate to models. Only auto-open model card for admins to avoid interviewer hitting restricted file endpoints
+          // Navigate to the model profile
           renderModels();
-          const canOpenDetail = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
-          if (canOpenDetail && model && model.id && typeof window.renderModelCard === 'function') {
+          if (model && model.id && typeof window.renderModelCard === 'function') {
             window.renderModelCard(model.id);
           }
         } catch (e) { setError(e.message); }
