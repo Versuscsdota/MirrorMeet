@@ -227,7 +227,6 @@ async function renderCalendar() {
       block.addEventListener('click', (e) => {
         if (e.target.closest && e.target.closest('.slot-actions-mini')) return;
         const id = block.dataset.id;
-        console.debug('[block click] open-slot', id);
         openSlot(id);
       });
     });
@@ -236,11 +235,11 @@ async function renderCalendar() {
     if (!table._delegated) {
       table.addEventListener('click', (e) => {
         const del = e.target.closest && e.target.closest('.delete-slot');
-        if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] delete-slot', del.dataset.id); deleteSlot(del.dataset.id); return; }
+        if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
         const edt = e.target.closest && e.target.closest('.edit-slot');
-        if (edt) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] edit-slot', edt.dataset.id); editSlot(edt.dataset.id); return; }
+        if (edt) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); editSlot(edt.dataset.id); return; }
         const op = e.target.closest && e.target.closest('.open-slot');
-        if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] open-slot', op.dataset.id); openSlot(op.dataset.id); return; }
+        if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); openSlot(op.dataset.id); return; }
       });
       table._delegated = true;
     }
@@ -512,7 +511,6 @@ async function renderCalendar() {
 
   async function openSlot(id) {
     const s = slots.find(x => x.id === id);
-    console.debug('[openSlot] start', { id, found: !!s, slot: s });
     if (!s) return;
     const box = document.createElement('div');
     const canCreateModel = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
@@ -670,9 +668,7 @@ async function renderCalendar() {
       try {
         const val = form.querySelector('#s3').value || undefined;
         const payload = { id: s.id, date: s.date || date, status3: val };
-        console.debug('[openSlot][status3][PUT] payload', payload);
         const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
-        console.debug('[openSlot][status3][PUT] response', updated);
         // refresh from server to avoid stale local state
         await load();
         close();
@@ -690,9 +686,7 @@ async function renderCalendar() {
       const body = { id: s.id, date: (s.date || date), interviewText: text() };
       if (s2v) body.status2 = s2v;
       body.status2Comment = s2c || undefined;
-      console.debug('[openSlot][PUT] payload', body);
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
-      console.debug('[openSlot][PUT] response', updated);
       // refresh from server to avoid stale local state
       await load();
       close();
