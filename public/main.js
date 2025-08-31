@@ -1258,7 +1258,7 @@ function renderAppShell(me) {
   el('#app').innerHTML = `
     <header>
       <div class="logo">
-        <img src="/favicon.svg" alt="Mirror Studio" width="120" height="48" />
+        <img src="/logo-mark.svg" alt="Mirror Studio" height="40" style="height:40px;width:auto;display:block" />
       </div>
       <nav>
         ${
