@@ -421,7 +421,7 @@ async function renderCalendar() {
     const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
     const title = form.querySelector('#sTitle').value.trim();
     const notes = form.querySelector('#sNotes').value.trim();
-    const timeChanged = (start !== (s.start||'')) || (end !== (s.end||''));
+    const timeChanged = (start !== ((s.start||'').slice(0,5))) || (end !== ((s.end||'').slice(0,5)));
     const comment = timeChanged ? (form.querySelector('#sComment').value || '').trim() : '';
     if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
     try {
