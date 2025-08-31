@@ -171,59 +171,45 @@ async function renderCalendar() {
         timeSlots.push(t);
       }
     }
-    
-    // Group slots by employee name (title)
-    const byEmployee = new Map();
+    // Group by time: map HH:MM -> array of slots at that time (sorted, max first 2 for display)
+    const byTime = new Map();
     (slots || []).forEach(s => {
-      const emp = s.title || 'Без имени';
-      if (!byEmployee.has(emp)) byEmployee.set(emp, []);
-      byEmployee.get(emp).push(s);
+      const t = (s.start || '').slice(0,5);
+      if (!t) return;
+      if (!byTime.has(t)) byTime.set(t, []);
+      byTime.get(t).push(s);
     });
-    
-    const employees = Array.from(byEmployee.keys()).sort();
-    
-    // If no slots, show empty timeline
-    if (!employees.length) {
-      table.innerHTML = `
-        <div class="sched-header" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
-          ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
+    for (const [t, arr] of byTime.entries()) arr.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
+
+    // Helper to render a slot block
+    const renderBlock = (slot) => `
+      <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
+        <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
+          <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
+          <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${(slot.title||'Слот').split(' ')[0]}</span>
         </div>
-        <div class="empty-state">Слотов нет</div>
-      `;
-      return;
-    }
-    
+        <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;z-index:10">
+          <button type="button" class="open-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Открыть">👁</button>
+          ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type=\"button\" class=\"edit-slot\" data-id=\"${slot.id}\" style=\"padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center\" title=\"Редактировать\">✏</button>` : ''}
+          ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type=\"button\" class=\"delete-slot\" data-id=\"${slot.id}\" style=\"padding:6px;font-size:12px;border:none;background:var(--danger);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center\" title=\"Удалить\">🗑</button>` : ''}
+        </div>
+      </div>`;
+
+    const emptyCell = `<div style="height:32px;border:1px dashed rgba(148, 163, 184, 0.2);border-radius:6px;opacity:0.4;background:rgba(148, 163, 184, 0.02);transition:all 0.2s ease"></div>`;
+
     table.innerHTML = `
       <div class="sched-header" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
-        ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
+        ${timeSlots.map(t => `<div class=\"sched-cell\" style=\"padding:4px;text-align:center;font-size:11px\">${t}</div>`).join('')}
       </div>
-      ${employees.map(emp => {
-        const empSlots = byEmployee.get(emp) || [];
-        return `
-          <div class="sched-row" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
-            ${timeSlots.map(t => {
-              const slot = empSlots.find(s => (s.start || '').slice(0,5) === t);
-              return `
-                <div class="sched-cell" style="padding:2px;position:relative">
-                  ${slot ? `
-                    <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
-                      <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
-                        <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
-                        <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${slot.title.split(' ')[0] || 'Слот'}</span>
-                      </div>
-                      <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;z-index:10">
-                        <button type="button" class="open-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Открыть">👁</button>
-                        ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Редактировать">✏</button>` : ''}
-                        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--danger);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Удалить">🗑</button>` : ''}
-                      </div>
-                    </div>
-                  ` : `<div style="height:32px;border:1px dashed rgba(148, 163, 184, 0.2);border-radius:6px;opacity:0.4;background:rgba(148, 163, 184, 0.02);transition:all 0.2s ease" onmouseover="this.style.opacity='0.6';this.style.borderColor='rgba(43, 179, 177, 0.3)'" onmouseout="this.style.opacity='0.4';this.style.borderColor='rgba(148, 163, 184, 0.2)'"></div>`}
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
-      }).join('')}
+      ${[0,1].map(row => `
+        <div class=\"sched-row\" style=\"display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);\">
+          ${timeSlots.map(t => {
+            const arr = byTime.get(t) || [];
+            const slot = arr[row];
+            return `<div class=\"sched-cell\" style=\"padding:2px;position:relative\">${slot ? renderBlock(slot) : emptyCell}</div>`;
+          }).join('')}
+        </div>
+      `).join('')}
     `;
     
     // Wire slot hover actions
