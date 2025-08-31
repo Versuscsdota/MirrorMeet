@@ -1,32 +1,7 @@
-// Optional API base override to handle tunnels/proxies selecting wrong upstream port.
-// Rules:
-// - If localStorage.apiBase is set, use it (e.g., "http://127.0.0.1:8080").
-// - If running on *.sslip.io, prefer same host with port 8080.
-// - Otherwise, use relative path (same-origin).
-function getApiBase() {
-  try {
-    const manual = localStorage.getItem('apiBase');
-    if (manual) return manual.replace(/\/$/, '');
-  } catch {}
-  try {
-    const { protocol, hostname } = window.location;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-    if (!isLocal && /(^|\.)sslip\.io$/i.test(hostname)) {
-      // Note: If the page is served via https, calling http may be blocked by Mixed Content.
-      // We keep current protocol to avoid that, but many setups terminate TLS at the proxy.
-      // Adjust your proxy to forward :8080 for best results.
-      return `${protocol}//${hostname}:8080`;
-    }
-  } catch {}
-  return '';
-}
-
 const api = async (path, opts = {}) => {
-  const base = (typeof path === 'string' && path.startsWith('/')) ? getApiBase() : '';
-  const url = base ? (base + path) : path;
   const isFD = (opts && opts.body && typeof FormData !== 'undefined' && opts.body instanceof FormData);
   const headers = isFD ? (opts.headers || {}) : { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const res = await fetch(url, {
+  const res = await fetch(path, {
     credentials: 'include',
     headers,
     ...opts,
