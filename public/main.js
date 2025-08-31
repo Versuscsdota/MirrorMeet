@@ -371,9 +371,9 @@ async function renderCalendar() {
     form.innerHTML = `
       <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
       <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" /></label>
-      <label>Заголовок<input id="sTitle" value="${s.title || ''}" /></label>
-      <label>Заметки<textarea id="sNotes" rows="3">${s.notes || ''}</textarea></label>
-      <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"/></label></div>`;
+      <label>ФИО<input id="sTitle" value="${s.title || ''}" placeholder="Иванов Иван" /></label>
+      <label>Комментарий<textarea id="sNotes" rows="3" placeholder="Дополнительно (необязательно)">${s.notes || ''}</textarea></label>
+      <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"></textarea></label></div>`;
     const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
     if (!m) return;
     const { close, setError } = m;
