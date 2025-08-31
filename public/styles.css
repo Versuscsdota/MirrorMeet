@@ -123,11 +123,30 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 }
 
 .model-open-btn:hover {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
-  transform: scale(1.05);
+  background: rgba(59, 130, 246, 0.12);
 }
+
+/* Icon button in profile actions */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(148,163,184,0.3);
+  background: rgba(255,255,255,0.8);
+  color: #0f172a;
+  cursor: pointer;
+  transition: all .2s ease;
+  margin-left: 8px;
+}
+.icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(2,6,23,0.08);
+  background: #fff;
+}
+.icon-btn svg { pointer-events: none; }
 
 /* Modal */
 .modal-backdrop{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:50}
