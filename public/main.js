@@ -1620,6 +1620,21 @@ async function renderModelCard(id) {
     if (ta && typeof model.webcamAccounts === 'string') {
       ta.value = model.webcamAccounts;
       console.debug('[renderModelCard] textarea populated, len=', model.webcamAccounts.length);
+      // Re-apply on next ticks to beat any late DOM updates
+      setTimeout(() => {
+        const ta2 = el('#webcamAccounts');
+        if (ta2 && ta2.value !== model.webcamAccounts) {
+          ta2.value = model.webcamAccounts;
+          console.debug('[renderModelCard] textarea re-applied (0ms)');
+        }
+      }, 0);
+      setTimeout(() => {
+        const ta3 = el('#webcamAccounts');
+        if (ta3 && ta3.value !== model.webcamAccounts) {
+          ta3.value = model.webcamAccounts;
+          console.debug('[renderModelCard] textarea re-applied (100ms)');
+        }
+      }, 100);
     }
   } catch {}
   // Hook save webcam accounts
