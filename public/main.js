@@ -887,12 +887,8 @@ async function renderCalendar() {
     selectedDateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   }
   
-  if (typeof loadMonth === 'function') {
-    try { await loadMonth(); } catch {}
-  }
-  if (typeof load === 'function') {
-    try { await load(); } catch {}
-  }
+  await Promise.all([loadMonth(), load()]);
+}
 
 function renderLogin() {
   el('#app').innerHTML = `
