@@ -114,9 +114,9 @@ async function renderCalendar() {
           <div class="employee-header">
             <div class="empl-name">${s.start || ''}–${s.end || ''} ${s.title ? '· ' + s.title : ''}</div>
             <div class="employee-actions">
-              <button class="open-slot" data-id="${s.id}">Открыть</button>
-              ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
-              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
+              <button type="button" class="open-slot" data-id="${s.id}">Открыть</button>
+              ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
             </div>
           </div>
           ${s.notes ? `<div class="empl-notes">${s.notes}</div>` : ''}
@@ -124,13 +124,7 @@ async function renderCalendar() {
       </li>
     `).join('');
 
-    // Wire actions
-    // Direct bindings (kept), plus delegate to be robust after re-renders
-    [...list.querySelectorAll('.open-slot')].forEach(b => b.onclick = () => openSlot(b.dataset.id));
-    [...list.querySelectorAll('.edit-slot')].forEach(b => b.onclick = () => editSlot(b.dataset.id));
-    [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
-
-    // Event delegation fallback
+    // Wire actions via event delegation (prevents duplicate handlers on re-render)
     list.onclick = (e) => {
       const del = e.target.closest && e.target.closest('.delete-slot');
       if (del) { e.preventDefault(); e.stopPropagation(); return deleteSlot(del.dataset.id); }
@@ -266,6 +260,8 @@ async function renderCalendar() {
   async function deleteSlot(id) {
     const s = slots.find(x => x.id === id);
     if (!s) return;
+    const btn = document.querySelector(`.delete-slot[data-id="${id}"]`);
+    if (btn && btn.disabled) return; // already in progress
     if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
       alert('Недостаточно прав для удаления');
       return;
@@ -275,11 +271,16 @@ async function renderCalendar() {
     }
     if (!confirm('Удалить слот?')) return;
     try {
+      if (btn) btn.disabled = true;
       // Use slot's own date to avoid mismatch if selected date changed
       await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(s.date || date)}`, { method: 'DELETE' });
       slots = slots.filter(x => x.id !== s.id);
       renderList();
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   async function openSlot(id) {
