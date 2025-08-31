@@ -1338,28 +1338,28 @@ async function renderModels() {
         <option value="name-desc">Имя ↓</option>
       </select>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
-        <label style="display:flex;gap:6px;align-items:center">status1
+        <label style="display:flex;gap:6px;align-items:center">Статус подтверждения
           <select id="fStatus1" multiple size="3">
-            <option value="confirmed">confirmed</option>
-            <option value="not_confirmed">not_confirmed</option>
-            <option value="fail">fail</option>
+            <option value="confirmed">Подтвердилось</option>
+            <option value="not_confirmed">Не подтвердилось</option>
+            <option value="fail">Слив</option>
           </select>
         </label>
-        <label style="display:flex;gap:6px;align-items:center">status2
+        <label style="display:flex;gap:6px;align-items:center">Статус посещения
           <select id="fStatus2" multiple size="4">
             <option value="">(пусто)</option>
-            <option value="arrived">arrived</option>
-            <option value="no_show">no_show</option>
-            <option value="other">other</option>
+            <option value="arrived">Пришла</option>
+            <option value="no_show">Не пришла</option>
+            <option value="other">Другое</option>
           </select>
         </label>
-        <label style="display:flex;gap:6px;align-items:center">status3
+        <label style="display:flex;gap:6px;align-items:center">Итог
           <select id="fStatus3" multiple size="5">
             <option value="">(пусто)</option>
-            <option value="thinking">thinking</option>
-            <option value="reject_us">reject_us</option>
-            <option value="reject_candidate">reject_candidate</option>
-            <option value="registration">registration</option>
+            <option value="thinking">Думает</option>
+            <option value="reject_us">Отказ с нашей стороны</option>
+            <option value="reject_candidate">Отказ кандидата</option>
+            <option value="registration">Регистрация</option>
           </select>
         </label>
       </div>
