@@ -520,15 +520,6 @@ async function renderCalendar() {
         <div style="font-size:11px;color:#9aa;user-select:text">ID: <code>${s.id}</code></div>
         <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
-          <label>Статус подтверждения
-            <select id="sStatus1">
-              <option value="confirmed" ${s.status1 === 'confirmed' ? 'selected' : ''}>Подтвердилось</option>
-              <option value="not_confirmed" ${!s.status1 || s.status1 === 'not_confirmed' ? 'selected' : ''}>Не подтвердилось</option>
-              <option value="fail" ${s.status1 === 'fail' ? 'selected' : ''}>Слив</option>
-            </select>
-          </label>
-        </div>
-        <div>
           <label>Статус посещения
             <select id="s2">
               <option value="" ${!s.status2 ? 'selected' : ''}>—</option>
@@ -608,17 +599,15 @@ async function renderCalendar() {
 
     // status2 UI toggle
     const s2 = box.querySelector('#s2');
-    const s1Sel = box.querySelector('#sStatus1');
     const s2cWrap = box.querySelector('#s2cWrap');
     if (s2 && s2cWrap) {
       s2.onchange = async () => { 
         s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
         // Toggle registration availability based on status1 + status2
         const regBtn = box.querySelector('#createModelBtn');
-        const currS1 = s1Sel ? s1Sel.value : (s.status1 || 'not_confirmed');
-        if (regBtn) regBtn.disabled = !(currS1 === 'confirmed' && s2.value === 'arrived');
+        if (regBtn) regBtn.disabled = !(s.status1 === 'confirmed' && s2.value === 'arrived');
         // Auto-derive status3=registration when both conditions met and slot has no status3
-        if (currS1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
+        if (s.status1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
           try {
             const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status2: 'arrived' }) });
             Object.assign(s, updated);
@@ -640,10 +629,7 @@ async function renderCalendar() {
 
     // Initialize registration button state
     const regBtnInit = box.querySelector('#createModelBtn');
-    if (regBtnInit) {
-      const currS1 = s1Sel ? s1Sel.value : (s.status1 || 'not_confirmed');
-      regBtnInit.disabled = !(currS1 === 'confirmed' && (s.status2 === 'arrived'));
-    }
+    if (regBtnInit) regBtnInit.disabled = !(s.status1 === 'confirmed' && (s.status2 === 'arrived'));
 
     // status3 buttons behavior: highlight current and save on click
     const s3Group = box.querySelector('#s3Group');
@@ -840,8 +826,6 @@ async function renderCalendar() {
       const body = { id: s.id, date: (s.date || date), interviewText: text() };
       // Always send status2 so backend can clear it when empty
       body.status2 = s2v || undefined;
-      // Also send status1 from selector
-      if (s1Sel) body.status1 = s1Sel.value;
       body.status2Comment = s2c || undefined;
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
       // refresh from server to avoid stale local state
