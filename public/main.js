@@ -771,7 +771,8 @@ async function renderCalendar() {
       const s2v = (box.querySelector('#s2') && box.querySelector('#s2').value) || '';
       const s2c = (box.querySelector('#s2c') && box.querySelector('#s2c').value || '').trim();
       const body = { id: s.id, date: (s.date || date), interviewText: text() };
-      if (s2v) body.status2 = s2v;
+      // Always send status2 so backend can clear it when empty
+      body.status2 = s2v || undefined;
       body.status2Comment = s2c || undefined;
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
       // refresh from server to avoid stale local state
@@ -1597,19 +1598,20 @@ async function renderModelCard(id) {
   // Edit profile functionality
   el('#editProfile').onclick = async () => {
     const form = document.createElement('div');
+    const reg = (model && model.registration) || {};
     form.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <label>Псевдоним/Никнейм<input id="mName" value="${model.name || ''}" required /></label>
-        <label>Полное имя<input id="mFullName" value="${model.fullName || ''}" /></label>
+        <label>Полное имя<input id="mFullName" value="${model.fullName || reg.fullName || ''}" /></label>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <label>Возраст<input id="mAge" type="number" value="${model.age || ''}" min="18" max="50" /></label>
+        <label>Возраст<input id="mAge" type="number" value="${model.age || (reg.birthDate ? Math.max(0, Math.floor((Date.now() - new Date(reg.birthDate).getTime()) / (365.25*24*60*60*1000))) : '')}" min="18" max="50" /></label>
         <label>Рост (см)<input id="mHeight" type="number" value="${model.height || ''}" min="150" max="200" /></label>
         <label>Вес (кг)<input id="mWeight" type="number" value="${model.weight || ''}" min="40" max="100" /></label>
       </div>
       <label>Параметры<input id="mMeasurements" value="${model.measurements || ''}" placeholder="90-60-90" /></label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <label>Телефон<input id="mPhone" value="${(model.contacts && model.contacts.phone) || ''}" /></label>
+        <label>Телефон<input id="mPhone" value="${(model.contacts && model.contacts.phone) || reg.phone || ''}" /></label>
         <label>Email<input id="mEmail" type="email" value="${(model.contacts && model.contacts.email) || ''}" /></label>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
