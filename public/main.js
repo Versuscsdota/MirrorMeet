@@ -1613,6 +1613,18 @@ async function renderModelCard(id) {
         </form>
       </div>
     </div>`;
+  // Hook save webcam accounts
+  const btnAcc = el('#saveWebcamAccounts');
+  if (btnAcc) {
+    btnAcc.onclick = async () => {
+      const val = (el('#webcamAccounts').value || '').trim();
+      try {
+        await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, webcamAccounts: val }) });
+        // Refresh profile to reflect saved data
+        renderModelCard(id);
+      } catch (e) { alert(e.message); }
+    };
+  }
   // Render comments helper
   function renderComments(list){
     const box = el('#commentsList');
