@@ -1432,6 +1432,7 @@ async function renderModels() {
 }
 
 async function renderModelCard(id) {
+  console.log('[renderModelCard] called with id:', id);
   if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
     el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
     return;
@@ -1443,6 +1444,7 @@ async function renderModelCard(id) {
   ]);
   let files = filesRes.items || [];
   
+  console.log('[renderModelCard] model loaded:', model.name, 'id:', model.id);
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
@@ -1781,6 +1783,7 @@ async function renderModelCard(id) {
     }
   };
 
+  console.log('[renderModelCard] setting up delete handler');
   // Delete model functionality (direct binding + delegated fallback)
   window._handleDeleteModel = window._handleDeleteModel || (async (btn) => {
     try {
@@ -1806,7 +1809,11 @@ async function renderModelCard(id) {
   });
 
   const _delBtn = el('#deleteModel');
-  if (_delBtn) _delBtn.onclick = async () => window._handleDeleteModel(_delBtn);
+  console.log('[renderModelCard] delete button found:', !!_delBtn);
+  if (_delBtn) {
+    console.log('[renderModelCard] binding onclick to delete button');
+    _delBtn.onclick = async () => window._handleDeleteModel(_delBtn);
+  }
 
   // Delegated fallback in case direct binding didn’t attach
   if (!window._deleteModelDelegated) {
