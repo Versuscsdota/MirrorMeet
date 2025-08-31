@@ -182,30 +182,42 @@ async function renderCalendar() {
     
     const employees = Array.from(byEmployee.keys()).sort();
     
+    // If no slots, show empty timeline
+    if (!employees.length) {
+      table.innerHTML = `
+        <div class="sched-header" style="display:grid;grid-template-columns:150px repeat(${timeSlots.length}, 1fr);">
+          <div class="sched-cell" style="padding:8px;font-weight:600">Сотрудник</div>
+          ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
+        </div>
+        <div class="empty-state">Слотов нет</div>
+      `;
+      return;
+    }
+    
     table.innerHTML = `
-      <div class="sched-header">
-        <div class="sched-cell" style="width:120px;padding:8px;font-weight:600">Сотрудник</div>
-        ${timeSlots.map(t => `<div class="sched-cell" style="width:80px;padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
+      <div class="sched-header" style="display:grid;grid-template-columns:150px repeat(${timeSlots.length}, 1fr);">
+        <div class="sched-cell" style="padding:8px;font-weight:600">Сотрудник</div>
+        ${timeSlots.map(t => `<div class="sched-cell" style="padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
       </div>
       ${employees.map(emp => {
         const empSlots = byEmployee.get(emp) || [];
         return `
-          <div class="sched-row">
-            <div class="sched-cell" style="width:120px;padding:8px;font-weight:500;border-right:1px solid var(--border)">${emp}</div>
+          <div class="sched-row" style="display:grid;grid-template-columns:150px repeat(${timeSlots.length}, 1fr);">
+            <div class="sched-cell" style="padding:8px;font-weight:500;border-right:1px solid var(--border);text-align:left">${emp}</div>
             ${timeSlots.map(t => {
               const slot = empSlots.find(s => (s.start || '').slice(0,5) === t);
               return `
-                <div class="sched-cell" style="width:80px;padding:2px;text-align:center;position:relative">
+                <div class="sched-cell" style="padding:2px;position:relative">
                   ${slot ? `
-                    <div class="slot-block" data-id="${slot.id}" style="background:var(--accent);color:var(--bg);padding:2px 4px;border-radius:3px;font-size:10px;cursor:pointer" title="${slot.notes || ''}">
-                      ${slot.start}–${slot.end}
-                      <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:2px;gap:2px;z-index:10">
-                        <button type="button" class="open-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">📖</button>
-                        ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">✏️</button>` : ''}
-                        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">🗑️</button>` : ''}
+                    <div class="slot-block" data-id="${slot.id}" style="background:var(--accent);color:var(--bg);padding:6px 4px;border-radius:4px;font-size:10px;cursor:pointer;width:100%;box-sizing:border-box;text-align:center" title="Клиент: ${slot.title}\n${slot.notes || ''}">
+                      •
+                      <div class="slot-actions-mini" style="position:absolute;top:-10px;right:-10px;display:none;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:4px;gap:4px;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
+                        <button type="button" class="open-slot" data-id="${slot.id}" style="padding:4px 6px;font-size:10px;border:none;background:var(--accent);color:var(--bg);border-radius:2px;cursor:pointer">Открыть</button>
+                        ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${slot.id}" style="padding:4px 6px;font-size:10px;border:none;background:var(--accent);color:var(--bg);border-radius:2px;cursor:pointer">Редактировать</button>` : ''}
+                        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${slot.id}" style="padding:4px 6px;font-size:10px;border:none;background:var(--danger);color:var(--bg);border-radius:2px;cursor:pointer">Удалить</button>` : ''}
                       </div>
                     </div>
-                  ` : '<div style="height:20px"></div>'}
+                  ` : `<div style="height:24px;border:1px dashed var(--border);border-radius:4px;opacity:0.3"></div>`}
                 </div>
               `;
             }).join('')}

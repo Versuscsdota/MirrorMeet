@@ -246,8 +246,11 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   overflow: auto; 
   max-height: calc(100vh - 140px);
 }
-.sched-table { position: relative; min-width: 800px; }
-.sched-header, .sched-row { display: flex; align-items: stretch; }
+.sched-table { 
+  position: relative; 
+  min-width: 100%;
+  width: 100%;
+}
 .sched-header { 
   position: sticky; 
   top: 0; 
@@ -256,7 +259,7 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   border-bottom: 2px solid var(--border); 
   font-weight: 600;
   color: #f8fafc;
-  height: 48px;
+  min-height: 48px;
 }
 .sched-row {
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
