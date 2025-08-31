@@ -1396,62 +1396,75 @@ async function renderModelCard(id) {
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
-      <div class="profile-header">
-        <div class="profile-main" style="display:flex;gap:12px;align-items:center">
-          ${mainFile ? `<img src="${mainFile.url}" alt="main" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #1e1e1e"/>` : ''}
-          <div>
-            <h1 style="margin:0">${model.name}</h1>
-            ${model.fullName ? `<h2 class="full-name" style="margin:4px 0 0 0">${model.fullName}</h2>` : ''}
-            <div class="status-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const bg = s==='confirmed'?'#16a34a':s==='fail'?'#dc2626':'#334155'; return `<span style=\"background:${bg};color:#fff;padding:2px 6px;border-radius:6px;font-size:11px\">status1: ${t}</span>`; })()}
-              ${model.status2 ? `<span style="background:#1f2937;color:#e5e7eb;padding:2px 6px;border-radius:6px;font-size:11px">status2: ${model.status2}</span>` : ''}
-              ${model.status3 ? `<span style="background:#1f2937;color:#e5e7eb;padding:2px 6px;border-radius:6px;font-size:11px">status3: ${model.status3}</span>` : ''}
+      <div class="profile-hero">
+        <div class="hero-background"></div>
+        <div class="hero-content">
+          <div class="profile-avatar">
+            ${mainFile ? `<img src="${mainFile.url}" alt="${model.name}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${(model.name || '').charAt(0).toUpperCase()}</span></div>`}
+          </div>
+          <div class="profile-info">
+            <h1 class="profile-name">${model.name}</h1>
+            ${model.fullName ? `<h2 class="profile-fullname">${model.fullName}</h2>` : ''}
+            <div class="status-badges">
+              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class="status-badge ${cls}">status1: ${t}</span>`; })()}
+              ${model.status2 ? `<span class="status-badge secondary">status2: ${model.status2}</span>` : ''}
+              ${model.status3 ? `<span class="status-badge secondary">status3: ${model.status3}</span>` : ''}
             </div>
-            <div class="profile-actions" style="margin-top:8px">
-              <button id="editProfile">Редактировать профиль</button>
-              <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
+            <div class="profile-actions">
+              <button id="editProfile" class="btn btn-primary">Редактировать профиль</button>
+              <button id="deleteModel" class="btn btn-danger">Удалить модель</button>
             </div>
           </div>
-        </div>
-        <div class="profile-info">
-          <div class="info-grid">
-            ${model.age ? `<div class="info-item"><label>Возраст</label><span>${model.age} лет</span></div>` : ''}
-            ${model.height ? `<div class="info-item"><label>Рост</label><span>${model.height} см</span></div>` : ''}
-            ${model.weight ? `<div class="info-item"><label>Вес</label><span>${model.weight} кг</span></div>` : ''}
-            ${model.measurements ? `<div class="info-item"><label>Параметры</label><span>${model.measurements}</span></div>` : ''}
-          </div>
-          ${model.registration ? `
-            <div class="registration" style="margin-top:8px">
-              <h4>Регистрация</h4>
-              <div style="font-size:12px;color:#9aa">
-                ${model.registration.birthDate ? `<div><strong>Дата рождения:</strong> ${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div>` : ''}
-                ${model.registration.docType || model.registration.docNumber ? `<div><strong>Документ:</strong> ${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div>` : ''}
-                ${model.registration.internshipDate ? `<div><strong>Первая стажировка:</strong> ${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div>` : ''}
-                ${model.registration.comment ? `<div style="white-space:pre-wrap"><strong>Комментарий:</strong> ${model.registration.comment}</div>` : ''}
-              </div>
-            </div>
-          ` : ''}
-          ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
-            <div class="contacts">
-              <h4>Контакты</h4>
-              ${model.contacts.phone ? `<div><strong>Телефон:</strong> <a href="tel:${model.contacts.phone}">${model.contacts.phone}</a></div>` : ''}
-              ${model.contacts.email ? `<div><strong>Email:</strong> <a href="mailto:${model.contacts.email}">${model.contacts.email}</a></div>` : ''}
-              ${model.contacts.instagram ? `<div><strong>Instagram:</strong> <a href="https://instagram.com/${model.contacts.instagram.replace('@', '')}" target="_blank">${model.contacts.instagram}</a></div>` : ''}
-              ${model.contacts.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${model.contacts.telegram.replace('@', '')}" target="_blank">${model.contacts.telegram}</a></div>` : ''}
-            </div>
-          ` : ''}
-          ${(model.tags && model.tags.length) ? `
-            <div class="tags-section">
-              <h4>Теги</h4>
-              <div class="tags">${model.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
-            </div>
-          ` : ''}
-          ${model.note ? `<div class="notes-section"><h4>Примечания</h4><p>${model.note}</p></div>` : ''}
         </div>
       </div>
       
+      <div class="profile-body">
+        <div class="profile-stats">
+          <div class="stats-grid">
+            ${model.age ? `<div class="stat-card"><div class="stat-value">${model.age}</div><div class="stat-label">лет</div></div>` : ''}
+            ${model.height ? `<div class="stat-card"><div class="stat-value">${model.height}</div><div class="stat-label">см</div></div>` : ''}
+            ${model.weight ? `<div class="stat-card"><div class="stat-value">${model.weight}</div><div class="stat-label">кг</div></div>` : ''}
+            ${model.measurements ? `<div class="stat-card measurements"><div class="stat-value">${model.measurements}</div><div class="stat-label">параметры</div></div>` : ''}
+          </div>
+        </div>
+        ${model.registration ? `
+          <div class="info-section registration-section">
+            <h3 class="section-title">📋 Регистрация</h3>
+            <div class="info-cards">
+              ${model.registration.birthDate ? `<div class="info-card"><div class="info-icon">🎂</div><div class="info-content"><div class="info-label">Дата рождения</div><div class="info-value">${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
+              ${model.registration.docType || model.registration.docNumber ? `<div class="info-card"><div class="info-icon">📄</div><div class="info-content"><div class="info-label">Документ</div><div class="info-value">${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div></div></div>` : ''}
+              ${model.registration.internshipDate ? `<div class="info-card"><div class="info-icon">🎓</div><div class="info-content"><div class="info-label">Первая стажировка</div><div class="info-value">${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
+              ${model.registration.comment ? `<div class="info-card full-width"><div class="info-icon">💬</div><div class="info-content"><div class="info-label">Комментарий</div><div class="info-value">${model.registration.comment}</div></div></div>` : ''}
+            </div>
+          </div>
+        ` : ''}
+        ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
+          <div class="info-section contacts-section">
+            <h3 class="section-title">📞 Контакты</h3>
+            <div class="contact-cards">
+              ${model.contacts.phone ? `<a href="tel:${model.contacts.phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${model.contacts.phone}</div></div></a>` : ''}
+              ${model.contacts.email ? `<a href="mailto:${model.contacts.email}" class="contact-card email"><div class="contact-icon">📧</div><div class="contact-info"><div class="contact-label">Email</div><div class="contact-value">${model.contacts.email}</div></div></a>` : ''}
+              ${model.contacts.instagram ? `<a href="https://instagram.com/${model.contacts.instagram.replace('@', '')}" target="_blank" class="contact-card instagram"><div class="contact-icon">📷</div><div class="contact-info"><div class="contact-label">Instagram</div><div class="contact-value">${model.contacts.instagram}</div></div></a>` : ''}
+              ${model.contacts.telegram ? `<a href="https://t.me/${model.contacts.telegram.replace('@', '')}" target="_blank" class="contact-card telegram"><div class="contact-icon">✈️</div><div class="contact-info"><div class="contact-label">Telegram</div><div class="contact-value">${model.contacts.telegram}</div></div></a>` : ''}
+            </div>
+          </div>
+        ` : ''}
+        ${(model.tags && model.tags.length) ? `
+          <div class="info-section tags-section">
+            <h3 class="section-title">🏷️ Теги</h3>
+            <div class="tags-container">${model.tags.map(tag => `<span class="tag-chip">${tag}</span>`).join('')}</div>
+          </div>
+        ` : ''}
+        ${model.note ? `
+          <div class="info-section notes-section">
+            <h3 class="section-title">📝 Примечания</h3>
+            <div class="note-content">${model.note}</div>
+          </div>
+        ` : ''}
+      </div>
+      
       <div class="files-section">
-        <h3>Файлы портфолио</h3>
+        <h3 class="section-title">📁 Файлы портфолио</h3>
         <section class="bar" style="gap:8px;flex-wrap:wrap">
           <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
             <input type="file" name="file" required accept="image/*,video/*,.pdf" multiple />
@@ -1471,8 +1484,8 @@ async function renderModelCard(id) {
         <div id="filePreview" style="margin-top:12px"></div>
       </div>
 
-      <div class="comments-section" style="margin-top:16px">
-        <h3>Комментарии</h3>
+      <div class="comments-section">
+        <h3 class="section-title">💬 Комментарии</h3>
         <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
         <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
           <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
