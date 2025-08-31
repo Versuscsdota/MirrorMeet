@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit Logs</title>
+  <link rel="icon" href="/favicon.svg" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    input, select, button { padding: 6px 10px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+    th { background: #f5f5f5; text-align: left; }
+    .muted { color: #666; font-size: 12px; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <h1>Аудит</h1>
+  <div class="controls">
+    <label>From: <input type="date" id="from" /></label>
+    <label>To: <input type="date" id="to" /></label>
+    <label>Action: <input id="action" placeholder="e.g. user_create" /></label>
+    <label>Actor: <input id="actor" placeholder="id/login/role" /></label>
+    <button id="load">Загрузить</button>
+  </div>
+  <div class="muted">Доступно только для admin/root. Данные истекают по политике TTL.</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Время</th>
+        <th>Действие</th>
+        <th>Актор</th>
+        <th>IP</th>
+        <th>UA</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div style="margin-top:10px; display:flex; gap:8px;">
+    <button id="more" disabled>Загрузить ещё</button>
+    <span id="status" class="muted"></span>
+  </div>
+
+<script type="module">
+let nextCursor = null;
+const rowsEl = document.getElementById('rows');
+const statusEl = document.getElementById('status');
+
+function fmtTs(ms) {
+  try { return new Date(ms).toLocaleString(); } catch { return String(ms); }
+}
+
+async function load(reset=false) {
+  const params = new URLSearchParams();
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  const action = document.getElementById('action').value.trim();
+  const actor = document.getElementById('actor').value.trim();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (action) params.set('action', action);
+  if (actor) params.set('actor', actor);
+  if (!reset && nextCursor) params.set('cursor', nextCursor);
+
+  const res = await fetch(`/api/audit?${params.toString()}`, { credentials: 'include' });
+  if (res.status === 403 || res.status === 401) {
+    statusEl.textContent = 'Нет доступа: требуется admin/root и активная сессия';
+    return;
+  }
+  const data = await res.json();
+  nextCursor = data.nextCursor || null;
+  document.getElementById('more').disabled = !nextCursor;
+  const items = data.items || [];
+  if (reset) rowsEl.innerHTML = '';
+  for (const it of items) {
+    const tr = document.createElement('tr');
+    const actor = it.actor ? `${it.actor.login||''} (${it.actor.role||''})\n${it.actor.id||''}` : '';
+    const details = `<pre style="white-space:pre-wrap; margin:0;">${JSON.stringify(it.details || {}, null, 2)}</pre>`;
+    tr.innerHTML = `
+      <td>${fmtTs(it.ts)}</td>
+      <td>${it.action}</td>
+      <td>${actor}</td>
+      <td>${it.ip||''}</td>
+      <td>${(it.ua||'').slice(0,120)}</td>
+      <td>${details}</td>
+    `;
+    rowsEl.appendChild(tr);
+  }
+  statusEl.textContent = `Загружено: ${items.length}${nextCursor ? ' (есть ещё)' : ''}`;
+}
+
+// Defaults: сегодня
+const today = new Date().toISOString().slice(0,10);
+document.getElementById('from').value = today;
+document.getElementById('to').value = today;
+
+// Events
+
+document.getElementById('load').addEventListener('click', () => load(true));
+document.getElementById('more').addEventListener('click', () => load(false));
+
+// Initial
+load(true);
+</script>
+</body>
+</html>

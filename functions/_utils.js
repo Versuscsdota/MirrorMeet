@@ -153,6 +153,8 @@ export async function auditLog(env, req, sess, action, details = {}) {
     const key = `audit:${day}:${ts}:${rid}`;
     const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || '';
     const ua = req.headers.get('user-agent') || '';
+    const ttlDays = Number(env.AUDIT_TTL_DAYS || 90);
+    const expirationTtl = Math.max(1, Math.floor(ttlDays * 24 * 60 * 60));
     const entry = {
       ts,
       action,
@@ -161,6 +163,6 @@ export async function auditLog(env, req, sess, action, details = {}) {
       ua,
       details
     };
-    await env.CRM_KV.put(key, JSON.stringify(entry));
+    await env.CRM_KV.put(key, JSON.stringify(entry), { expirationTtl });
   } catch {}
 }

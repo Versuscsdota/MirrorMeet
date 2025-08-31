@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "e2e": "playwright test -c e2e/playwright.config.js",
+    "e2e:headed": "playwright test -c e2e/playwright.config.js --headed",
+    "e2e:smoke": "node e2e/api.smoke.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^9.6.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
   }
 }

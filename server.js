@@ -16,6 +16,7 @@ import * as models from './functions/api/models.js';
 import * as files from './functions/api/files.js';
 import * as schedule from './functions/api/schedule.js';
 import * as employees from './functions/api/employees.js';
+import * as audit from './functions/api/audit.js';
 
 // Ensure Web Crypto APIs exist
 if (!globalThis.crypto || !globalThis.crypto.subtle) {
@@ -149,6 +150,9 @@ app.get('/api/schedule', (req, res) => callHandler(schedule.onRequestGet, req, r
 app.post('/api/schedule', (req, res) => callHandler(schedule.onRequestPost, req, res));
 app.put('/api/schedule', (req, res) => callHandler(schedule.onRequestPut, req, res));
 app.delete('/api/schedule', (req, res) => callHandler(schedule.onRequestDelete, req, res));
+
+// Audit (read-only)
+app.get('/api/audit', (req, res) => callHandler(audit.onRequestGet, req, res));
 
 // Files API with multipart support
 app.get('/api/files', (req, res) => callHandler(files.onRequestGet, req, res));
