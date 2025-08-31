@@ -1505,14 +1505,11 @@ async function renderModelCard(id) {
             </div>
           </div>
         ` : ''}
-        ${(() => { const phone = (model.contacts && model.contacts.phone) || (model.registration && model.registration.phone); const email = model.contacts && model.contacts.email; const ig = model.contacts && model.contacts.instagram; const tg = model.contacts && model.contacts.telegram; return (phone || email || ig || tg) ? `
+        ${(() => { const phone = (model.contacts && model.contacts.phone) || (model.registration && model.registration.phone); return phone ? `
           <div class="info-section contacts-section">
             <h3 class="section-title">📞 Контакты</h3>
             <div class="contact-cards">
-              ${phone ? `<a href="tel:${phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${phone}</div></div></a>` : ''}
-              ${email ? `<a href="mailto:${email}" class="contact-card email"><div class="contact-icon">📧</div><div class="contact-info"><div class="contact-label">Email</div><div class="contact-value">${email}</div></div></a>` : ''}
-              ${ig ? `<a href="https://instagram.com/${ig.replace('@', '')}" target="_blank" class="contact-card instagram"><div class="contact-icon">📷</div><div class="contact-info"><div class="contact-label">Instagram</div><div class="contact-value">${ig}</div></div></a>` : ''}
-              ${tg ? `<a href="https://t.me/${tg.replace('@', '')}" target="_blank" class="contact-card telegram"><div class="contact-icon">✈️</div><div class="contact-info"><div class="contact-label">Telegram</div><div class="contact-value">${tg}</div></div></a>` : ''}
+              <a href="tel:${phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${phone}</div></div></a>
             </div>
           </div>
         ` : '' })()}

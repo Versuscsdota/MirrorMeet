@@ -65,11 +65,7 @@ export async function onRequestPost(context) {
       name,
       note: regComment,
       fullName,
-      age: null,
-      height: null,
-      weight: null,
-      measurements: '',
-      contacts: { phone, email: '', instagram: '', telegram: '' },
+      contacts: { phone },
       tags: [],
       history: [],
       comments: [],
@@ -225,20 +221,11 @@ export async function onRequestPost(context) {
   const name = (body.name || '').trim();
   const note = (body.note || '').trim();
   const fullName = (body.fullName || '').trim();
-  const age = body.age ? parseInt(body.age) : null;
-  const height = body.height ? parseInt(body.height) : null;
-  const weight = body.weight ? parseInt(body.weight) : null;
-  const measurements = (body.measurements || '').trim();
-  const contacts = {
-    phone: (body.phone || '').trim(),
-    email: (body.email || '').trim(),
-    instagram: (body.instagram || '').trim(),
-    telegram: (body.telegram || '').trim()
-  };
+  const contacts = { phone: (body.phone || (body.contacts && body.contacts.phone) || '').trim() };
   const tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (!name) return badRequest('name required');
   const id = newId('mdl');
-  const model = { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], comments: [], mainPhotoId: null, createdAt: Date.now(), createdBy: sess.user.id };
+  const model = { id, name, note, fullName, contacts, tags, history: [], comments: [], mainPhotoId: null, createdAt: Date.now(), createdBy: sess.user.id };
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
   return json(model);
 }
@@ -267,16 +254,9 @@ export async function onRequestPut(context) {
   cur.name = (body.name ?? cur.name).trim();
   cur.note = (body.note ?? cur.note).trim();
   if (body.fullName !== undefined) cur.fullName = body.fullName.trim();
-  if (body.age !== undefined) cur.age = body.age ? parseInt(body.age) : null;
-  if (body.height !== undefined) cur.height = body.height ? parseInt(body.height) : null;
-  if (body.weight !== undefined) cur.weight = body.weight ? parseInt(body.weight) : null;
-  if (body.measurements !== undefined) cur.measurements = body.measurements.trim();
   if (body.contacts !== undefined) {
     cur.contacts = cur.contacts || {};
     if (body.contacts.phone !== undefined) cur.contacts.phone = body.contacts.phone.trim();
-    if (body.contacts.email !== undefined) cur.contacts.email = body.contacts.email.trim();
-    if (body.contacts.instagram !== undefined) cur.contacts.instagram = body.contacts.instagram.trim();
-    if (body.contacts.telegram !== undefined) cur.contacts.telegram = body.contacts.telegram.trim();
   }
   if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
