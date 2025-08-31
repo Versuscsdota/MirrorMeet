@@ -40,7 +40,15 @@ export async function onRequestGet(context) {
   const prefix = `slot:${date}:`;
   const list = await env.CRM_KV.list({ prefix });
   const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-  const items = fetched.filter(Boolean);
+  const raw = fetched.filter(Boolean);
+  // normalize statuses to always be present in API response
+  const items = raw.map(s => {
+    const out = { ...s };
+    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
+    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
+    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
+    return out;
+  });
   items.sort((a,b)=> (a.start||'').localeCompare(b.start||''));
   return json({ items });
 }
