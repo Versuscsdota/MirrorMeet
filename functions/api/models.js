@@ -129,6 +129,66 @@ export async function onRequestPost(context) {
     return json(model);
   }
 
+  // Action: retro-link a slot to an existing model (set registration.slotRef and slot.modelId)
+  if (body.action === 'linkSlotRef') {
+    const modelId = (body.modelId || '').trim();
+    const date = (body.date || '').trim();
+    const slotId = (body.slotId || '').trim();
+    const sync = (body.sync || 'slot_to_model'); // 'slot_to_model' | 'model_to_slot' | 'none'
+    if (!modelId || !date || !slotId) return badRequest('modelId/date/slotId required');
+    const model = await env.CRM_KV.get(`model:${modelId}`, { type: 'json' });
+    if (!model) return notFound('model');
+    const slot = await env.CRM_KV.get(`slot:${date}:${slotId}`, { type: 'json' });
+    if (!slot) return notFound('slot');
+
+    // Ensure registration object and attach slotRef
+    model.registration = model.registration || {};
+    model.registration.slotRef = { id: slot.id, date: slot.date, start: slot.start, end: slot.end };
+
+    // Optionally sync statuses
+    if (sync === 'slot_to_model') {
+      const s = normalizeStatuses({ status1: slot.status1, status2: slot.status2, status3: slot.status3 });
+      model.status1 = s.status1;
+      model.status2 = s.status2;
+      model.status3 = s.status3;
+      // record history on model
+      model.history = model.history || [];
+      model.history.push({
+        ts: Date.now(),
+        type: 'status_sync_from_slot',
+        userId: sess.user.id,
+        slotId: slot.id,
+        status1: model.status1,
+        status2: model.status2,
+        status3: model.status3
+      });
+    } else if (sync === 'model_to_slot') {
+      const s = normalizeStatuses({ status1: model.status1, status2: model.status2, status3: model.status3 });
+      slot.status1 = s.status1;
+      slot.status2 = s.status2;
+      slot.status3 = s.status3;
+      // record history on slot
+      slot.history = slot.history || [];
+      slot.history.push({
+        ts: Date.now(),
+        userId: sess.user.id,
+        action: 'status_sync_from_model',
+        modelId: model.id,
+        status1: slot.status1,
+        status2: slot.status2,
+        status3: slot.status3
+      });
+    }
+
+    // Link back slot -> model
+    slot.modelId = model.id;
+
+    await env.CRM_KV.put(`model:${model.id}`, JSON.stringify(model));
+    await env.CRM_KV.put(`slot:${slot.date}:${slot.id}`, JSON.stringify(slot));
+
+    return json({ ok: true, model, slot });
+  }
+
   // Action: ingest slot into existing model (copy files and add interview history)
   if (body.action === 'ingestFromSlot') {
     const modelId = (body.modelId || '').trim();
