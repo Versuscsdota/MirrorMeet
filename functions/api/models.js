@@ -117,6 +117,15 @@ export async function onRequestPost(context) {
       text: (slot.interview && slot.interview.text) || ''
     });
     await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
+    // link slot -> model for future status syncs
+    try {
+      const slotKey = `slot:${slot.date}:${slot.id}`;
+      const curSlot = await env.CRM_KV.get(slotKey, { type: 'json' });
+      if (curSlot) {
+        curSlot.modelId = id;
+        await env.CRM_KV.put(slotKey, JSON.stringify(curSlot));
+      }
+    } catch {}
     return json(model);
   }
 
