@@ -25,10 +25,6 @@ export async function onRequestGet(context) {
         }
       }
     } catch {}
-    // Hide sensitive fields for interviewers
-    if (sess && sess.user && sess.user.role === 'interviewer') {
-      if ('webcamAccounts' in out) delete out.webcamAccounts;
-    }
     return json(out);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
@@ -43,7 +39,7 @@ export async function onRequestGet(context) {
       }
     } catch {}
     if (sess && sess.user && sess.user.role === 'interviewer') {
-      if ('webcamAccounts' in out) delete out.webcamAccounts;
+      if ('webcamAccounts' in out) delete out.webcamAccounts; // hide only in list for interviewer
     }
     return out;
   });
