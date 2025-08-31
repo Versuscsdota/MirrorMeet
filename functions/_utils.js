@@ -133,14 +133,6 @@ export async function requireRole(env, req, roles = []) {
   return { sess };
 }
 
-export async function ensureIndexes(env) {
-  // simple counters for first-run checks
-  const flag = await env.CRM_KV.get('init:done');
-  if (!flag) {
-    await env.CRM_KV.put('init:done', '1');
-  }
-}
-
 export async function firstUserExists(env) {
   const count = Number(await env.CRM_KV.get('users:count') || '0');
   return count > 0;

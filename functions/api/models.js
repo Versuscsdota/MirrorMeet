@@ -1,6 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
-import { normalizeStatuses, validateStatus, syncSlotModelStatuses, autoSetRegistrationStatus } from '../_status.js';
+import { normalizeStatuses, validateStatus, autoSetRegistrationStatus } from '../_status.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
