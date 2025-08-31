@@ -77,23 +77,23 @@ async function renderCalendar() {
   let _snackbarTimer = null;
 
   view.innerHTML = `
-    <div style="display:grid;grid-template-rows:auto 1fr;gap:16px;height:calc(100vh - 120px)">
-      <div class="card" style="padding:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <button id="mPrev" class="ghost" style="padding:4px 8px">◀</button>
-          <strong id="mTitle" style="font-size:14px"></strong>
-          <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
+    <div style="display:grid;grid-template-rows:auto 1fr;gap:12px;height:calc(100vh - 100px)">
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start">
+        <div class="card" style="padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <button id="mPrev" class="ghost" style="padding:3px 6px;font-size:12px">◀</button>
+            <strong id="mTitle" style="font-size:13px"></strong>
+            <button id="mNext" class="ghost" style="padding:3px 6px;font-size:12px">▶</button>
+          </div>
+          <div id="monthGrid"></div>
+          ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:8px;padding:8px;font-size:12px">Создать слот</button>' : ''}
         </div>
-        <div id="monthGrid"></div>
-        ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
+        <div style="padding:12px 16px;background:var(--panel);border:1px solid var(--border);border-radius:8px">
+          <h3 style="margin:0;font-size:14px;color:var(--muted)">Расписание на <span id="selectedDate" style="color:var(--text)">${today}</span></h3>
+        </div>
       </div>
-      <div class="card">
-        <div style="padding:16px;border-bottom:1px solid #1e1e1e">
-          <h3 style="margin:0;font-size:16px">Расписание на <span id="selectedDate">${today}</span></h3>
-        </div>
-        <div class="sched-wrap">
-          <div id="scheduleTable" class="sched-table"></div>
-        </div>
+      <div class="sched-wrap" style="margin:0">
+        <div id="scheduleTable" class="sched-table"></div>
       </div>
     </div>`;
 
@@ -206,7 +206,7 @@ async function renderCalendar() {
               return `
                 <div class="sched-cell" style="padding:2px;position:relative">
                   ${slot ? `
-                    <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
+                    <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:6px 4px;border-radius:4px;font-size:10px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:3px;min-height:28px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
                       <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
                         <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
                         <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${slot.title.split(' ')[0] || 'Слот'}</span>
@@ -217,7 +217,7 @@ async function renderCalendar() {
                         ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--danger);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Удалить">🗑</button>` : ''}
                       </div>
                     </div>
-                  ` : `<div style="height:32px;border:1px dashed rgba(148, 163, 184, 0.2);border-radius:6px;opacity:0.4;background:rgba(148, 163, 184, 0.02);transition:all 0.2s ease" onmouseover="this.style.opacity='0.6';this.style.borderColor='rgba(43, 179, 177, 0.3)'" onmouseout="this.style.opacity='0.4';this.style.borderColor='rgba(148, 163, 184, 0.2)'"></div>`}
+                  ` : `<div style="height:28px;border:1px dashed rgba(148, 163, 184, 0.15);border-radius:4px;opacity:0.3;background:rgba(148, 163, 184, 0.01);transition:opacity 0.2s ease" onmouseover="this.style.opacity='0.5'" onmouseout="this.style.opacity='0.3'"></div>`}
                 </div>
               `;
             }).join('')}
