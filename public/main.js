@@ -1432,7 +1432,6 @@ async function renderModels() {
 }
 
 async function renderModelCard(id) {
-  console.log('[renderModelCard] called with id:', id);
   if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
     el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
     return;
@@ -1443,8 +1442,6 @@ async function renderModelCard(id) {
     api('/api/files?modelId=' + encodeURIComponent(id))
   ]);
   let files = filesRes.items || [];
-  
-  console.log('[renderModelCard] model loaded:', model.name, 'id:', model.id);
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
   view.innerHTML = `
     <div class="model-profile">
@@ -1783,22 +1780,35 @@ async function renderModelCard(id) {
     }
   };
 
-  console.log('[renderModelCard] setting up delete handler');
   // Delete model functionality (direct binding + delegated fallback)
   window._handleDeleteModel = window._handleDeleteModel || (async (btn) => {
+    console.log('[model/delete] handler called');
     try {
       const bid = btn?.dataset?.id || id;
       const bname = btn?.dataset?.name || (model && model.name) || '';
+      console.log('[model/delete] extracted data:', { bid, bname });
       if (!bid) { console.warn('[model/delete] missing id on button'); return; }
-      if (btn && btn.disabled) return;
+      if (btn && btn.disabled) { console.log('[model/delete] button disabled, returning'); return; }
+      
+      console.log('[model/delete] checking user role:', window.currentUser?.role);
       if (window.currentUser.role === 'root') {
-        if (!await confirmRootPassword(`удаление модели "${bname}"`)) return;
+        console.log('[model/delete] requesting root password');
+        if (!await confirmRootPassword(`удаление модели "${bname}"`)) {
+          console.log('[model/delete] root password cancelled');
+          return;
+        }
       }
-      if (!confirm(`Удалить модель "${bname}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
+      
+      console.log('[model/delete] showing confirmation dialog');
+      if (!confirm(`Удалить модель "${bname}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) {
+        console.log('[model/delete] user cancelled confirmation');
+        return;
+      }
+      
       if (btn) btn.disabled = true;
-      console.debug('[model/delete] sending DELETE /api/models', { id: bid });
+      console.log('[model/delete] sending DELETE /api/models', { id: bid });
       await api('/api/models?id=' + encodeURIComponent(bid), { method: 'DELETE' });
-      console.debug('[model/delete] success');
+      console.log('[model/delete] success');
       renderModels();
     } catch (err) {
       console.warn('[model/delete] failed', err);
@@ -1809,13 +1819,10 @@ async function renderModelCard(id) {
   });
 
   const _delBtn = el('#deleteModel');
-  console.log('[renderModelCard] delete button found:', !!_delBtn);
   if (_delBtn) {
-    console.log('[renderModelCard] binding onclick to delete button');
     _delBtn.onclick = async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('[delete button] onclick fired');
       await window._handleDeleteModel(_delBtn);
     };
   }
