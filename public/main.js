@@ -1337,25 +1337,28 @@ async function renderModels() {
         <option value="name-asc">Имя ↑</option>
         <option value="name-desc">Имя ↓</option>
       </select>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px">
         <label style="display:flex;gap:6px;align-items:center">Статус подтверждения
-          <select id="fStatus1" multiple size="3">
+          <select id="fStatus1">
+            <option value="">Все</option>
             <option value="confirmed">Подтвердилось</option>
             <option value="not_confirmed">Не подтвердилось</option>
             <option value="fail">Слив</option>
           </select>
         </label>
         <label style="display:flex;gap:6px;align-items:center">Статус посещения
-          <select id="fStatus2" multiple size="4">
-            <option value="">(пусто)</option>
+          <select id="fStatus2">
+            <option value="">Все</option>
+            <option value="empty">(пусто)</option>
             <option value="arrived">Пришла</option>
             <option value="no_show">Не пришла</option>
             <option value="other">Другое</option>
           </select>
         </label>
         <label style="display:flex;gap:6px;align-items:center">Итог
-          <select id="fStatus3" multiple size="5">
-            <option value="">(пусто)</option>
+          <select id="fStatus3">
+            <option value="">Все</option>
+            <option value="empty">(пусто)</option>
             <option value="thinking">Думает</option>
             <option value="reject_us">Отказ с нашей стороны</option>
             <option value="reject_candidate">Отказ кандидата</option>
@@ -1369,8 +1372,8 @@ async function renderModels() {
   const grid = el('#modelsGrid');
   const getSelected = (id) => {
     const elSel = el(id);
-    if (!elSel) return [];
-    return [...elSel.selectedOptions].map(o => o.value);
+    if (!elSel) return '';
+    return elSel.value;
   };
   function applySort(list, mode){
     const arr = [...list];
@@ -1389,9 +1392,12 @@ async function renderModels() {
       const v1 = (m.status1 || 'not_confirmed');
       const v2 = (m.status2 || '');
       const v3 = (m.status3 || '');
-      const pass1 = s1.length === 0 ? true : s1.includes(v1);
-      const pass2 = s2.length === 0 ? true : s2.includes(v2);
-      const pass3 = s3.length === 0 ? true : s3.includes(v3);
+      
+      // Single select filter logic
+      const pass1 = !s1 || s1 === v1;
+      const pass2 = !s2 || (s2 === 'empty' ? !v2 : s2 === v2);
+      const pass3 = !s3 || (s3 === 'empty' ? !v3 : s3 === v3);
+      
       return matchesText && pass1 && pass2 && pass3;
     });
     const sorted = applySort(filtered, mode);
