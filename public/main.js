@@ -1477,10 +1477,7 @@ async function renderModelCard(id) {
       <div class="profile-body">
         <div class="profile-stats">
           <div class="stats-grid">
-            ${(() => { const bd = model.registration && model.registration.birthDate; if (bd) { const a = Math.max(0, Math.floor((Date.now() - new Date(bd).getTime()) / (365.25*24*60*60*1000))); return a ? `<div class="stat-card"><div class="stat-value">${a}</div><div class="stat-label">лет</div></div>` : ''; } return model.age ? `<div class="stat-card"><div class="stat-value">${model.age}</div><div class="stat-label">лет</div></div>` : ''; })()}
-            ${model.height ? `<div class="stat-card"><div class="stat-value">${model.height}</div><div class="stat-label">см</div></div>` : ''}
-            ${model.weight ? `<div class="stat-card"><div class="stat-value">${model.weight}</div><div class="stat-label">кг</div></div>` : ''}
-            ${model.measurements ? `<div class="stat-card measurements"><div class="stat-value">${model.measurements}</div><div class="stat-label">параметры</div></div>` : ''}
+            ${(() => { const bd = model.registration && model.registration.birthDate; if (bd) { const a = Math.max(0, Math.floor((Date.now() - new Date(bd).getTime()) / (365.25*24*60*60*1000))); return a ? `<div class="stat-card"><div class="stat-value">${a}</div><div class="stat-label">лет</div></div>` : ''; } return ''; })()}
           </div>
         </div>
         ${model.registration ? `
@@ -1540,6 +1537,10 @@ async function renderModelCard(id) {
             <input type="file" name="file" required accept="image/*,video/*,.pdf" multiple />
             <input name="name" placeholder="Название" required />
             <input name="description" placeholder="Описание" />
+            <select name="category">
+              <option value="photo">Фотография/Видео</option>
+              <option value="doc">Документ</option>
+            </select>
             <button>Загрузить</button>
           </form>
           <input id="fileSearch" placeholder="Поиск по файлам" />
@@ -1547,6 +1548,11 @@ async function renderModelCard(id) {
             <option value="name-asc">Имя ↑</option>
             <option value="name-desc">Имя ↓</option>
             <option value="date-desc">Дата ↓</option>
+          </select>
+          <select id="fileFilterCat">
+            <option value="all">Все</option>
+            <option value="photo">Фото/Видео</option>
+            <option value="doc">Документы</option>
           </select>
           <button id="exportCsv" type="button">Экспорт CSV</button>
         </section>
@@ -1593,7 +1599,12 @@ async function renderModelCard(id) {
   function renderFiles(){
     const q = (el('#fileSearch').value || '').toLowerCase();
     const mode = el('#fileSort').value;
-    const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
+    const cat = el('#fileFilterCat').value;
+    const filtered = files.filter(f => {
+      const matchesText = (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q);
+      const matchesCat = cat === 'all' ? true : ((f.category||'photo') === cat);
+      return matchesText && matchesCat;
+    });
     const sorted = applyFileSort(filtered, mode);
     const paged = sorted.slice(0, page*pageSize);
     gridEl.innerHTML = paged.map(f => {
@@ -1612,6 +1623,7 @@ async function renderModelCard(id) {
             <div class="file-name">${f.name}</div>
             ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
             ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
+            <div class="file-meta">${f.category === 'doc' ? 'Документ' : 'Фото/Видео'}</div>
             <div class="file-actions">
               ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
               ${isImage ? `<button class="file-btn make-main" data-id="${f.id}">Сделать главной</button>` : ''}
@@ -1639,6 +1651,7 @@ async function renderModelCard(id) {
   }
   el('#fileSearch').addEventListener('input', renderFiles);
   el('#fileSort').addEventListener('change', renderFiles);
+  el('#fileFilterCat').addEventListener('change', renderFiles);
   
   // File actions: delete and set main photo
   document.addEventListener('click', async (e) => {
@@ -1664,43 +1677,32 @@ async function renderModelCard(id) {
     }
   });
 
-  // Edit profile functionality
+  // Edit profile functionality (registration-first)
   el('#editProfile').onclick = async () => {
     const form = document.createElement('div');
     const reg = (model && model.registration) || {};
     form.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <label>Псевдоним/Никнейм<input id="mName" value="${model.name || ''}" required /></label>
-        <label>Полное имя<input id="mFullName" value="${model.fullName || reg.fullName || ''}" /></label>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-        <label>Возраст<input id="mAge" type="number" value="${model.age || (reg.birthDate ? Math.max(0, Math.floor((Date.now() - new Date(reg.birthDate).getTime()) / (365.25*24*60*60*1000))) : '')}" min="18" max="50" /></label>
-        <label>Рост (см)<input id="mHeight" type="number" value="${model.height || ''}" min="150" max="200" /></label>
-        <label>Вес (кг)<input id="mWeight" type="number" value="${model.weight || ''}" min="40" max="100" /></label>
-      </div>
-      <label>Параметры<input id="mMeasurements" value="${model.measurements || ''}" placeholder="90-60-90" /></label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <label>Телефон<input id="mPhone" value="${(model.contacts && model.contacts.phone) || reg.phone || ''}" /></label>
-        <label>Email<input id="mEmail" type="email" value="${(model.contacts && model.contacts.email) || ''}" /></label>
+        <label>ФИО<input id="mFullName" value="${reg.fullName || model.fullName || ''}" /></label>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <label>Instagram<input id="mInstagram" value="${(model.contacts && model.contacts.instagram) || ''}" /></label>
-        <label>Telegram<input id="mTelegram" value="${(model.contacts && model.contacts.telegram) || ''}" /></label>
+        <label>Телефон<input id="mPhone" value="${reg.phone || (model.contacts && model.contacts.phone) || ''}" /></label>
+        <label>Дата рождения<input id="mBirthDate" type="date" value="${reg.birthDate || ''}" /></label>
       </div>
-      ${reg.birthDate ? `<label>Дата рождения<input id="mBirthDate" type="date" value="${reg.birthDate}" /></label>` : ''}
-      ${reg.docType || reg.docNumber ? `
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
-          <label>Тип документа
-            <select id="mDocType">
-              <option value="">Не указан</option>
-              <option value="passport" ${reg.docType === 'passport' ? 'selected' : ''}>Паспорт</option>
-              <option value="driver" ${reg.docType === 'driver' ? 'selected' : ''}>Водительские права</option>
-              <option value="foreign" ${reg.docType === 'foreign' ? 'selected' : ''}>Загранпаспорт</option>
-            </select>
-          </label>
-          <label>Номер документа<input id="mDocNumber" value="${reg.docNumber || ''}" /></label>
-        </div>` : ''}
-      ${reg.internshipDate ? `<label>Первая стажировка<input id="mInternshipDate" type="date" value="${reg.internshipDate}" /></label>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <label>Дата первой стажировки<input id="mInternshipDate" type="date" value="${reg.internshipDate || ''}" /></label>
+        <label>Тип документа
+          <select id="mDocType">
+            <option value="">Не указан</option>
+            <option value="passport" ${reg.docType === 'passport' ? 'selected' : ''}>Паспорт РФ</option>
+            <option value="driver" ${reg.docType === 'driver' ? 'selected' : ''}>Водительские права</option>
+            <option value="foreign" ${reg.docType === 'foreign' ? 'selected' : ''}>Загранпаспорт</option>
+          </select>
+        </label>
+      </div>
+      <label>Серия и номер / Номер<input id="mDocNumber" value="${reg.docNumber || ''}" /></label>
+      <label>Комментарий<textarea id="mComment" rows="3">${reg.comment || ''}</textarea></label>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid #2a2a2a">
         <h4 style="margin:0 0 12px 0;color:#2bb3b1">Статусы</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
@@ -1738,14 +1740,7 @@ async function renderModelCard(id) {
     const { close, setError } = res;
     const name = form.querySelector('#mName').value.trim();
     const fullName = form.querySelector('#mFullName').value.trim();
-    const age = form.querySelector('#mAge').value;
-    const height = form.querySelector('#mHeight').value;
-    const weight = form.querySelector('#mWeight').value;
-    const measurements = form.querySelector('#mMeasurements').value.trim();
     const phone = form.querySelector('#mPhone').value.trim();
-    const email = form.querySelector('#mEmail').value.trim();
-    const instagram = form.querySelector('#mInstagram').value.trim();
-    const telegram = form.querySelector('#mTelegram').value.trim();
     const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
     const note = form.querySelector('#mNote').value.trim();
     
@@ -1754,6 +1749,7 @@ async function renderModelCard(id) {
     const docType = form.querySelector('#mDocType') ? form.querySelector('#mDocType').value : undefined;
     const docNumber = form.querySelector('#mDocNumber') ? form.querySelector('#mDocNumber').value.trim() : undefined;
     const internshipDate = form.querySelector('#mInternshipDate') ? form.querySelector('#mInternshipDate').value : undefined;
+    const comment = form.querySelector('#mComment') ? form.querySelector('#mComment').value.trim() : undefined;
     
     // Status fields
     const status1 = form.querySelector('#mStatus1').value;
@@ -1763,19 +1759,20 @@ async function renderModelCard(id) {
     if (!name) { setError('Укажите псевдоним модели'); return; }
     try {
       const payload = { 
-        id, name, fullName, age, height, weight, measurements, 
-        contacts: { phone, email, instagram, telegram }, tags, note,
+        id, name, fullName, 
+        contacts: { phone }, tags, note,
         status1, status2, status3
       };
       
       // Add registration fields if they exist
-      if (birthDate !== undefined || docType !== undefined || docNumber !== undefined || internshipDate !== undefined) {
+      if (birthDate !== undefined || docType !== undefined || docNumber !== undefined || internshipDate !== undefined || comment !== undefined) {
         payload.registration = {
           ...reg,
           ...(birthDate !== undefined ? { birthDate } : {}),
           ...(docType !== undefined ? { docType } : {}),
           ...(docNumber !== undefined ? { docNumber } : {}),
-          ...(internshipDate !== undefined ? { internshipDate } : {})
+          ...(internshipDate !== undefined ? { internshipDate } : {}),
+          ...(comment !== undefined ? { comment } : {})
         };
       }
       

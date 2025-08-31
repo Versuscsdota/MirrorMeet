@@ -377,11 +377,46 @@ export async function onRequestDelete(context) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   if (!id) return badRequest('id required');
-  const cur = await env.CRM_KV.get(`model:${id}`);
+  const cur = await env.CRM_KV.get(`model:${id}`, { type: 'json' });
   if (!cur) return notFound('model');
-  // Also delete all files for this model
-  const filesList = await env.CRM_KV.list({ prefix: `file:${id}:` });
-  await Promise.all(filesList.keys.map(k => env.CRM_KV.delete(k.name)));
+  // Delete all files for this model: use index keys file_model:<modelId>:<fileId>
+  const idx = await env.CRM_KV.list({ prefix: `file_model:${id}:` });
+  if (idx.keys && idx.keys.length) {
+    for (const k of idx.keys) {
+      const fid = k.name.split(':').pop();
+      const meta = await env.CRM_KV.get(`file:${fid}`, { type: 'json' });
+      if (meta) {
+        try { await env.CRM_FILES.delete(meta.objectKey); } catch {}
+        await env.CRM_KV.delete(`file:${fid}`);
+      }
+      await env.CRM_KV.delete(k.name);
+    }
+  } else {
+    // Fallback: scan all file metas and remove ones belonging to model
+    const list = await env.CRM_KV.list({ prefix: 'file:' });
+    for (const k of list.keys) {
+      const meta = await env.CRM_KV.get(k.name, { type: 'json' });
+      if (meta && meta.entity === 'model' && meta.modelId === id) {
+        try { await env.CRM_FILES.delete(meta.objectKey); } catch {}
+        await env.CRM_KV.delete(k.name);
+        await env.CRM_KV.delete(`file_model:${id}:${meta.id}`);
+      }
+    }
+  }
+
+  // Unlink slot reference if present
+  if (cur.registration && cur.registration.slotRef) {
+    const ref = cur.registration.slotRef;
+    const slotKey = `slot:${ref.date}:${ref.id}`;
+    try {
+      const slot = await env.CRM_KV.get(slotKey, { type: 'json' });
+      if (slot && slot.modelId === id) {
+        delete slot.modelId;
+        await env.CRM_KV.put(slotKey, JSON.stringify(slot));
+      }
+    } catch {}
+  }
+
   await env.CRM_KV.delete(`model:${id}`);
   return json({ ok: true });
 }
