@@ -398,24 +398,31 @@ async function renderCalendar() {
     if (timeSel && wrap) timeSel.addEventListener('change', toggleWrap);
     toggleWrap();
 
-    const start = (timeSel.value || '').trim();
-    // compute end = start + 30 minutes
-    const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
-    const total = hh * 60 + mm + 30;
-    const eh = Math.floor((total % (24 * 60)) / 60);
-    const em = total % 60;
-    const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-    const title = form.querySelector('#sTitle').value.trim();
-    const notes = form.querySelector('#sNotes').value.trim();
-    const timeChanged = (start !== ((s.start||'').slice(0,5))) || (end !== ((s.end||'').slice(0,5)));
-    const comment = timeChanged ? (form.querySelector('#sComment').value || '').trim() : '';
-    if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
-    try {
-      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
-      slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
-      renderList();
-      close();
-    } catch (e) { setError(e.message); }
+    const handleSubmit = async () => {
+      setError('');
+      const start = (timeSel.value || '').slice(0,5);
+      // compute end = start + 30 minutes
+      const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+      const total = hh * 60 + mm + 30;
+      const eh = Math.floor((total % (24 * 60)) / 60);
+      const em = total % 60;
+      const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+      const title = form.querySelector('#sTitle').value.trim();
+      const notes = form.querySelector('#sNotes').value.trim();
+      const timeChanged = (start !== currStart);
+      const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
+      if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
+      try {
+        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment }) });
+        slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+        renderList();
+        close();
+      } catch (e) { setError(e.message); }
+    };
+
+    // Bind Save button handler (no auto-submit)
+    const okBtn = document.querySelector('.modal .actions button:last-child');
+    if (okBtn) okBtn.onclick = async (e) => { e.preventDefault(); await handleSubmit(); };
   }
 
   async function deleteSlot(id) {
