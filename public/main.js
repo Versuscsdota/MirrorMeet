@@ -1601,8 +1601,15 @@ async function renderModelCard(id) {
       const val = (el('#webcamAccounts').value || '').trim();
       try {
         await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, webcamAccounts: val }) });
-        // Refresh profile to reflect saved data
-        renderModelCard(id);
+        // UX: show inline confirmation and delay refresh to avoid KV eventual consistency
+        btnAcc.textContent = 'Сохранено';
+        btnAcc.disabled = true;
+        setTimeout(() => {
+          btnAcc.textContent = 'Сохранить';
+          btnAcc.disabled = false;
+          // Refresh profile to reflect saved data after a short delay
+          renderModelCard(id);
+        }, 600);
       } catch (e) { alert(e.message); }
     };
   }
