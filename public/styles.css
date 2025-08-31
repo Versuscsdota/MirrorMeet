@@ -181,13 +181,43 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   margin: 4px 0 0 0;
 }
 
-.slot-time-badge {
+.sched-cell {
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
+
+.sched-row:hover {
+  background: var(--panel-light);
+}
+
+.slot-block {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.slot-block:hover {
+  transform: scale(1.05);
+  z-index: 5;
+}
+
+.slot-actions-mini {
+  display: flex;
+  gap: 2px;
+}
+
+.slot-actions-mini button {
+  border: none;
   background: var(--accent);
   color: var(--bg);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.slot-actions-mini button:hover {
+  background: var(--accent-weak);
 }
 
 .empty-state {

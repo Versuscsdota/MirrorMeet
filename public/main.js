@@ -77,7 +77,7 @@ async function renderCalendar() {
   let _snackbarTimer = null;
 
   view.innerHTML = `
-    <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;height:calc(100vh - 120px)">
+    <div style="display:grid;grid-template-rows:auto 1fr;gap:16px;height:calc(100vh - 120px)">
       <div class="card" style="padding:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <button id="mPrev" class="ghost" style="padding:4px 8px">◀</button>
@@ -89,10 +89,10 @@ async function renderCalendar() {
       </div>
       <div class="card">
         <div style="padding:16px;border-bottom:1px solid #1e1e1e">
-          <h3 style="margin:0;font-size:16px">Слоты на <span id="selectedDate">${today}</span></h3>
+          <h3 style="margin:0;font-size:16px">Расписание на <span id="selectedDate">${today}</span></h3>
         </div>
-        <div style="padding:16px;overflow-y:auto;max-height:calc(100vh - 200px)">
-          <ul id="slotList" class="empl-list" style="margin:0"></ul>
+        <div class="sched-wrap">
+          <div id="scheduleTable" class="sched-table"></div>
         </div>
       </div>
     </div>`;
@@ -159,29 +159,73 @@ async function renderCalendar() {
   }
 
   function renderList() {
-    const list = el('#slotList');
-    if (!slots.length) { list.innerHTML = '<div class="empty-state">Слотов нет</div>'; return; }
-    list.innerHTML = `<div class="grid" style="gap: 16px;">${slots.map(s => `
-      <div class="card model-card slot-card">
-        <div class="model-header">
-          <div>
-            <h3>${s.title || 'Слот'}</h3>
-            <div class="model-fullname">${s.start || ''}–${s.end || ''}</div>
-          </div>
-          <div class="slot-time-badge">${s.start || ''}</div>
-        </div>
-        ${s.notes ? `<div class="model-info"><div class="model-note">${s.notes}</div></div>` : ''}
-        <div class="model-actions">
-          <button type="button" class="open-slot primary" data-id="${s.id}">Открыть</button>
-          ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot secondary" data-id="${s.id}">Редактировать</button>` : ''}
-          ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot danger" data-id="${s.id}">Удалить</button>` : ''}
-        </div>
+    const table = el('#scheduleTable');
+    if (!table) return;
+    
+    // Generate time slots 12:00 - 18:30, step 30min
+    const timeSlots = [];
+    for (let h = 12; h <= 18; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        if (h === 18 && m > 30) break; // stop at 18:30
+        const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        timeSlots.push(t);
+      }
+    }
+    
+    // Group slots by employee name (title)
+    const byEmployee = new Map();
+    (slots || []).forEach(s => {
+      const emp = s.title || 'Без имени';
+      if (!byEmployee.has(emp)) byEmployee.set(emp, []);
+      byEmployee.get(emp).push(s);
+    });
+    
+    const employees = Array.from(byEmployee.keys()).sort();
+    
+    table.innerHTML = `
+      <div class="sched-header">
+        <div class="sched-cell" style="width:120px;padding:8px;font-weight:600">Сотрудник</div>
+        ${timeSlots.map(t => `<div class="sched-cell" style="width:80px;padding:4px;text-align:center;font-size:11px">${t}</div>`).join('')}
       </div>
-    `).join('')}</div>`;
+      ${employees.map(emp => {
+        const empSlots = byEmployee.get(emp) || [];
+        return `
+          <div class="sched-row">
+            <div class="sched-cell" style="width:120px;padding:8px;font-weight:500;border-right:1px solid var(--border)">${emp}</div>
+            ${timeSlots.map(t => {
+              const slot = empSlots.find(s => (s.start || '').slice(0,5) === t);
+              return `
+                <div class="sched-cell" style="width:80px;padding:2px;text-align:center;position:relative">
+                  ${slot ? `
+                    <div class="slot-block" data-id="${slot.id}" style="background:var(--accent);color:var(--bg);padding:2px 4px;border-radius:3px;font-size:10px;cursor:pointer" title="${slot.notes || ''}">
+                      ${slot.start}–${slot.end}
+                      <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:2px;gap:2px;z-index:10">
+                        <button type="button" class="open-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">📖</button>
+                        ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">✏️</button>` : ''}
+                        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${slot.id}" style="padding:2px 4px;font-size:9px">🗑️</button>` : ''}
+                      </div>
+                    </div>
+                  ` : '<div style="height:20px"></div>'}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }).join('')}
+    `;
+    
+    // Wire slot hover actions
+    [...table.querySelectorAll('.slot-block')].forEach(block => {
+      const actions = block.querySelector('.slot-actions-mini');
+      if (actions) {
+        block.onmouseenter = () => actions.style.display = 'flex';
+        block.onmouseleave = () => actions.style.display = 'none';
+      }
+    });
 
-    // Wire actions via event delegation with addEventListener (set once)
-    if (!list._delegated) {
-      list.addEventListener('click', (e) => {
+    // Wire actions via event delegation
+    if (!table._delegated) {
+      table.addEventListener('click', (e) => {
         const del = e.target.closest && e.target.closest('.delete-slot');
         if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
         const edt = e.target.closest && e.target.closest('.edit-slot');
@@ -189,7 +233,7 @@ async function renderCalendar() {
         const op = e.target.closest && e.target.closest('.open-slot');
         if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); openSlot(op.dataset.id); return; }
       });
-      list._delegated = true;
+      table._delegated = true;
     }
   }
 
