@@ -368,17 +368,57 @@ async function renderCalendar() {
     if (!s) { console.debug('[editSlot] not found', { id }); return; }
     console.debug('[editSlot] start', { id, slot: s });
     const form = document.createElement('div');
+    // Build time options like in createSlot()
+    const counts = new Map();
+    (slots || []).forEach(it => {
+      const k = (it.start || '').slice(0,5);
+      if (!k) return;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    });
+    const times = [];
+    for (let h = 12; h <= 18; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        times.push(t);
+      }
+    }
+    const currStart = (s.start || '').slice(0,5);
     form.innerHTML = `
-      <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
-      <label>Конец<input id="sEnd" type="time" value="${s.end || ''}" /></label>
+      <label>Время
+        <select id="sTime" required>
+          ${times.map(t => {
+            const c = counts.get(t) || 0;
+            const full = c >= 2 && t !== currStart; // allow keeping current even if overbooked
+            const attrs = `${t === currStart ? ' selected' : ''}${full ? ' disabled' : ''}`;
+            const style = full ? ' style="color:#888"' : '';
+            const label = full ? `${t} (занято)` : t;
+            return `<option value="${t}"${attrs}${style}>${label}</option>`;
+          }).join('')}
+        </select>
+      </label>
       <label>ФИО<input id="sTitle" value="${s.title || ''}" placeholder="Иванов Иван" /></label>
       <label>Комментарий<textarea id="sNotes" rows="3" placeholder="Дополнительно (необязательно)">${s.notes || ''}</textarea></label>
-      <div id="timeCommentWrap"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"></textarea></label></div>`;
+      <div id="timeCommentWrap" style="display:none"><label>Комментарий к изменению времени<textarea id="sComment" rows="2" placeholder="Почему изменили время слота"></textarea></label></div>`;
     const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
     if (!m) return;
     const { close, setError } = m;
-    const start = form.querySelector('#sStart').value.trim();
-    const end = form.querySelector('#sEnd').value.trim();
+    // Show comment field only when time changed
+    const timeSel = form.querySelector('#sTime');
+    const wrap = form.querySelector('#timeCommentWrap');
+    const toggleWrap = () => {
+      const val = (timeSel.value || '').slice(0,5);
+      wrap.style.display = (val !== currStart) ? 'block' : 'none';
+    };
+    if (timeSel && wrap) timeSel.addEventListener('change', toggleWrap);
+    toggleWrap();
+
+    const start = (timeSel.value || '').trim();
+    // compute end = start + 30 minutes
+    const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+    const total = hh * 60 + mm + 30;
+    const eh = Math.floor((total % (24 * 60)) / 60);
+    const em = total % 60;
+    const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
     const title = form.querySelector('#sTitle').value.trim();
     const notes = form.querySelector('#sNotes').value.trim();
     const timeChanged = (start !== (s.start||'')) || (end !== (s.end||''));
