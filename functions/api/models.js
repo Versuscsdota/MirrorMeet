@@ -1,5 +1,5 @@
 import { json, badRequest, notFound } from '../_utils.js';
-import { requireRole, newId } from '../_utils.js';
+import { requireRole, newId, auditLog } from '../_utils.js';
 import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry } from '../_status.js';
 
 // KV keys
@@ -438,7 +438,7 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -484,5 +484,6 @@ export async function onRequestDelete(context) {
   }
 
   await env.CRM_KV.delete(`model:${id}`);
+  await auditLog(env, request, sess, 'model_delete', { modelId: id });
   return json({ ok: true });
 }

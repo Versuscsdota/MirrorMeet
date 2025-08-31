@@ -142,3 +142,25 @@ export async function incUserCount(env) {
   const count = Number(await env.CRM_KV.get('users:count') || '0');
   await env.CRM_KV.put('users:count', String(count + 1));
 }
+
+// --- Audit logging for admin/root actions ---
+export async function auditLog(env, req, sess, action, details = {}) {
+  try {
+    const ts = Date.now();
+    const d = new Date(ts);
+    const day = d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const rid = crypto.getRandomValues(new Uint8Array(4)).reduce((s,b)=>s+ b.toString(16).padStart(2,'0'), '');
+    const key = `audit:${day}:${ts}:${rid}`;
+    const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || '';
+    const ua = req.headers.get('user-agent') || '';
+    const entry = {
+      ts,
+      action,
+      actor: sess && sess.user ? { id: sess.user.id, login: sess.user.login, role: sess.user.role } : null,
+      ip,
+      ua,
+      details
+    };
+    await env.CRM_KV.put(key, JSON.stringify(entry));
+  } catch {}
+}

@@ -1,5 +1,5 @@
 import { json, badRequest, notFound } from '../_utils.js';
-import { requireRole, sha256, newId, incUserCount } from '../_utils.js';
+import { requireRole, sha256, newId, incUserCount, auditLog } from '../_utils.js';
 
 const ROLES = ['root','admin','interviewer','curator'];
 
@@ -71,12 +71,13 @@ export async function onRequestPost(context) {
   await env.CRM_KV.put(`user:${id}`, JSON.stringify({ ...user, passHash }));
   await env.CRM_KV.put(`user_login:${login}`, id);
   await incUserCount(env);
+  await auditLog(env, request, sess, 'user_create', { userId: id, login, role, fullName });
   return json({ ok: true, user });
 }
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root']);
+  const { sess, error } = await requireRole(env, request, ['root']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -85,5 +86,6 @@ export async function onRequestDelete(context) {
   if (!u) return notFound('user');
   await env.CRM_KV.delete(`user:${id}`);
   await env.CRM_KV.delete(`user_login:${u.login}`);
+  await auditLog(env, request, sess, 'user_delete', { userId: id, login: u.login });
   return json({ ok: true });
 }

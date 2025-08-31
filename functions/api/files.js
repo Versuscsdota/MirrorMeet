@@ -1,5 +1,5 @@
 import { json, badRequest, notFound, forbidden } from '../_utils.js';
-import { requireRole, newId } from '../_utils.js';
+import { requireRole, newId, auditLog } from '../_utils.js';
 
 // file meta in KV: file:<id>
 // object in R2: files/<modelId>/<id>
@@ -141,7 +141,7 @@ export async function onRequestPost(context) {
   if (files.length > MAX_FILES) return forbidden(`Слишком много файлов за один раз (макс ${MAX_FILES})`);
 
   let entity = null;
-  const { error: upErr } = await requireRole(env, request, ['root','admin']);
+  const { sess, error: upErr } = await requireRole(env, request, ['root','admin']);
   if (upErr) return upErr;
   if (modelId) {
     const model = await env.CRM_KV.get(`model:${modelId}`);
@@ -183,13 +183,22 @@ export async function onRequestPost(context) {
     created.push({ ...meta, url: `/api/files?id=${id}` });
   }
 
+  try {
+    await auditLog(env, request, sess, 'files_upload', {
+      count: created.length,
+      entity: entity.type,
+      modelId: entity.type === 'model' ? entity.id : undefined,
+      slotId: entity.type === 'slot' ? entity.id : undefined,
+      names: created.slice(0, 5).map(x => x.name)
+    });
+  } catch {}
   if (created.length === 1) return json({ ok: true, file: created[0] });
   return json({ ok: true, files: created });
 }
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -204,5 +213,6 @@ export async function onRequestDelete(context) {
   } else if (meta.entity === 'slot') {
     await env.CRM_KV.delete(`file_slot:${meta.slotId}:${id}`);
   }
+  await auditLog(env, request, sess, 'file_delete', { id, entity: meta.entity, modelId: meta.modelId, slotId: meta.slotId, name: meta.name });
   return json({ ok: true });
 }

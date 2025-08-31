@@ -1,5 +1,5 @@
 import { json, badRequest, forbidden } from '../_utils.js';
-import { requireRole, newId, sha256, incUserCount } from '../_utils.js';
+import { requireRole, newId, sha256, incUserCount, auditLog } from '../_utils.js';
 
 // KV key: employee:<id>
 // Stored object shape (simplified):
@@ -78,7 +78,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return forbidden('Только администратор и root могут регистрировать новых пользователей');
   let body;
   try { body = await request.json(); } catch { return badRequest('Invalid JSON'); }
@@ -138,17 +138,17 @@ export async function onRequestPost(context) {
   await env.CRM_KV.put(`user:${userId}`, JSON.stringify({ ...user, passHash }));
   await env.CRM_KV.put(`user_login:${login}`, userId);
   await incUserCount(env);
-
+  try {
+    await auditLog(env, request, sess, 'employee_create', { employeeId: id, fullName, role, userLogin: login });
+  } catch {}
   return json({ ...employee, credentials: { login, password } }, { status: 201 });
 }
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
   // Only root can delete employees
-  const { error } = await requireRole(env, request, ['root']);
-  if (error) return error;
-  
-  const url = new URL(request.url);
+  const { sess, error } = await requireRole(env, request, ['root']);
+  if (error) return forbidden('Только root может удалить сотрудника');
   let id = url.searchParams.get('id');
   // Fallback: allow id in JSON body for DELETE as well
   if (!id) {
@@ -183,17 +183,17 @@ export async function onRequestDelete(context) {
   
   // Delete employee
   await env.CRM_KV.delete(`employee:${id}`);
-  
+  try {
+    await auditLog(env, request, sess, 'employee_delete', { employeeId: id, employeeFullName: employee.fullName, removedUser: associatedUser ? associatedUser.login : undefined });
+  } catch {}
   return json({ ok: true });
 }
 
 export async function onRequestPut(context) {
   const { env, request } = context;
   // Only root can edit employees
-  const { error } = await requireRole(env, request, ['root']);
-  if (error) return error;
-  
-  let body;
+  const { sess, error } = await requireRole(env, request, ['root']);
+  if (error) return forbidden('Только root может редактировать сотрудников');
   try { body = await request.json(); } catch { return badRequest('Invalid JSON'); }
   
   const id = sanitizeStr(body.id);

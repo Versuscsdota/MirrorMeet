@@ -1,5 +1,5 @@
 import { json, badRequest, notFound } from '../_utils.js';
-import { requireRole, newId } from '../_utils.js';
+import { requireRole, newId, auditLog } from '../_utils.js';
 import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry, syncSlotModelStatuses } from '../_status.js';
 
 // slot key: slot:<date>:<id>  where date = YYYY-MM-DD
@@ -96,6 +96,7 @@ export async function onRequestPost(context) {
     createdAt: Date.now(), createdBy: sess.user.id
   };
   await env.CRM_KV.put(`slot:${date}:${id}`, JSON.stringify(slot));
+  await auditLog(env, request, sess, 'slot_create', { id, date, start, end, title, employeeId });
   return json(slot);
 }
 
@@ -200,6 +201,13 @@ export async function onRequestPut(context) {
     ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3 })] : []),
   ] };
   await env.CRM_KV.put(key, JSON.stringify(toSave));
+  try {
+    const changed = {
+      ...(timeChanged ? { time: { from: { start: cur.start, end: cur.end }, to: { start: toSave.start, end: toSave.end } } } : {}),
+      ...(statusChanged ? { statuses: { from: oldStatuses, to: { status1: toSave.status1, status2: toSave.status2, status3: toSave.status3 } } } : {})
+    };
+    if (timeChanged || statusChanged) await auditLog(env, request, sess, 'slot_update', { id, date, ...changed });
+  } catch {}
   
   // Sync statuses with linked model if status changed
   if (statusChanged && cur.modelId) {
@@ -212,7 +220,7 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -222,5 +230,6 @@ export async function onRequestDelete(context) {
   const cur = await env.CRM_KV.get(key);
   if (!cur) return notFound('slot');
   await env.CRM_KV.delete(key);
+  await auditLog(env, request, sess, 'slot_delete', { id, date });
   return json({ ok: true });
 }
