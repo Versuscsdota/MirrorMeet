@@ -1328,24 +1328,21 @@ async function renderModels() {
     });
     const sorted = applySort(filtered, mode);
     grid.innerHTML = sorted.map(m => {
-      const tags = (m.tags || []).slice(0, 3).join(', ');
-      const moreTagsCount = Math.max(0, (m.tags || []).length - 3);
+      const photoUrl = m.mainPhotoId ? `/api/files?id=${m.mainPhotoId}` : '';
+      const initials = (m.fullName || m.name || '').trim().charAt(0).toUpperCase();
+      const s1 = (() => { const s = m.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">status1: ${t}</span>`; })();
+      const s2 = m.status2 ? `<span class=\"status-badge secondary\">status2: ${m.status2}</span>` : '';
+      const s3 = m.status3 ? `<span class=\"status-badge secondary\">status3: ${m.status3}</span>` : '';
       return `
-        <div class="card model-card">
-          <div class="model-header">
-            <h3>${m.name}</h3>
-            ${m.fullName ? `<div class="model-fullname">${m.fullName}</div>` : ''}
+        <div class="card model-card" style="display:flex;align-items:center;gap:12px">
+          <div class="avatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#222;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+            ${photoUrl ? `<img src="${photoUrl}" alt="${m.name}" style="width:100%;height:100%;object-fit:cover" />` : `<div style=\"color:#9aa;font-weight:600;font-size:18px\">${initials || '?'}</div>`}
           </div>
-          <div class="model-info">
-            ${m.age ? `<span class="info-item">${m.age} лет</span>` : ''}
-            ${m.height ? `<span class="info-item">${m.height} см</span>` : ''}
-            ${m.measurements ? `<span class="info-item">${m.measurements}</span>` : ''}
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600">${m.fullName || m.name}</div>
+            <div class="status-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${s1}${s2}${s3}</div>
           </div>
-          ${tags ? `<div class="model-tags">${tags}${moreTagsCount > 0 ? ` +${moreTagsCount}` : ''}</div>` : ''}
-          ${m.note ? `<p class="model-note">${m.note}</p>` : ''}
-          <div class="model-actions">
-            <button data-id="${m.id}" class="openModel">Открыть профиль</button>
-          </div>
+          <button title="Открыть профиль" data-id="${m.id}" class="openModel" style="background:transparent;border:1px solid #333;padding:8px;border-radius:8px;cursor:pointer">🔍</button>
         </div>`;
     }).join('');
     [...grid.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
