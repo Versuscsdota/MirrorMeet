@@ -229,11 +229,11 @@ async function renderCalendar() {
     if (!table._delegated) {
       table.addEventListener('click', (e) => {
         const del = e.target.closest && e.target.closest('.delete-slot');
-        if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
+        if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] delete-slot', del.dataset.id); deleteSlot(del.dataset.id); return; }
         const edt = e.target.closest && e.target.closest('.edit-slot');
-        if (edt) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); editSlot(edt.dataset.id); return; }
+        if (edt) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] edit-slot', edt.dataset.id); editSlot(edt.dataset.id); return; }
         const op = e.target.closest && e.target.closest('.open-slot');
-        if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); openSlot(op.dataset.id); return; }
+        if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); console.debug('[table click] open-slot', op.dataset.id); openSlot(op.dataset.id); return; }
       });
       table._delegated = true;
     }
@@ -632,7 +632,7 @@ async function renderCalendar() {
         try {
           const model = await api('/api/models', { method: 'POST', body: JSON.stringify({ name, note }) });
           // Ingest slot files and write interview history into model
-          await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date, slotId: s.id }) });
+          await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date: (s.date || date), slotId: s.id }) });
           // Mark status3 = registration
           try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
           // Navigate to models and open the created model
