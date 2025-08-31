@@ -90,7 +90,16 @@ export async function onRequestPost(context) {
         docType: docType || null,
         docNumber: docNumber || null,
         internshipDate: internshipDate || null,
-        comment: regComment || ''
+        comment: regComment || '',
+        // duplicate key fields that were provided at registration time for clearer audit
+        fullName,
+        phone,
+        // include statuses snapshot as part of registration
+        statuses: {
+          status1: s1,
+          ...(s2 ? { status2: s2 } : {}),
+          ...(s3 ? { status3: s3 } : {})
+        }
       },
       // propagate statuses (request preferred, fallback slot)
       status1: s1,
@@ -98,8 +107,23 @@ export async function onRequestPost(context) {
       status3: s3
     };
 
-    // initial history
-    model.history.push({ ts: Date.now(), type: 'registration', slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title }, text: (slot.interview && slot.interview.text) || '' });
+    // initial history with registration snapshot and statuses for timeline
+    model.history.push({
+      ts: Date.now(),
+      type: 'registration',
+      slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
+      statuses: { status1: s1, ...(s2 ? { status2: s2 } : {}), ...(s3 ? { status3: s3 } : {}) },
+      registration: {
+        birthDate: birthDate || null,
+        docType: docType || null,
+        docNumber: docNumber || null,
+        internshipDate: internshipDate || null,
+        comment: regComment || '',
+        fullName,
+        phone
+      },
+      text: (slot.interview && slot.interview.text) || ''
+    });
     await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
     return json(model);
   }

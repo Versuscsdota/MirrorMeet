@@ -1487,6 +1487,19 @@ async function renderModelCard(id) {
             <h3 class="section-title">📋 Регистрация</h3>
             <div class="info-cards">
               ${(() => { const ref = model.registration.slotRef; if (!ref) return ''; const tm = (ref.start?ref.start.slice(0,5):'') + (ref.end?`–${ref.end.slice(0,5)}`:''); return `<div class=\"info-card full-width\"><div class=\"info-icon\">🗓️</div><div class=\"info-content\"><div class=\"info-label\">Источник</div><div class=\"info-value\">${new Date(ref.date).toLocaleDateString('ru-RU')} ${tm} ${ref.title?`· ${ref.title}`:''}</div></div></div>`; })()}
+              ${(() => {
+                const st = model.registration && model.registration.statuses;
+                if (!st) return '';
+                const map1 = { confirmed: 'Подтвердилось', not_confirmed: 'Не подтвердилось', fail: 'Слив' };
+                const map2 = { arrived: 'Пришла', no_show: 'Не пришла', other: 'Другое' };
+                const map3 = { thinking: 'Думает', reject_us: 'Отказ с нашей', reject_candidate: 'Отказ кандидата', registration: 'Регистрация' };
+                const chips = [
+                  st.status1 ? `<span class=\"status-badge ${st.status1==='confirmed'?'success':st.status1==='fail'?'danger':'warning'}\">${map1[st.status1]||st.status1}</span>` : '',
+                  st.status2 ? `<span class=\"status-badge secondary\">${map2[st.status2]||st.status2}</span>` : '',
+                  st.status3 ? `<span class=\"status-badge secondary\">${map3[st.status3]||st.status3}</span>` : ''
+                ].filter(Boolean).join(' ');
+                return chips ? `<div class=\"info-card full-width\"><div class=\"info-icon\">🏷️</div><div class=\"info-content\"><div class=\"info-label\">Статусы на регистрации</div><div class=\"info-value\">${chips}</div></div></div>` : '';
+              })()}
               ${model.registration.birthDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎂</div><div class=\"info-content\"><div class=\"info-label\">Дата рождения</div><div class=\"info-value\">${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
               ${model.registration.docType || model.registration.docNumber ? `<div class=\"info-card\"><div class=\"info-icon\">📄</div><div class=\"info-content\"><div class=\"info-label\">Документ</div><div class=\"info-value\">${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div></div></div>` : ''}
               ${model.registration.internshipDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎓</div><div class=\"info-content\"><div class=\"info-label\">Первая стажировка</div><div class=\"info-value\">${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
