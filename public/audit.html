@@ -3,94 +3,529 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Audit Logs</title>
+  <title>Аудит логи - MirrorCRM</title>
   <link rel="icon" href="/favicon.svg" />
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
-    header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    input, select, button { padding: 6px 10px; font-size: 14px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-    th { background: #f5f5f5; text-align: left; }
-    .muted { color: #666; font-size: 12px; }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface-hover: #1a1a1a;
+      --border: #1e1e1e;
+      --text: #ffffff;
+      --text-muted: #9ca3af;
+      --accent: #2bb3b1;
+      --accent-hover: #26a5a3;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #eab308;
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .back-btn {
+      background: var(--surface-hover);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .back-btn:hover {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .filters-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    input, select, button {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(43, 179, 177, 0.1);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 500;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .info-text {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .logs-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .logs-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logs-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .logs-count {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .logs-table th {
+      background: var(--bg);
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logs-table td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    .logs-table tr:hover {
+      background: var(--surface-hover);
+    }
+
+    .timestamp {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .action-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .action-create { background: rgba(34, 197, 94, 0.1); color: var(--success); }
+    .action-update { background: rgba(234, 179, 8, 0.1); color: var(--warning); }
+    .action-delete { background: rgba(220, 38, 38, 0.1); color: var(--danger); }
+    .action-default { background: rgba(156, 163, 175, 0.1); color: var(--text-muted); }
+
+    .actor-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .actor-login {
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .actor-role {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .details-json {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      max-width: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .load-more-section {
+      padding: 20px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .status-text {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 16px; }
+      .filters-grid { grid-template-columns: 1fr; }
+      .header { padding: 12px 16px; }
+      .logs-table th, .logs-table td { padding: 8px 12px; }
+      .details-json { max-width: 200px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Аудит</h1>
-  <div class="controls">
-    <label>From: <input type="date" id="from" /></label>
-    <label>To: <input type="date" id="to" /></label>
-    <label>Action: <input id="action" placeholder="e.g. user_create" /></label>
-    <label>Actor: <input id="actor" placeholder="id/login/role" /></label>
-    <button id="load">Загрузить</button>
+  <div class="header">
+    <h1>
+      📊 Аудит логи
+    </h1>
+    <div class="header-actions">
+      <a href="/" class="back-btn">← Назад к приложению</a>
+    </div>
   </div>
-  <div class="muted">Доступно только для admin/root. Данные истекают по политике TTL.</div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Время</th>
-        <th>Действие</th>
-        <th>Актор</th>
-        <th>IP</th>
-        <th>UA</th>
-        <th>Details</th>
-      </tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
-  <div style="margin-top:10px; display:flex; gap:8px;">
-    <button id="more" disabled>Загрузить ещё</button>
-    <span id="status" class="muted"></span>
+  <div class="container">
+    <div class="filters-card">
+      <div class="filters-grid">
+        <div class="form-group">
+          <label>Дата от</label>
+          <input type="date" id="from" />
+        </div>
+        <div class="form-group">
+          <label>Дата до</label>
+          <input type="date" id="to" />
+        </div>
+        <div class="form-group">
+          <label>Действие</label>
+          <input id="action" placeholder="user_create, model_delete..." />
+        </div>
+        <div class="form-group">
+          <label>Пользователь</label>
+          <input id="actor" placeholder="логин, роль или ID" />
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button id="load">🔍 Загрузить логи</button>
+        <button id="clear" class="back-btn">Очистить фильтры</button>
+      </div>
+      <div class="info-text">
+        Доступно только для администраторов. Логи автоматически удаляются через 90 дней.
+      </div>
+    </div>
+
+    <div class="logs-card">
+      <div class="logs-header">
+        <h2 class="logs-title">Журнал событий</h2>
+        <div class="logs-count" id="logsCount">0 записей</div>
+      </div>
+      
+      <div id="logsContent">
+        <table class="logs-table">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Время</th>
+              <th style="width: 120px;">Действие</th>
+              <th style="width: 140px;">Пользователь</th>
+              <th style="width: 120px;">IP адрес</th>
+              <th style="width: 200px;">User Agent</th>
+              <th>Детали</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="load-more-section">
+        <button id="more" disabled>Загрузить ещё</button>
+        <div class="status-text" id="status"></div>
+      </div>
+    </div>
   </div>
 
 <script type="module">
 let nextCursor = null;
+let totalLoaded = 0;
 const rowsEl = document.getElementById('rows');
 const statusEl = document.getElementById('status');
+const logsCountEl = document.getElementById('logsCount');
+const logsContentEl = document.getElementById('logsContent');
 
 function fmtTs(ms) {
-  try { return new Date(ms).toLocaleString(); } catch { return String(ms); }
+  try { 
+    return new Date(ms).toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch { 
+    return String(ms); 
+  }
+}
+
+function getActionBadgeClass(action) {
+  if (action.includes('create')) return 'action-create';
+  if (action.includes('update') || action.includes('change')) return 'action-update';
+  if (action.includes('delete')) return 'action-delete';
+  return 'action-default';
+}
+
+function showEmptyState() {
+  logsContentEl.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">📝</div>
+      <h3>Логи не найдены</h3>
+      <p>Попробуйте изменить фильтры или выбрать другой период</p>
+    </div>
+  `;
 }
 
 async function load(reset=false) {
-  const params = new URLSearchParams();
-  const from = document.getElementById('from').value;
-  const to = document.getElementById('to').value;
-  const action = document.getElementById('action').value.trim();
-  const actor = document.getElementById('actor').value.trim();
-  if (from) params.set('from', from);
-  if (to) params.set('to', to);
-  if (action) params.set('action', action);
-  if (actor) params.set('actor', actor);
-  if (!reset && nextCursor) params.set('cursor', nextCursor);
+  try {
+    const params = new URLSearchParams();
+    const from = document.getElementById('from').value;
+    const to = document.getElementById('to').value;
+    const action = document.getElementById('action').value.trim();
+    const actor = document.getElementById('actor').value.trim();
+    
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (action) params.set('action', action);
+    if (actor) params.set('actor', actor);
+    if (!reset && nextCursor) params.set('cursor', nextCursor);
 
-  const res = await fetch(`/api/audit?${params.toString()}`, { credentials: 'include' });
-  if (res.status === 403 || res.status === 401) {
-    statusEl.textContent = 'Нет доступа: требуется admin/root и активная сессия';
-    return;
+    statusEl.textContent = 'Загрузка...';
+    document.getElementById('load').disabled = true;
+    document.getElementById('more').disabled = true;
+
+    const res = await fetch(`/api/audit?${params.toString()}`, { credentials: 'include' });
+    
+    if (res.status === 403 || res.status === 401) {
+      statusEl.textContent = 'Нет доступа: требуется admin/root и активная сессия';
+      showEmptyState();
+      return;
+    }
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    }
+
+    const data = await res.json();
+    nextCursor = data.nextCursor || null;
+    document.getElementById('more').disabled = !nextCursor;
+    const items = data.items || [];
+    
+    if (reset) {
+      rowsEl.innerHTML = '';
+      totalLoaded = 0;
+      if (items.length === 0) {
+        showEmptyState();
+        logsCountEl.textContent = '0 записей';
+        statusEl.textContent = 'Нет данных за выбранный период';
+        return;
+      } else {
+        // Restore table if it was replaced by empty state
+        if (!document.querySelector('.logs-table')) {
+          logsContentEl.innerHTML = `
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px;">Время</th>
+                  <th style="width: 120px;">Действие</th>
+                  <th style="width: 140px;">Пользователь</th>
+                  <th style="width: 120px;">IP адрес</th>
+                  <th style="width: 200px;">User Agent</th>
+                  <th>Детали</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          `;
+          // Re-get the rows element since DOM was recreated
+          const newRowsEl = document.getElementById('rows');
+          if (newRowsEl) rowsEl = newRowsEl;
+        }
+      }
+    }
+    
+    for (const it of items) {
+      const tr = document.createElement('tr');
+      
+      const actorInfo = it.actor ? `
+        <div class="actor-info">
+          <div class="actor-login">${it.actor.login || 'N/A'}</div>
+          <div class="actor-role">${it.actor.role || 'unknown'}</div>
+        </div>
+      ` : '<span class="actor-info">—</span>';
+      
+      const actionBadge = `<span class="action-badge ${getActionBadgeClass(it.action)}">${it.action}</span>`;
+      
+      const details = Object.keys(it.details || {}).length > 0 
+        ? `<div class="details-json">${JSON.stringify(it.details, null, 2)}</div>`
+        : '—';
+      
+      const userAgent = (it.ua || '').length > 80 
+        ? `<span title="${it.ua || ''}">${(it.ua || '').slice(0, 80)}...</span>`
+        : (it.ua || '—');
+      
+      tr.innerHTML = `
+        <td><div class="timestamp">${fmtTs(it.ts)}</div></td>
+        <td>${actionBadge}</td>
+        <td>${actorInfo}</td>
+        <td><code>${it.ip || '—'}</code></td>
+        <td><small>${userAgent}</small></td>
+        <td>${details}</td>
+      `;
+      rowsEl.appendChild(tr);
+      totalLoaded++;
+    }
+    
+    logsCountEl.textContent = `${totalLoaded} записей`;
+    statusEl.textContent = items.length > 0 
+      ? `Загружено: ${items.length}${nextCursor ? ' (есть ещё)' : ''}`
+      : 'Нет новых записей';
+      
+  } catch (error) {
+    console.error('Load error:', error);
+    statusEl.textContent = `Ошибка: ${error.message}`;
+    if (reset) showEmptyState();
+  } finally {
+    document.getElementById('load').disabled = false;
   }
-  const data = await res.json();
-  nextCursor = data.nextCursor || null;
-  document.getElementById('more').disabled = !nextCursor;
-  const items = data.items || [];
-  if (reset) rowsEl.innerHTML = '';
-  for (const it of items) {
-    const tr = document.createElement('tr');
-    const actor = it.actor ? `${it.actor.login||''} (${it.actor.role||''})\n${it.actor.id||''}` : '';
-    const details = `<pre style="white-space:pre-wrap; margin:0;">${JSON.stringify(it.details || {}, null, 2)}</pre>`;
-    tr.innerHTML = `
-      <td>${fmtTs(it.ts)}</td>
-      <td>${it.action}</td>
-      <td>${actor}</td>
-      <td>${it.ip||''}</td>
-      <td>${(it.ua||'').slice(0,120)}</td>
-      <td>${details}</td>
-    `;
-    rowsEl.appendChild(tr);
-  }
-  statusEl.textContent = `Загружено: ${items.length}${nextCursor ? ' (есть ещё)' : ''}`;
+}
+
+function clearFilters() {
+  document.getElementById('from').value = '';
+  document.getElementById('to').value = '';
+  document.getElementById('action').value = '';
+  document.getElementById('actor').value = '';
+  
+  // Set defaults: today
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('from').value = today;
+  document.getElementById('to').value = today;
 }
 
 // Defaults: сегодня
@@ -99,11 +534,23 @@ document.getElementById('from').value = today;
 document.getElementById('to').value = today;
 
 // Events
-
 document.getElementById('load').addEventListener('click', () => load(true));
 document.getElementById('more').addEventListener('click', () => load(false));
+document.getElementById('clear').addEventListener('click', () => {
+  clearFilters();
+  load(true);
+});
 
-// Initial
+// Allow Enter key in filter inputs
+['from', 'to', 'action', 'actor'].forEach(id => {
+  document.getElementById(id).addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      load(true);
+    }
+  });
+});
+
+// Initial load
 load(true);
 </script>
 </body>
