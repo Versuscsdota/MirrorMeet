@@ -13,11 +13,23 @@ export async function onRequestGet(context) {
   if (id) {
     const model = await env.CRM_KV.get(`model:${id}`, { type: 'json' });
     if (!model) return notFound('model');
-    return json(model);
+    // ensure statuses are present with defaults
+    const out = { ...model };
+    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
+    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
+    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
+    return json(out);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
   const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
-  const items = fetched.filter(Boolean);
+  const itemsRaw = fetched.filter(Boolean);
+  const items = itemsRaw.map(m => {
+    const out = { ...m };
+    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
+    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
+    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
+    return out;
+  });
   items.sort((a,b) => b.createdAt - a.createdAt);
   return json({ items });
 }
