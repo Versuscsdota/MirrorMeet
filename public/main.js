@@ -128,12 +128,12 @@ async function renderCalendar() {
     // Direct bindings (kept), plus delegate to be robust after re-renders
     [...list.querySelectorAll('.open-slot')].forEach(b => b.onclick = () => openSlot(b.dataset.id));
     [...list.querySelectorAll('.edit-slot')].forEach(b => b.onclick = () => editSlot(b.dataset.id));
-    [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = () => deleteSlot(b.dataset.id));
+    [...list.querySelectorAll('.delete-slot')].forEach(b => b.onclick = (e) => { console.debug('[ui] click .delete-slot direct', b.dataset.id); deleteSlot(b.dataset.id); });
 
     // Event delegation fallback
     list.onclick = (e) => {
       const del = e.target.closest && e.target.closest('.delete-slot');
-      if (del) { e.preventDefault(); e.stopPropagation(); return deleteSlot(del.dataset.id); }
+      if (del) { console.debug('[ui] click .delete-slot delegated', del.dataset.id); e.preventDefault(); e.stopPropagation(); return deleteSlot(del.dataset.id); }
       const edt = e.target.closest && e.target.closest('.edit-slot');
       if (edt) { e.preventDefault(); e.stopPropagation(); return editSlot(edt.dataset.id); }
       const op = e.target.closest && e.target.closest('.open-slot');
@@ -266,6 +266,7 @@ async function renderCalendar() {
   async function deleteSlot(id) {
     const s = slots.find(x => x.id === id);
     if (!s) return;
+    console.debug('[action] deleteSlot start', { id, s, dateInState: date });
     if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
       alert('Недостаточно прав для удаления');
       return;
@@ -276,10 +277,13 @@ async function renderCalendar() {
     if (!confirm('Удалить слот?')) return;
     try {
       // Use slot's own date to avoid mismatch if selected date changed
-      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(s.date || date)}`, { method: 'DELETE' });
+      const d = s.date || date;
+      console.debug('[action] deleteSlot request', { id: s.id, date: d });
+      await api(`/api/schedule?id=${encodeURIComponent(s.id)}&date=${encodeURIComponent(d)}`, { method: 'DELETE' });
+      console.debug('[action] deleteSlot success', { id: s.id });
       slots = slots.filter(x => x.id !== s.id);
       renderList();
-    } catch (e) { alert(e.message); }
+    } catch (e) { console.error('[action] deleteSlot failed', e); alert(e.message); }
   }
 
   async function openSlot(id) {
