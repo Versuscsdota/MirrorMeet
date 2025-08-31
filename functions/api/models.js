@@ -7,7 +7,7 @@ import { normalizeStatuses, validateStatus, syncSlotModelStatuses, autoSetRegist
 
 export async function onRequestGet(context) {
   const { env, request } = context;
-  const { error } = await requireRole(env, request, ['root','admin','interviewer']);
+  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -25,6 +25,10 @@ export async function onRequestGet(context) {
         }
       }
     } catch {}
+    // Hide sensitive fields for interviewers
+    if (sess && sess.user && sess.user.role === 'interviewer') {
+      if ('webcamAccounts' in out) delete out.webcamAccounts;
+    }
     return json(out);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
@@ -38,6 +42,9 @@ export async function onRequestGet(context) {
         if (regHist && regHist.ts) out.registration.registeredAt = regHist.ts;
       }
     } catch {}
+    if (sess && sess.user && sess.user.role === 'interviewer') {
+      if ('webcamAccounts' in out) delete out.webcamAccounts;
+    }
     return out;
   });
   items.sort((a,b) => b.createdAt - a.createdAt);

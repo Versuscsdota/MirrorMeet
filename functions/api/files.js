@@ -38,11 +38,10 @@ export async function onRequestGet(context) {
   const slotId = url.searchParams.get('slotId');
 
   if (id) {
-    // Access by id: allow root/admin for everything; allow interviewer only for slot files
+    // Access by id: only root/admin
     const meta = await env.CRM_KV.get(`file:${id}`, { type: 'json' });
     if (!meta) return notFound('file');
-    const roles = meta.entity === 'slot' ? ['root','admin','interviewer'] : ['root','admin'];
-    const { error } = await requireRole(env, request, roles);
+    const { error } = await requireRole(env, request, ['root','admin']);
     if (error) return error;
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
@@ -99,7 +98,7 @@ export async function onRequestGet(context) {
   }
 
   if (slotId) {
-    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
+    const { error } = await requireRole(env, request, ['root','admin']);
     if (error) return error;
     const idx = await env.CRM_KV.list({ prefix: `file_slot:${slotId}:` });
     let metas = [];
@@ -123,7 +122,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
-  // For model files: root/admin; for slot files: root/admin/interviewer
+  // Uploads: only root/admin
 
   if (!request.headers.get('content-type')?.includes('multipart/form-data')) return badRequest('multipart/form-data required');
   const fd = await request.formData();
@@ -140,18 +139,15 @@ export async function onRequestPost(context) {
   if (files.length > MAX_FILES) return forbidden(`Слишком много файлов за один раз (макс ${MAX_FILES})`);
 
   let entity = null;
+  const { error: upErr } = await requireRole(env, request, ['root','admin']);
+  if (upErr) return upErr;
   if (modelId) {
-    const { sess, error } = await requireRole(env, request, ['root','admin']);
-    if (error) return error;
     const model = await env.CRM_KV.get(`model:${modelId}`);
     if (!model) return notFound('model');
     entity = { type: 'model', id: modelId, roles: ['root','admin'] };
   } else {
-    const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
-    if (error) return error;
-    const slot = await env.CRM_KV.get(`slot_index:${slotId}`); // dummy read to ensure kv available (optional)
-    // we don't maintain slot_index here; presence not critical
-    entity = { type: 'slot', id: slotId, roles: ['root','admin','interviewer'] };
+    // slot upload also restricted to root/admin
+    entity = { type: 'slot', id: slotId, roles: ['root','admin'] };
   }
 
   const created = [];
