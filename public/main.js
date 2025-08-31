@@ -673,9 +673,8 @@ async function renderCalendar() {
         console.debug('[openSlot][status3][PUT] payload', payload);
         const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
         console.debug('[openSlot][status3][PUT] response', updated);
-        // update local slot
-        slots = slots.map(x => x.id === s.id ? updated : x);
-        renderList();
+        // refresh from server to avoid stale local state
+        await load();
         close();
       } catch (e) { setError(e.message); }
     };
@@ -694,8 +693,8 @@ async function renderCalendar() {
       console.debug('[openSlot][PUT] payload', body);
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
       console.debug('[openSlot][PUT] response', updated);
-      slots = slots.map(x => x.id === s.id ? updated : x);
-      renderList();
+      // refresh from server to avoid stale local state
+      await load();
       close();
     } catch (e) { setError(e.message); }
   }
