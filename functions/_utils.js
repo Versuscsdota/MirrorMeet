@@ -1,6 +1,22 @@
 // Shared utilities for Pages Functions
-export const json = (data, init = {}) => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json', ...(init.headers || {}) }, ...init });
-export const text = (msg, init = {}) => new Response(msg, { headers: { 'content-type': 'text/plain; charset=utf-8', ...(init.headers || {}) }, ...init });
+export const json = (data, init = {}) => new Response(JSON.stringify(data), {
+  headers: {
+    'content-type': 'application/json',
+    'cache-control': 'no-store, no-cache, must-revalidate',
+    'pragma': 'no-cache',
+    ...(init.headers || {})
+  },
+  ...init
+});
+export const text = (msg, init = {}) => new Response(msg, {
+  headers: {
+    'content-type': 'text/plain; charset=utf-8',
+    'cache-control': 'no-store, no-cache, must-revalidate',
+    'pragma': 'no-cache',
+    ...(init.headers || {})
+  },
+  ...init
+});
 
 export const badRequest = (msg) => text(msg || 'Bad Request', { status: 400 });
 export const unauthorized = (msg) => text(msg || 'Unauthorized', { status: 401 });

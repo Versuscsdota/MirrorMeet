@@ -1,11 +1,23 @@
 const api = async (path, opts = {}) => {
   const isFD = (opts && opts.body && typeof FormData !== 'undefined' && opts.body instanceof FormData);
   const headers = isFD ? (opts.headers || {}) : { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  const res = await fetch(path, {
+  // Prevent 304 / cached JSON — always fetch fresh data
+  const reqInit = {
     credentials: 'include',
-    headers,
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', ...headers },
     ...opts,
-  });
+  };
+  // Add cache-busting param for GET requests
+  try {
+    const method = (reqInit.method || 'GET').toUpperCase();
+    if (method === 'GET') {
+      const url = new URL(path, location.origin);
+      url.searchParams.set('__ts', String(Date.now()));
+      path = url.toString();
+    }
+  } catch {}
+  const res = await fetch(path, reqInit);
   if (!res.ok) throw new Error(await res.text());
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
