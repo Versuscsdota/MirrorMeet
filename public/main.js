@@ -1589,49 +1589,9 @@ async function renderSchedule() {
   });
 }
 
-// Password confirmation for root operations
+// Password confirmation for root operations (disabled - always allow)
 async function confirmRootPassword(operation) {
-  if (window.currentUser.role !== 'root') {
-    throw new Error('Недостаточно прав');
-  }
-  
-  const form = document.createElement('div');
-  form.innerHTML = `
-    <p style="margin-bottom: 16px; color: var(--muted);">
-      Для выполнения операции "${operation}" введите ваш пароль:
-    </p>
-    <label>Пароль<input id="rootPassword" type="password" placeholder="Введите пароль" required /></label>
-  `;
-  
-  const result = await showModal({
-    title: 'Подтверждение root операции',
-    content: form,
-    submitText: 'Подтвердить'
-  });
-  
-  if (!result) return false;
-  
-  const password = el('#rootPassword').value;
-  if (!password) {
-    result.setError('Пароль обязателен');
-    return false;
-  }
-  
-  try {
-    // Verify password by attempting to login
-    await api('/api/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        login: window.currentUser.login,
-        password: password
-      })
-    });
-    result.close();
-    return true;
-  } catch (err) {
-    result.setError('Неверный пароль');
-    return false;
-  }
+  return true;
 }
 
 async function deleteEmployeeWithPassword(employee) {
