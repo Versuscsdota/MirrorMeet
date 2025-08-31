@@ -505,12 +505,14 @@ async function renderCalendar() {
 
   async function openSlot(id) {
     const s = slots.find(x => x.id === id);
+    console.debug('[openSlot] start', { id, found: !!s, slot: s });
     if (!s) return;
     const box = document.createElement('div');
     const canCreateModel = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
     box.innerHTML = `
       <div style="display:grid;gap:8px">
         <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
+        <div style="font-size:11px;color:#9aa;user-select:text">ID: <code>${s.id}</code></div>
         <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
           <label>Статус посещения
@@ -660,7 +662,10 @@ async function renderCalendar() {
       const { close, setError } = m;
       try {
         const val = form.querySelector('#s3').value || undefined;
-        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || date, status3: val }) });
+        const payload = { id: s.id, date: s.date || date, status3: val };
+        console.debug('[openSlot][status3][PUT] payload', payload);
+        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
+        console.debug('[openSlot][status3][PUT] response', updated);
         // update local slot
         slots = slots.map(x => x.id === s.id ? updated : x);
         renderList();
