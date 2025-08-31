@@ -186,9 +186,9 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
-  padding: 8px 4px;
-  transition: all 0.2s ease;
+  min-height: 44px;
+  padding: 6px 4px;
+  transition: background 0.15s ease;
 }
 .sched-cell:last-child {
   border-right: none;
@@ -201,34 +201,30 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   border-right: 1px solid rgba(226, 232, 240, 0.2);
 }
 
-.sched-row:hover {
-  background: var(--panel-light);
-}
+.sched-row:hover { background: rgba(148, 163, 184, 0.06); }
 
 .slot-block {
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(135deg, var(--accent) 0%, #059669 100%) !important;
-  border: 1px solid rgba(255,255,255,0.2);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  background: var(--accent) !important;
+  border: 1px solid var(--accent-weak);
+  box-shadow: none;
 }
 
 .slot-block:hover {
-  transform: scale(1.08) translateY(-2px);
-  z-index: 5;
-  box-shadow: 0 8px 25px rgba(43, 179, 177, 0.3);
-  border-color: rgba(255,255,255,0.4);
+  z-index: 3;
+  background: var(--accent-strong) !important;
+  border-color: var(--accent);
 }
 
 .slot-actions-mini {
   display: flex;
   gap: 4px;
-  backdrop-filter: blur(8px);
-  background: rgba(17, 24, 39, 0.95);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  padding: 4px;
+  box-shadow: none;
 }
 
 .slot-actions-mini button {
@@ -251,8 +247,6 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 
 .slot-actions-mini button:hover {
   background: var(--accent-strong);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
 .slot-actions-mini .delete-slot:hover {
@@ -284,7 +278,6 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   background: var(--panel); 
   overflow: auto; 
   max-height: calc(100vh - 140px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .sched-table { 
   position: relative; 
@@ -295,25 +288,19 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   position: sticky; 
   top: 0; 
   z-index: 3; 
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%); 
-  border-bottom: 2px solid var(--accent); 
+  background: var(--panel-light); 
+  border-bottom: 1px solid var(--border); 
   font-weight: 600;
   color: #f8fafc;
-  min-height: 56px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-height: 44px;
 }
 .sched-row {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  min-height: 72px;
-  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  min-height: 56px;
+  transition: background 0.15s ease;
 }
-.sched-row:nth-child(even) {
-  background: rgba(15, 23, 42, 0.2);
-}
-.sched-row:hover {
-  background: rgba(43, 179, 177, 0.05);
-  transform: translateY(-1px);
-}
+.sched-row:nth-child(even) { background: transparent; }
+.sched-row:hover { background: rgba(148, 163, 184, 0.06); }
 .cell-left { 
   width: 280px; 
   border-right: 2px solid var(--border); 
