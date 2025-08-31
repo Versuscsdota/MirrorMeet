@@ -1,6 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
-import { normalizeStatuses, validateStatus, autoSetRegistrationStatus } from '../_status.js';
+import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry } from '../_status.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
@@ -72,6 +72,7 @@ export async function onRequestPost(context) {
     const internshipDate = (body.internshipDate || '').trim();
     const regComment = (body.comment || '').trim();
     const id = newId('mdl');
+    const now = Date.now();
 
     // sanitize incoming statuses with fallback to slot, and auto-derive registration when applicable
     const rawStatuses = {
@@ -92,11 +93,11 @@ export async function onRequestPost(context) {
       history: [],
       comments: [],
       mainPhotoId: null,
-      createdAt: Date.now(),
+      createdAt: now,
       createdBy: sess.user.id,
       // Registration snapshot
       registration: {
-        registeredAt: Date.now(),
+        registeredAt: now,
         slotRef: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
         birthDate,
         docType: docType || null,
@@ -121,7 +122,7 @@ export async function onRequestPost(context) {
 
     // initial history with registration snapshot and statuses for timeline
     model.history.push({
-      ts: Date.now(),
+      ts: now,
       type: 'registration',
       slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
       statuses: { status1: s1, ...(s2 ? { status2: s2 } : {}), ...(s3 ? { status3: s3 } : {}) },
@@ -147,7 +148,7 @@ export async function onRequestPost(context) {
         if (model.name && curSlot.title !== model.name) {
           curSlot.history = curSlot.history || [];
           curSlot.history.push({
-            ts: Date.now(),
+            ts: now,
             userId: sess.user.id,
             action: 'title_sync_from_model',
             modelId: id,
@@ -272,7 +273,9 @@ export async function onRequestPost(context) {
   const note = (body.note || '').trim();
   const fullName = (body.fullName || '').trim();
   const contacts = { phone: (body.phone || (body.contacts && body.contacts.phone) || '').trim() };
-  const tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
+  const tags = Array.isArray(body.tags)
+    ? Array.from(new Set(body.tags.map(t => String(t).trim()).filter(Boolean)))
+    : [];
   if (!name) return badRequest('name required');
   const id = newId('mdl');
   const model = { id, name, note, fullName, contacts, tags, history: [], comments: [], mainPhotoId: null, createdAt: Date.now(), createdBy: sess.user.id };
@@ -322,7 +325,11 @@ export async function onRequestPut(context) {
     cur.contacts = cur.contacts || {};
     if ('phone' in body.contacts) cur.contacts.phone = safeTrim(body.contacts.phone, typeof cur.contacts.phone === 'string' ? cur.contacts.phone : '');
   }
-  if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
+  if (body.tags !== undefined) {
+    cur.tags = Array.isArray(body.tags)
+      ? Array.from(new Set(body.tags.map(t => String(t).trim()).filter(Boolean)))
+      : [];
+  }
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
   
   // Handle status updates with validation
@@ -368,16 +375,7 @@ export async function onRequestPut(context) {
   // Add status change history if statuses changed
   if (statusChanged) {
     cur.history = cur.history || [];
-    cur.history.push({
-      ts: Date.now(),
-      type: 'status_change',
-      userId: sess.user.id,
-      changes: {
-        ...(oldStatuses.status1 !== cur.status1 ? { status1: { from: oldStatuses.status1, to: cur.status1 } } : {}),
-        ...(oldStatuses.status2 !== cur.status2 ? { status2: { from: oldStatuses.status2, to: cur.status2 } } : {}),
-        ...(oldStatuses.status3 !== cur.status3 ? { status3: { from: oldStatuses.status3, to: cur.status3 } } : {})
-      }
-    });
+    cur.history.push(createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3 }));
   }
   
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));

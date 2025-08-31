@@ -70,7 +70,9 @@ export async function onRequestGet(context) {
     return new Response(obj.body, { headers: {
       'content-type': ct,
       'content-length': String(meta.size || 0),
-      'content-disposition': dispo
+      'content-disposition': dispo,
+      'cache-control': 'no-store, no-cache, must-revalidate',
+      'pragma': 'no-cache'
     } });
   }
 
