@@ -58,6 +58,7 @@ export async function onRequestPost(context) {
     const slot = await env.CRM_KV.get(`slot:${date}:${slotId}`, { type: 'json' });
     if (!slot) return notFound('slot');
 
+    // Keep model name based on provided name or slot title; fullName is separate
     const name = (body.name || slot.title || '').trim();
     if (!name) return badRequest('name required');
     const fullName = (body.fullName || name).trim();

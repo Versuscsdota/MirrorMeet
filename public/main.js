@@ -1463,8 +1463,8 @@ async function renderModelCard(id) {
             ${mainFile ? `<img src="${mainFile.url}" alt="${model.name}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${(model.name || '').charAt(0).toUpperCase()}</span></div>`}
           </div>
           <div class="profile-info">
-            <h1 class="profile-name">${model.name || (model.registration && model.registration.fullName) || 'Модель'}</h1>
-            ${(model.registration && model.registration.fullName) ? `<h2 class="profile-fullname">${model.registration.fullName}</h2>` : ''}
+            ${(() => { const reg = model.registration || {}; const primary = model.name || reg.fullName || 'Модель'; return `<h1 class=\"profile-name\">${primary}</h1>`; })()}
+            ${(() => { const reg = model.registration || {}; const primary = model.name || reg.fullName || 'Модель'; return (reg.fullName && reg.fullName !== primary) ? `<h2 class=\"profile-fullname\">${reg.fullName}</h2>` : ''; })()}
             ${(() => {
               const reg = model.registration || {};
               // 1) explicit registeredAt
