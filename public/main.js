@@ -683,9 +683,10 @@ async function renderCalendar() {
         try {
           // Create model from slot
           // Also propagate the latest selected statuses from the edit slot modal (even if not saved yet)
-          const selS1 = (form.closest('.modal')?.querySelector('#sStatus1')?.value) || s.status1 || 'not_confirmed';
-          const selS2 = (form.closest('.modal')?.querySelector('#s2')?.value) || s.status2 || '';
-          const selS3 = (form.closest('.modal')?.querySelector('#s3')?.value) || s.status3 || '';
+          // Read from the slot modal container `box` where these controls live
+          const selS1 = (box && box.querySelector('#sStatus1') ? box.querySelector('#sStatus1').value : (s.status1 || 'not_confirmed'));
+          const selS2 = (box && box.querySelector('#s2') ? box.querySelector('#s2').value : (s.status2 || ''));
+          const selS3 = (box && box.querySelector('#s3') ? box.querySelector('#s3').value : (s.status3 || ''));
           const payload = {
             action: 'registerFromSlot',
             date: (s.date || date),
