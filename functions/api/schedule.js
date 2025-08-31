@@ -105,6 +105,7 @@ export async function onRequestPut(context) {
   if (!reDate.test(String(date))) return badRequest('invalid date format, expected YYYY-MM-DD');
   const key = `slot:${date}:${id}`;
   const cur = await env.CRM_KV.get(key, { type: 'json' });
+  console.log('[schedule PUT] payload', body);
   if (!cur) return notFound('slot');
 
   const prevStart = cur.start;
@@ -178,12 +179,21 @@ export async function onRequestPut(context) {
   if (cur.status3 && !['thinking','reject_us','reject_candidate','registration'].includes(cur.status3)) cur.status3 = undefined;
 
   // Save
-  await env.CRM_KV.put(key, JSON.stringify({ ...cur, history: [
+  const toSave = { ...cur, history: [
     ...(Array.isArray(cur.history) ? cur.history : []),
     ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
     ...(('status1' in body || 'status2' in body || 'status3' in body) ? [{ ts: Date.now(), userId: sess.user.id, action: 'status_change', status1: cur.status1, status2: cur.status2, status3: cur.status3, status2Comment: cur.status2Comment }] : []),
-  ] }));
-  return json(cur);
+  ] };
+  await env.CRM_KV.put(key, JSON.stringify(toSave));
+  const responseObj = {
+    ...toSave,
+    // Ensure statuses are explicitly present in response
+    status1: toSave.status1 || 'not_confirmed',
+    status2: toSave.status2 || undefined,
+    status3: toSave.status3 || undefined,
+  };
+  console.log('[schedule PUT] response statuses', { status1: responseObj.status1, status2: responseObj.status2, status3: responseObj.status3 });
+  return json(responseObj);
 }
 
 export async function onRequestDelete(context) {
