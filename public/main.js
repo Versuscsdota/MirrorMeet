@@ -178,21 +178,46 @@ async function renderCalendar() {
 
   async function createSlot() {
     const form = document.createElement('div');
+    // Prefill datetime with selected date at 10:00
+    const defaultDT = `${date}T10:00`;
     form.innerHTML = `
-      <label>Начало<input id="sStart" type="time" required /></label>
-      <label>Конец<input id="sEnd" type="time" required /></label>
-      <label>Заголовок<input id="sTitle" /></label>
-      <label>Заметки<textarea id="sNotes" rows="3"></textarea></label>`;
+      <label>ФИО<input id="sFullName" placeholder="Иванов Иван" required /></label>
+      <label>Номер телефона<input id="sPhone" placeholder="+7 999 123-45-67" required /></label>
+      <label>Дата и время<input id="sDT" type="datetime-local" value="${defaultDT}" required /></label>
+      <label>Комментарий<textarea id="sComment" rows="3" placeholder="Дополнительно (необязательно)"></textarea></label>`;
     const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
     if (!m) return;
     const { close, setError } = m;
-    const start = form.querySelector('#sStart').value.trim();
-    const end = form.querySelector('#sEnd').value.trim();
-    const title = form.querySelector('#sTitle').value.trim();
-    const notes = form.querySelector('#sNotes').value.trim();
-    if (!start || !end) { setError('Укажите время начала и конца'); return; }
+    const fullName = form.querySelector('#sFullName').value.trim();
+    const phone = form.querySelector('#sPhone').value.trim();
+    const dt = form.querySelector('#sDT').value.trim();
+    const comment = form.querySelector('#sComment').value.trim();
+    if (!fullName || !phone || !dt) { setError('Заполните ФИО, телефон и дату/время'); return; }
+    // Parse datetime-local -> date YYYY-MM-DD and start HH:MM
+    let dateStr = '', start = '', end = '';
     try {
-      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date, start, end, title, notes }) });
+      const [dPart, tPart] = dt.split('T');
+      if (!dPart || !tPart) throw new Error('bad dt');
+      dateStr = dPart;
+      start = tPart.slice(0,5);
+      // compute end = start + 1 hour
+      const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+      const endH = String((hh + 1) % 24).padStart(2,'0');
+      end = `${endH}:${mm.toString().padStart(2,'0')}`;
+      if (end <= start) {
+        // ensure end > start by bumping to +1:01 if wrap-around
+        const mm2 = (mm + 1) % 60;
+        const h2 = (mm2 === 0) ? ((hh + 2) % 24) : ((hh + 1) % 24);
+        end = `${String(h2).padStart(2,'0')}:${String(mm2).padStart(2,'0')}`;
+      }
+    } catch {
+      setError('Неверный формат даты/времени');
+      return;
+    }
+    const title = fullName;
+    const notes = `Телефон: ${phone}` + (comment ? `\nКомментарий: ${comment}` : '');
+    try {
+      const created = await api('/api/schedule', { method: 'POST', body: JSON.stringify({ date: dateStr, start, end, title, notes }) });
       slots = [...slots, created].sort((a,b)=> (a.start||'').localeCompare(b.start||''));
       renderList();
       close();
