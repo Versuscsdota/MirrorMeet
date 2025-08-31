@@ -406,30 +406,58 @@ async function renderCalendar() {
     timeSel.onchange = toggleWrap;
     toggleWrap();
 
-    const m = await showModal({ title: 'Редактировать слот', content: form, submitText: 'Сохранить' });
-    if (!m) return;
-    const { close, setError } = m;
-
-    const start = (timeSel.value || '').slice(0,5);
-    // compute end = start + 30 minutes
-    const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
-    const total = hh * 60 + mm + 30;
-    const eh = Math.floor((total % (24 * 60)) / 60);
-    const em = total % 60;
-    const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-    const title = form.querySelector('#sTitle').value.trim();
-    const notes = form.querySelector('#sNotes').value.trim();
-    const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
-    const timeChanged = (start !== currStart);
-    const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
-    if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
-    if (!title) { setError('Заполните ФИО'); return; }
-    try {
-      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
-      slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
-      renderList();
-      close();
-    } catch (e) { setError(e.message); }
+    // Custom modal handling for edit slot
+    const modalPromise = new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const header = document.createElement('header');
+      header.innerHTML = `<h3>Редактировать слот</h3>`;
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'ghost';
+      cancelBtn.textContent = 'Отмена';
+      const okBtn = document.createElement('button');
+      okBtn.textContent = 'Сохранить';
+      actions.append(cancelBtn, okBtn);
+      const err = document.createElement('div');
+      err.style.color = 'var(--danger)'; err.style.fontSize = '12px'; err.style.minHeight = '16px'; err.style.marginTop = '4px';
+      modal.append(header, form, err, actions);
+      backdrop.appendChild(modal);
+      document.body.appendChild(backdrop);
+      
+      const close = () => { backdrop.remove(); resolve(null); };
+      const setError = (m) => err.textContent = m;
+      
+      cancelBtn.onclick = () => close();
+      okBtn.onclick = async () => {
+        setError('');
+        const start = (timeSel.value || '').slice(0,5);
+        // compute end = start + 30 minutes
+        const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
+        const total = hh * 60 + mm + 30;
+        const eh = Math.floor((total % (24 * 60)) / 60);
+        const em = total % 60;
+        const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+        const title = form.querySelector('#sTitle').value.trim();
+        const notes = form.querySelector('#sNotes').value.trim();
+        const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
+        const timeChanged = (start !== currStart);
+        const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
+        if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
+        if (!title) { setError('Заполните ФИО'); return; }
+        try {
+          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, start, end, title, notes, comment, status1 }) });
+          slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
+          renderList();
+          close();
+        } catch (e) { setError(e.message); }
+      };
+    });
+    
+    await modalPromise;
   }
 
   async function deleteSlot(id) {
