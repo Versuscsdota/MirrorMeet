@@ -239,28 +239,52 @@ async function renderCalendar() {
 
   async function createSlot() {
     const form = document.createElement('div');
-    // Prefill datetime with selected date at 10:00
-    const defaultDT = `${date}T10:00`;
+    // Build time options 12:00 .. 18:30, step 30m; gray out (disable) if >=2 slots already at that start time for the selected date
+    const counts = new Map();
+    (slots || []).forEach(s => {
+      const k = (s.start || '').slice(0,5);
+      if (!k) return;
+      counts.set(k, (counts.get(k) || 0) + 1);
+    });
+    const times = [];
+    for (let h = 12; h <= 18; h++) {
+      for (let m = 0; m < 60; m += 30) {
+        const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        times.push(t);
+      }
+    }
+    // Also include 18:30 explicitly when h loop ends at 18 with m=30 already included above
+    // Determine default time = first available (count < 2) or 12:00
+    const firstFree = times.find(t => (counts.get(t) || 0) < 2) || times[0];
     form.innerHTML = `
       <label>ФИО<input id="sFullName" placeholder="Иванов Иван" required /></label>
       <label>Номер телефона<input id="sPhone" placeholder="+7 999 123-45-67" required /></label>
-      <label>Дата и время<input id="sDT" type="datetime-local" value="${defaultDT}" required /></label>
+      <label>Время
+        <select id="sTime" required>
+          ${times.map(t => {
+            const c = counts.get(t) || 0;
+            const full = c >= 2;
+            const attrs = `${t === firstFree ? ' selected' : ''}${full ? ' disabled' : ''}`;
+            const style = full ? ' style="color:#888"' : '';
+            const label = full ? `${t} (занято)` : t;
+            return `<option value="${t}"${attrs}${style}>${label}</option>`;
+          }).join('')}
+        </select>
+      </label>
       <label>Комментарий<textarea id="sComment" rows="3" placeholder="Дополнительно (необязательно)"></textarea></label>`;
     const m = await showModal({ title: 'Создать слот', content: form, submitText: 'Создать' });
     if (!m) return;
     const { close, setError } = m;
     const fullName = form.querySelector('#sFullName').value.trim();
     const phone = form.querySelector('#sPhone').value.trim();
-    const dt = form.querySelector('#sDT').value.trim();
+    const selectedTime = (form.querySelector('#sTime').value || '').trim();
     const comment = form.querySelector('#sComment').value.trim();
-    if (!fullName || !phone || !dt) { setError('Заполните ФИО, телефон и дату/время'); return; }
-    // Parse datetime-local -> date YYYY-MM-DD and start HH:MM
+    if (!fullName || !phone || !selectedTime) { setError('Заполните ФИО, телефон и время'); return; }
+    // Use selected calendar date and selected time; end = +1 hour
     let dateStr = '', start = '', end = '';
     try {
-      const [dPart, tPart] = dt.split('T');
-      if (!dPart || !tPart) throw new Error('bad dt');
-      dateStr = dPart;
-      start = tPart.slice(0,5);
+      dateStr = date; // selected day in calendar
+      start = selectedTime.slice(0,5);
       // compute end = start + 1 hour
       const [hh, mm] = start.split(':').map(n=>parseInt(n,10));
       const endH = String((hh + 1) % 24).padStart(2,'0');
@@ -272,7 +296,7 @@ async function renderCalendar() {
         end = `${String(h2).padStart(2,'0')}:${String(mm2).padStart(2,'0')}`;
       }
     } catch {
-      setError('Неверный формат даты/времени');
+      setError('Неверный формат времени');
       return;
     }
     const title = fullName;
