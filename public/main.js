@@ -1468,7 +1468,7 @@ async function renderModelCard(id) {
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
                 </svg>
               </button>
-              <button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}" onclick="window._handleDeleteModel && window._handleDeleteModel(this)">Удалить модель</button>
+              <button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}" onclick="console.log('DELETE BUTTON CLICKED'); alert('Delete clicked'); if(window._handleDeleteModel) { window._handleDeleteModel(this); } else { alert('Handler not found'); }">Удалить модель</button>
             </div>
           </div>
         </div>
