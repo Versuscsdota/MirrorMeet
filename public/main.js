@@ -160,23 +160,24 @@ async function renderCalendar() {
 
   function renderList() {
     const list = el('#slotList');
-    if (!slots.length) { list.innerHTML = '<li class="employee-item"><div class="employee-info">Слотов нет</div></li>'; return; }
-    list.innerHTML = slots.map(s => `
-      <li class="slot-item">
-        <div class="slot-card">
-          <div class="slot-header">
-            <div class="slot-time">${s.start || ''}–${s.end || ''}</div>
-            <div class="slot-actions">
-              <button type="button" class="open-slot" data-id="${s.id}">Открыть</button>
-              ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
-              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}
-            </div>
+    if (!slots.length) { list.innerHTML = '<div class="empty-state">Слотов нет</div>'; return; }
+    list.innerHTML = `<div class="grid" style="gap: 16px;">${slots.map(s => `
+      <div class="card model-card slot-card">
+        <div class="model-header">
+          <div>
+            <h3>${s.title || 'Слот'}</h3>
+            <div class="model-fullname">${s.start || ''}–${s.end || ''}</div>
           </div>
-          <div class="slot-title">${s.title || ''}</div>
-          ${s.notes ? `<div class="slot-notes">${s.notes}</div>` : ''}
+          <div class="slot-time-badge">${s.start || ''}</div>
         </div>
-      </li>
-    `).join('');
+        ${s.notes ? `<div class="model-info"><div class="model-note">${s.notes}</div></div>` : ''}
+        <div class="model-actions">
+          <button type="button" class="open-slot primary" data-id="${s.id}">Открыть</button>
+          ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot secondary" data-id="${s.id}">Редактировать</button>` : ''}
+          ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot danger" data-id="${s.id}">Удалить</button>` : ''}
+        </div>
+      </div>
+    `).join('')}</div>`;
 
     // Wire actions via event delegation with addEventListener (set once)
     if (!list._delegated) {

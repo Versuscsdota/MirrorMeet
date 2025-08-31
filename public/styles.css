@@ -181,105 +181,20 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
   margin: 4px 0 0 0;
 }
 
-/* Slot cards */
-.slot-item {
-  list-style: none;
-  margin: 0 0 12px 0;
-  padding: 0;
-}
-
-.slot-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  transition: border-color 0.2s ease;
-}
-
-.slot-card:hover {
-  border-color: var(--accent-weak);
-}
-
-.slot-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.slot-time {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--accent);
-  background: var(--panel-light);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.slot-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-
-.slot-notes {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.4;
-  background: var(--panel-light);
-  padding: 8px;
-  border-radius: 4px;
-  margin-top: 8px;
-}
-
-.slot-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-/* Slot action buttons */
-.open-slot, .edit-slot, .delete-slot {
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 4px;
-  border: 1px solid;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.open-slot {
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.open-slot:hover {
-  background: var(--panel-light);
-  border-color: var(--accent-weak);
-}
-
-.edit-slot {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.edit-slot:hover {
+.slot-time-badge {
   background: var(--accent);
   color: var(--bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.delete-slot {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.delete-slot:hover {
-  background: var(--danger);
-  color: var(--bg);
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 20px;
+  font-size: 16px;
 }
 
 .empl-pos { font-size: 12px; color: var(--muted); }
