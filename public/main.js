@@ -85,7 +85,7 @@ async function renderCalendar() {
           <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
         </div>
         <div id="monthGrid"></div>
-        ${(window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
+        ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
       </div>
       <div class="card">
         <div style="padding:16px;border-bottom:1px solid #1e1e1e">
