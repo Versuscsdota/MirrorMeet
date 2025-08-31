@@ -74,6 +74,7 @@ export async function onRequestPost(context) {
       createdBy: sess.user.id,
       // Registration snapshot
       registration: {
+        registeredAt: Date.now(),
         slotRef: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
         birthDate,
         docType: docType || null,

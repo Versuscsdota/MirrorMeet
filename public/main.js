@@ -603,9 +603,6 @@ async function renderCalendar() {
     if (s2 && s2cWrap) {
       s2.onchange = async () => { 
         s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
-        // Toggle registration availability based on status1 + status2
-        const regBtn = box.querySelector('#createModelBtn');
-        if (regBtn) regBtn.disabled = !(s.status1 === 'confirmed' && s2.value === 'arrived');
         // Auto-derive status3=registration when both conditions met and slot has no status3
         if (s.status1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
           try {
@@ -627,9 +624,7 @@ async function renderCalendar() {
       };
     }
 
-    // Initialize registration button state
-    const regBtnInit = box.querySelector('#createModelBtn');
-    if (regBtnInit) regBtnInit.disabled = !(s.status1 === 'confirmed' && (s.status2 === 'arrived'));
+    // Registration button is always enabled (no status-based restriction)
 
     // status3 buttons behavior: highlight current and save on click
     const s3Group = box.querySelector('#s3Group');
@@ -1470,7 +1465,19 @@ async function renderModelCard(id) {
           <div class="profile-info">
             <h1 class="profile-name">${model.name || (model.registration && model.registration.fullName) || 'Модель'}</h1>
             ${(model.registration && model.registration.fullName) ? `<h2 class="profile-fullname">${model.registration.fullName}</h2>` : ''}
-            ${(model.registration && model.registration.slotRef) ? `<div class="profile-meta" style="color:#94a3b8;font-size:12px;margin-top:4px">Зарегистрирована: ${new Date(model.registration.slotRef.date).toLocaleDateString('ru-RU')} ${model.registration.slotRef.start ? model.registration.slotRef.start.slice(0,5) : ''}</div>` : ''}
+            ${(() => {
+              const reg = model.registration || {};
+              if (reg.registeredAt) {
+                const when = new Date(reg.registeredAt).toLocaleString('ru-RU');
+                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${when}</div>`;
+              }
+              if (reg.slotRef) {
+                const d = new Date(reg.slotRef.date).toLocaleDateString('ru-RU');
+                const t = reg.slotRef.start ? reg.slotRef.start.slice(0,5) : '';
+                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${d} ${t}</div>`;
+              }
+              return '';
+            })()}
             <div class="status-badges">
               ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })()}
               ${model.status2 ? `<span class=\"status-badge secondary\">${({arrived:'Пришла',no_show:'Не пришла',other:'Другое'})[model.status2]||model.status2}</span>` : ''}
