@@ -1177,16 +1177,12 @@ async function renderEmployeeCard(id) {
         <div class="card" style="padding:16px">
           <h3 style="margin-top:0">Профиль</h3>
           <div style="display:grid;gap:6px;font-size:14px">
-            ${e.position ? `<div><strong>Должность:</strong> ${e.position}</div>` : ''}
-            ${e.department ? `<div><strong>Отдел:</strong> ${e.department}</div>` : ''}
             ${e.role ? `<div><strong>Роль:</strong> ${e.role}</div>` : ''}
             ${e.phone ? `<div><strong>Телефон:</strong> ${e.phone}</div>` : ''}
             ${e.email ? `<div><strong>Email:</strong> ${e.email}</div>` : ''}
             ${e.telegram ? `<div><strong>Telegram:</strong> <a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">${e.telegram}</a></div>` : ''}
             ${e.startDate ? `<div><strong>Начало работы:</strong> ${e.startDate}</div>` : ''}
             ${e.birthDate ? `<div><strong>Дата рождения:</strong> ${e.birthDate}</div>` : ''}
-            ${e.city ? `<div><strong>Город:</strong> ${e.city}</div>` : ''}
-            ${e.address ? `<div><strong>Адрес:</strong> ${e.address}</div>` : ''}
             ${e.notes ? `<div style="white-space:pre-wrap"><strong>Заметки:</strong> ${e.notes}</div>` : ''}
           </div>
           ${(window.currentUser && (window.currentUser.role === 'root')) ? `
@@ -1977,7 +1973,6 @@ async function renderSchedule() {
             <div class="sched-row" data-emp="${emp.id}" style="height:${ROW_H}px">
               <div class="cell-left sticky">
                 <div class="empl-name">${emp.fullName}</div>
-                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">${emp.position || ''}</div>
               </div>
               <div class="cell-right" style="width:${width}px">
                 <div class="row-grid"></div>
@@ -2185,7 +2180,7 @@ async function renderSchedule() {
       <label>Сотрудник
         <select id="evEmployee" required>
           <option value="">Выберите сотрудника</option>
-          ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName} — ${e.position || 'Сотрудник'}</option>`).join('')}
+          ${(employees||[]).map(e=>`<option value="${e.id}">${e.fullName}</option>`).join('')}
         </select>
       </label>
       <label>Примечания<textarea id="evDesc" placeholder="Дополнительная информация" rows="2" style="resize:vertical"></textarea></label>`;
