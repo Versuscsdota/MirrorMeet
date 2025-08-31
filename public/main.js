@@ -551,10 +551,7 @@ async function renderCalendar() {
           <label id="s2cWrap" style="display:${s.status2 === 'other' ? 'block' : 'none'}">Комментарий к статусу<textarea id="s2c" rows="2" placeholder="Уточните причину">${s.status2Comment || ''}</textarea></label>
         </div>
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <h4 style="margin:0">Вложения</h4>
-            ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<a href="/audit.html" target="_blank" class="ghost" style="text-decoration:none;border:1px solid #1f2937;padding:6px 8px;border-radius:6px">Открыть логи</a>` : ''}
-          </div>
+          <h4>Вложения</h4>
           <div id="attList" style="display:grid;gap:8px"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input id="upFile" type="file" accept="image/*,audio/*" />
