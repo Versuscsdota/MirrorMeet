@@ -140,6 +140,19 @@ export async function onRequestPost(context) {
       const curSlot = await env.CRM_KV.get(slotKey, { type: 'json' });
       if (curSlot) {
         curSlot.modelId = id;
+        // If a custom name was provided that differs from slot.title, sync the slot title to the model name
+        if (model.name && curSlot.title !== model.name) {
+          curSlot.history = curSlot.history || [];
+          curSlot.history.push({
+            ts: Date.now(),
+            userId: sess.user.id,
+            action: 'title_sync_from_model',
+            modelId: id,
+            oldTitle: curSlot.title,
+            newTitle: model.name
+          });
+          curSlot.title = model.name;
+        }
         await env.CRM_KV.put(slotKey, JSON.stringify(curSlot));
       }
     } catch {}
@@ -199,6 +212,20 @@ export async function onRequestPost(context) {
 
     // Link back slot -> model
     slot.modelId = model.id;
+
+    // Sync slot.title to model.name for consistency in schedule UI
+    if (model.name && slot.title !== model.name) {
+      slot.history = slot.history || [];
+      slot.history.push({
+        ts: Date.now(),
+        userId: sess.user.id,
+        action: 'title_sync_from_model',
+        modelId: model.id,
+        oldTitle: slot.title,
+        newTitle: model.name
+      });
+      slot.title = model.name;
+    }
 
     await env.CRM_KV.put(`model:${model.id}`, JSON.stringify(model));
     await env.CRM_KV.put(`slot:${slot.date}:${slot.id}`, JSON.stringify(slot));
@@ -278,6 +305,8 @@ export async function onRequestPut(context) {
     return s;
   };
 
+  // Track name change to optionally sync linked slot title
+  const prevName = typeof cur.name === 'string' ? cur.name : '';
   if ('name' in body) cur.name = safeTrim(body.name, typeof cur.name === 'string' ? cur.name : '');
   if ('note' in body) cur.note = safeTrim(body.note, typeof cur.note === 'string' ? cur.note : '');
   if ('fullName' in body) {
@@ -377,6 +406,30 @@ export async function onRequestPut(context) {
     } catch (e) {
       console.warn('Failed to sync model->slot statuses:', e);
     }
+  }
+  
+  // If model name changed, sync linked slot title to keep schedule consistent
+  try {
+    const nameChanged = ('name' in body) && (safeTrim(body.name, prevName) !== prevName);
+    if (nameChanged && cur.registration && cur.registration.slotRef) {
+      const slotKey = `slot:${cur.registration.slotRef.date}:${cur.registration.slotRef.id}`;
+      const slot = await env.CRM_KV.get(slotKey, { type: 'json' });
+      if (slot && slot.title !== cur.name) {
+        slot.history = slot.history || [];
+        slot.history.push({
+          ts: Date.now(),
+          userId: sess.user.id,
+          action: 'title_sync_from_model',
+          modelId: cur.id,
+          oldTitle: slot.title,
+          newTitle: cur.name
+        });
+        slot.title = cur.name;
+        await env.CRM_KV.put(slotKey, JSON.stringify(slot));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to sync model name to slot title:', e);
   }
   
   return json(cur);
