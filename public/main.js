@@ -601,11 +601,29 @@ async function renderCalendar() {
     const s2 = box.querySelector('#s2');
     const s2cWrap = box.querySelector('#s2cWrap');
     if (s2 && s2cWrap) {
-      s2.onchange = () => { 
+      s2.onchange = async () => { 
         s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
         // Toggle registration availability based on status1 + status2
         const regBtn = box.querySelector('#createModelBtn');
         if (regBtn) regBtn.disabled = !(s.status1 === 'confirmed' && s2.value === 'arrived');
+        // Auto-derive status3=registration when both conditions met and slot has no status3
+        if (s.status1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
+          try {
+            const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status2: 'arrived' }) });
+            Object.assign(s, updated);
+            const s3GroupEl = box.querySelector('#s3Group');
+            if (s3GroupEl) {
+              // reuse highlighter defined below (safe invoke after it exists)
+              const active = updated.status3 || '';
+              [...s3GroupEl.querySelectorAll('.s3btn')].forEach(b => {
+                const isActive = b.dataset.v === active;
+                b.style.background = isActive ? 'var(--accent)' : '';
+                b.style.color = isActive ? 'var(--bg)' : '';
+                if (isActive) b.setAttribute('data-selected','true'); else b.removeAttribute('data-selected');
+              });
+            }
+          } catch (e) { /* ignore */ }
+        }
       };
     }
 
