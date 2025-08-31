@@ -1292,12 +1292,13 @@ function renderAppShell(me) {
     el('#nav-files').onclick = renderFileSystem;
   } else if (me.role === 'interviewer') {
     el('#nav-calendar').onclick = renderCalendar;
+    el('#nav-models').onclick = renderModels;
   }
 }
 
 async function renderModels() {
-  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
-    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+  if (!(window.currentUser && (['root','admin','interviewer'].includes(window.currentUser.role)))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только для администраторов и интервьюеров.</p></div>`;
     return;
   }
   const view = el('#view');
@@ -1421,8 +1422,8 @@ async function renderModels() {
 }
 
 async function renderModelCard(id) {
-  if (!(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin'))) {
-    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только администраторам.</p></div>`;
+  if (!(window.currentUser && (['root','admin','interviewer'].includes(window.currentUser.role)))) {
+    el('#view').innerHTML = `<div class="card"><h3>Недостаточно прав</h3><p>Доступно только для администраторов и интервьюеров.</p></div>`;
     return;
   }
   const view = el('#view');
@@ -1475,7 +1476,7 @@ async function renderModelCard(id) {
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
                 </svg>
               </button>
-              <button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}">Удалить модель</button>
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}">Удалить модель</button>` : ''}
             </div>
           </div>
         </div>
