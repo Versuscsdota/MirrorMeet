@@ -134,6 +134,10 @@ export async function onRequestPost(context) {
   const description = (fd.get('description') || '').toString();
   if ((!modelId && !slotId) || !files || files.length === 0) return badRequest('modelId or slotId and at least one file required');
 
+  const MAX_BYTES = Number(env.MAX_UPLOAD_BYTES || 50 * 1024 * 1024);
+  const MAX_FILES = Number(env.MAX_FILES_PER_UPLOAD || 10);
+  if (files.length > MAX_FILES) return forbidden(`Слишком много файлов за один раз (макс ${MAX_FILES})`);
+
   let entity = null;
   if (modelId) {
     const { sess, error } = await requireRole(env, request, ['root','admin']);
@@ -149,12 +153,10 @@ export async function onRequestPost(context) {
     entity = { type: 'slot', id: slotId, roles: ['root','admin','interviewer'] };
   }
 
-  // enforce 50 MB limit per file
-  const MAX = 50 * 1024 * 1024;
   const created = [];
   for (const f of files) {
     const size = f.size ?? 0;
-    if (size > MAX) return forbidden('Размер файла превышает 50 МБ');
+    if (size > MAX_BYTES) return forbidden(`Размер файла превышает лимит ${Math.round(MAX_BYTES/1024/1024)} МБ`);
     // Type and extension validation
     const contentType = f.type || 'application/octet-stream';
     if (contentType && !ALLOWED_MIME.has(contentType)) {

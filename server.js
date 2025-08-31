@@ -36,6 +36,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB || 50);
+const MAX_UPLOAD_BYTES = Math.max(1, Math.min(MAX_UPLOAD_MB, 1024)) * 1024 * 1024; // cap at 1GB
+const MAX_FILES_PER_UPLOAD = Number(process.env.MAX_FILES_PER_UPLOAD || 10);
 
 // CORS (adjust for production)
 app.use((req, res, next) => {
@@ -59,11 +62,13 @@ const env = {
   SESSION_COOKIE_NAME: process.env.SESSION_COOKIE_NAME || 'mirrorsid',
   SESSION_TTL_SECONDS: Number(process.env.SESSION_TTL_SECONDS || 604800),
   SESSION_HMAC_SECRET: process.env.SESSION_HMAC_SECRET || '',
-  COOKIE_SECURE: (process.env.COOKIE_SECURE ?? 'true') !== 'false'
+  COOKIE_SECURE: (process.env.COOKIE_SECURE ?? 'true') !== 'false',
+  MAX_UPLOAD_BYTES,
+  MAX_FILES_PER_UPLOAD
 };
 
 // Support multipart for endpoints that need formData()
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_FILES_PER_UPLOAD } });
 
 // Minimal Request shim to satisfy handlers
 class RequestShim {

@@ -55,10 +55,21 @@ export async function onRequestPost(context) {
   const end = (body.end || '').trim();     // HH:MM
   const title = (body.title || '').trim();
   if (!date || !start || !end) return badRequest('date/start/end required');
+
+  // Validate date YYYY-MM-DD
+  const reDate = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+  if (!reDate.test(date)) return badRequest('invalid date format, expected YYYY-MM-DD');
+  // Validate time HH:MM 24h
+  const reTime = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (!reTime.test(start) || !reTime.test(end)) return badRequest('invalid time format, expected HH:MM');
+  if (end <= start) return badRequest('end time must be greater than start time');
+  if (title.length > 100) return badRequest('title too long (max 100)');
+  const notesStr = (body.notes || '').trim();
+  if (notesStr.length > 2000) return badRequest('notes too long (max 2000)');
   const id = newId('slt');
   const slot = { 
     id, date, start, end, title,
-    notes: (body.notes || '').trim() || undefined,
+    notes: notesStr || undefined,
     // optional assignment to employee
     employeeId: (body.employeeId || '').trim() || undefined,
     interview: { text: (body.interviewText || '').trim() || undefined },
@@ -76,6 +87,8 @@ export async function onRequestPut(context) {
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   const { id, date } = body;
   if (!id || !date) return badRequest('id/date required');
+  const reDate = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+  if (!reDate.test(String(date))) return badRequest('invalid date format, expected YYYY-MM-DD');
   const key = `slot:${date}:${id}`;
   const cur = await env.CRM_KV.get(key, { type: 'json' });
   if (!cur) return notFound('slot');
@@ -83,10 +96,28 @@ export async function onRequestPut(context) {
   const prevStart = cur.start;
   const prevEnd = cur.end;
 
-  if ('start' in body) cur.start = (body.start || '').trim();
-  if ('end' in body) cur.end = (body.end || '').trim();
-  if ('title' in body) cur.title = (body.title || '').trim();
-  if ('notes' in body) cur.notes = (body.notes || '').trim() || undefined;
+  const reTime = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if ('start' in body) {
+    const s = (body.start || '').trim();
+    if (s && !reTime.test(s)) return badRequest('invalid time format for start, expected HH:MM');
+    cur.start = s || cur.start;
+  }
+  if ('end' in body) {
+    const e = (body.end || '').trim();
+    if (e && !reTime.test(e)) return badRequest('invalid time format for end, expected HH:MM');
+    cur.end = e || cur.end;
+  }
+  if (cur.end <= cur.start) return badRequest('end time must be greater than start time');
+  if ('title' in body) {
+    const t = (body.title || '').trim();
+    if (t.length > 100) return badRequest('title too long (max 100)');
+    cur.title = t;
+  }
+  if ('notes' in body) {
+    const n = (body.notes || '').trim();
+    if (n.length > 2000) return badRequest('notes too long (max 2000)');
+    cur.notes = n || undefined;
+  }
   if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};

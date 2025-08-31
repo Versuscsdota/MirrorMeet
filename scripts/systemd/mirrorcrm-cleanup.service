@@ -1,0 +1,14 @@
+[Unit]
+Description=MirrorCRM: cleanup old uploaded files
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/mirrorcrm
+Environment=NODE_ENV=production
+# Optional: override via EnvironmentFile
+# EnvironmentFile=/etc/mirrorcrm/env
+ExecStart=/usr/bin/node scripts/cleanup_old_files.js
+
+[Install]
+WantedBy=multi-user.target
