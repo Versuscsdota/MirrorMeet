@@ -1,6 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
-import { normalizeStatuses, validateStatus, syncSlotModelStatuses } from '../_status.js';
+import { normalizeStatuses, validateStatus, syncSlotModelStatuses, autoSetRegistrationStatus } from '../_status.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
@@ -51,13 +51,14 @@ export async function onRequestPost(context) {
     const regComment = (body.comment || '').trim();
     const id = newId('mdl');
 
-    // sanitize incoming statuses with fallback to slot
-    const statusInput = {
+    // sanitize incoming statuses with fallback to slot, and auto-derive registration when applicable
+    const rawStatuses = {
       status1: body.status1 || slot.status1 || 'not_confirmed',
       status2: body.status2 || slot.status2,
       status3: body.status3 || slot.status3
     };
-    const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(statusInput);
+    const autoStatuses = autoSetRegistrationStatus(rawStatuses);
+    const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(autoStatuses);
 
     const model = {
       id,
