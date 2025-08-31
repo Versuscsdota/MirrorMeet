@@ -676,11 +676,14 @@ async function renderCalendar() {
       const text = () => (box.querySelector('#iText').value || '').trim();
       const s2v = (box.querySelector('#s2') && box.querySelector('#s2').value) || '';
       const s2c = (box.querySelector('#s2c') && box.querySelector('#s2c').value || '').trim();
-      const body = { id: s.id, date: s.date || date, interviewText: text() };
+      const body = { id: s.id, date: (s.date || date), interviewText: text() };
       if (s2v) body.status2 = s2v;
       body.status2Comment = s2c || undefined;
+      console.debug('[openSlot][PUT] payload', body);
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
+      console.debug('[openSlot][PUT] response', updated);
       slots = slots.map(x => x.id === s.id ? updated : x);
+      renderList();
       close();
     } catch (e) { setError(e.message); }
   }
