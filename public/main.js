@@ -1258,13 +1258,7 @@ function renderAppShell(me) {
   el('#app').innerHTML = `
     <header>
       <div class="logo">
-        <svg width="120" height="48" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
-          <path d="M20 45 Q25 35, 35 40 Q45 45, 50 35 Q55 25, 65 30 Q75 35, 80 25" 
-                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
-          <path d="M90 55 Q100 45, 110 50 Q120 55, 125 45 Q130 35, 140 40 Q150 45, 155 35 Q160 25, 170 30 Q180 35, 185 25" 
-                stroke="#2bb3b1" stroke-width="3" fill="none" stroke-linecap="round"/>
-          <ellipse cx="35" cy="20" rx="25" ry="15" stroke="#2bb3b1" stroke-width="2" fill="none" transform="rotate(-15 35 20)"/>
-        </svg>
+        <img src="/favicon.svg" alt="Mirror Studio" width="120" height="48" />
       </div>
       <nav>
         ${
