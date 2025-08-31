@@ -177,14 +177,15 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 
 /* Slot action buttons */
 .open-slot, .edit-slot, .delete-slot {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 4px;
   border: 1px solid;
   background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: 8px;
+  margin-left: 4px;
+  white-space: nowrap;
 }
 
 .open-slot {
