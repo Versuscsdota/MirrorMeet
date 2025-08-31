@@ -96,6 +96,14 @@ async function renderCalendar() {
         </div>
       </div>
     </div>`;
+  // Ensure accounts textarea shows the exact value from the fetched model
+  try {
+    const taAcc = el('#webcamAccounts');
+    if (taAcc && typeof model.webcamAccounts === 'string') {
+      taAcc.value = model.webcamAccounts;
+      console.debug('[model] loaded webcamAccounts chars:', model.webcamAccounts.length);
+    }
+  } catch {}
 
   async function load() {
     const res = await api('/api/schedule?date=' + encodeURIComponent(date));
@@ -1594,6 +1602,14 @@ async function renderModelCard(id) {
         </form>
       </div>
     </div>`;
+  // After render, populate accounts textarea explicitly
+  try {
+    const ta = el('#webcamAccounts');
+    if (ta && typeof model.webcamAccounts === 'string') {
+      ta.value = model.webcamAccounts;
+      console.debug('[renderModelCard] textarea populated, len=', model.webcamAccounts.length);
+    }
+  } catch {}
   // Hook save webcam accounts
   const btnAcc = el('#saveWebcamAccounts');
   if (btnAcc) {
@@ -1604,12 +1620,31 @@ async function renderModelCard(id) {
         // UX: show inline confirmation and delay refresh to avoid KV eventual consistency
         btnAcc.textContent = 'Сохранено';
         btnAcc.disabled = true;
-        setTimeout(() => {
-          btnAcc.textContent = 'Сохранить';
-          btnAcc.disabled = false;
-          // Refresh profile to reflect saved data after a short delay
-          renderModelCard(id);
-        }, 600);
+        // Keep local value visible immediately
+        const ta = el('#webcamAccounts');
+        if (ta) ta.value = val;
+        // Poll server for consistency up to ~5s, then optionally re-render
+        const started = Date.now();
+        const poll = async () => {
+          try {
+            const fresh = await api('/api/models?id=' + encodeURIComponent(id));
+            if (fresh && typeof fresh.webcamAccounts === 'string' && fresh.webcamAccounts === val) {
+              // Data is consistent on server; safe to re-render (updates other UI parts)
+              btnAcc.textContent = 'Сохранить';
+              btnAcc.disabled = false;
+              renderModelCard(id);
+              return;
+            }
+          } catch {}
+          if (Date.now() - started < 5000) {
+            setTimeout(poll, 500);
+          } else {
+            // Stop polling, just restore button
+            btnAcc.textContent = 'Сохранить';
+            btnAcc.disabled = false;
+          }
+        };
+        setTimeout(poll, 500);
       } catch (e) { alert(e.message); }
     };
   }
