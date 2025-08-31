@@ -66,6 +66,15 @@ export async function onRequestPost(context) {
   if (title.length > 100) return badRequest('title too long (max 100)');
   const notesStr = (body.notes || '').trim();
   if (notesStr.length > 2000) return badRequest('notes too long (max 2000)');
+  // Enforce max 2 slots per start time per date
+  const prefix = `slot:${date}:`;
+  const list = await env.CRM_KV.list({ prefix });
+  const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const existing = (fetched || []).filter(Boolean);
+  const startHHMM = start.slice(0,5);
+  const cntAtTime = existing.filter(s => (s.start || '').slice(0,5) === startHHMM).length;
+  if (cntAtTime >= 2) return badRequest('time slot full: maximum 2 slots per time');
+
   const id = newId('slt');
   const slot = { 
     id, date, start, end, title,
@@ -108,6 +117,15 @@ export async function onRequestPut(context) {
     cur.end = e || cur.end;
   }
   if (cur.end <= cur.start) return badRequest('end time must be greater than start time');
+
+  // Enforce max 2 slots per start time per date on time change
+  const prefix = `slot:${date}:`;
+  const list = await env.CRM_KV.list({ prefix });
+  const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+  const existing = (fetched || []).filter(Boolean);
+  const newStartHHMM = (cur.start || '').slice(0,5);
+  const cntAtTime = existing.filter(s => s && s.id !== cur.id && (s.start || '').slice(0,5) === newStartHHMM).length;
+  if (cntAtTime >= 2) return badRequest('time slot full: maximum 2 slots per time');
   if ('title' in body) {
     const t = (body.title || '').trim();
     if (t.length > 100) return badRequest('title too long (max 100)');
