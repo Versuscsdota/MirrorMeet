@@ -1468,7 +1468,7 @@ async function renderModelCard(id) {
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
                 </svg>
               </button>
-              <button id="deleteModel" class="btn btn-danger">Удалить модель</button>
+              <button id="deleteModel" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}">Удалить модель</button>
             </div>
           </div>
         </div>
@@ -1781,28 +1781,44 @@ async function renderModelCard(id) {
     }
   };
 
-  // Delete model functionality
-  const _delBtn = el('#deleteModel');
-  if (_delBtn) _delBtn.onclick = async () => {
-    if (window.currentUser.role === 'root') {
-      if (!await confirmRootPassword(`удаление модели "${model.name}"`)) return;
-    }
-
-    if (!confirm(`Удалить модель "${model.name}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
-    if (_delBtn.disabled) return;
+  // Delete model functionality (direct binding + delegated fallback)
+  window._handleDeleteModel = window._handleDeleteModel || (async (btn) => {
     try {
-      _delBtn.disabled = true;
-      console.debug('[model/delete] sending DELETE /api/models', { id });
-      await api('/api/models?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      const bid = btn?.dataset?.id || id;
+      const bname = btn?.dataset?.name || (model && model.name) || '';
+      if (!bid) { console.warn('[model/delete] missing id on button'); return; }
+      if (btn && btn.disabled) return;
+      if (window.currentUser.role === 'root') {
+        if (!await confirmRootPassword(`удаление модели "${bname}"`)) return;
+      }
+      if (!confirm(`Удалить модель "${bname}"?\n\nЭто действие удалит:\n• Профиль модели\n• Все загруженные файлы\n• Необратимо`)) return;
+      if (btn) btn.disabled = true;
+      console.debug('[model/delete] sending DELETE /api/models', { id: bid });
+      await api('/api/models?id=' + encodeURIComponent(bid), { method: 'DELETE' });
       console.debug('[model/delete] success');
       renderModels();
     } catch (err) {
       console.warn('[model/delete] failed', err);
       alert(err.message);
     } finally {
-      _delBtn.disabled = false;
+      if (btn) btn.disabled = false;
     }
-  };
+  });
+
+  const _delBtn = el('#deleteModel');
+  if (_delBtn) _delBtn.onclick = async () => window._handleDeleteModel(_delBtn);
+
+  // Delegated fallback in case direct binding didn’t attach
+  if (!window._deleteModelDelegated) {
+    window._deleteModelDelegated = true;
+    document.addEventListener('click', (e) => {
+      const btn = e.target && (e.target.id === 'deleteModel' ? e.target : e.target.closest && e.target.closest('#deleteModel'));
+      if (!btn) return;
+      // If a direct handler exists, let it run; otherwise call shared handler
+      if (typeof btn.onclick === 'function') return;
+      window._handleDeleteModel(btn);
+    }, true);
+  }
 
   el('#exportCsv').addEventListener('click', () => {
     const mode = el('#fileSort').value;
