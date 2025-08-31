@@ -453,6 +453,7 @@ async function renderCalendar() {
           const payload = { id: s.id, date, start, end, title, notes, comment, status1 };
           console.log('[editSlot] API payload:', payload);
           const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
+          console.log('[editSlot] API response:', updated);
           slots = slots.map(x => x.id === s.id ? updated : x).sort((a,b)=> (a.start||'').localeCompare(b.start||''));
           renderList();
           close();
