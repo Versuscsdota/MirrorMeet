@@ -682,6 +682,10 @@ async function renderCalendar() {
         // Валидация убрана по просьбе: сохраняем без проверок полей
         try {
           // Create model from slot
+          // Also propagate the latest selected statuses from the edit slot modal (even if not saved yet)
+          const selS1 = (form.closest('.modal')?.querySelector('#sStatus1')?.value) || s.status1 || 'not_confirmed';
+          const selS2 = (form.closest('.modal')?.querySelector('#s2')?.value) || s.status2 || '';
+          const selS3 = (form.closest('.modal')?.querySelector('#s3')?.value) || s.status3 || '';
           const payload = {
             action: 'registerFromSlot',
             date: (s.date || date),
@@ -693,7 +697,10 @@ async function renderCalendar() {
             internshipDate,
             docType,
             docNumber,
-            comment
+            comment,
+            status1: selS1,
+            status2: selS2 || undefined,
+            status3: selS3 || undefined
           };
           const model = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
           // Upload grouped files

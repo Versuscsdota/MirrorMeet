@@ -47,6 +47,14 @@ export async function onRequestPost(context) {
     const regComment = (body.comment || '').trim();
     const id = newId('mdl');
 
+    // sanitize incoming statuses with fallback to slot
+    const s1In = (body.status1 || slot.status1 || 'not_confirmed');
+    const s2In = (body.status2 || slot.status2 || '');
+    const s3In = (body.status3 || slot.status3 || '');
+    const s1 = ['confirmed','not_confirmed','fail'].includes(s1In) ? s1In : 'not_confirmed';
+    const s2 = ['arrived','no_show','other'].includes(s2In) ? s2In : '';
+    const s3 = ['thinking','reject_us','reject_candidate','registration'].includes(s3In) ? s3In : '';
+
     const model = {
       id,
       name,
@@ -72,10 +80,10 @@ export async function onRequestPost(context) {
         internshipDate: internshipDate || null,
         comment: regComment || ''
       },
-      // propagate statuses from slot
-      status1: slot.status1 || 'not_confirmed',
-      status2: slot.status2 || '',
-      status3: slot.status3 || ''
+      // propagate statuses (request preferred, fallback slot)
+      status1: s1,
+      status2: s2,
+      status3: s3
     };
 
     // initial history
