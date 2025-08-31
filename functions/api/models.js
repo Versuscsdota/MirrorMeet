@@ -1,5 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
+import { normalizeStatuses, validateStatus, syncSlotModelStatuses } from '../_status.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
@@ -14,22 +15,13 @@ export async function onRequestGet(context) {
     const model = await env.CRM_KV.get(`model:${id}`, { type: 'json' });
     if (!model) return notFound('model');
     // ensure statuses are present with defaults
-    const out = { ...model };
-    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
-    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
-    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
+    const out = normalizeStatuses(model);
     return json(out);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
   const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
   const itemsRaw = fetched.filter(Boolean);
-  const items = itemsRaw.map(m => {
-    const out = { ...m };
-    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
-    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
-    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
-    return out;
-  });
+  const items = itemsRaw.map(m => normalizeStatuses(m));
   items.sort((a,b) => b.createdAt - a.createdAt);
   return json({ items });
 }
@@ -60,12 +52,12 @@ export async function onRequestPost(context) {
     const id = newId('mdl');
 
     // sanitize incoming statuses with fallback to slot
-    const s1In = (body.status1 || slot.status1 || 'not_confirmed');
-    const s2In = (body.status2 || slot.status2 || '');
-    const s3In = (body.status3 || slot.status3 || '');
-    const s1 = ['confirmed','not_confirmed','fail'].includes(s1In) ? s1In : 'not_confirmed';
-    const s2 = ['arrived','no_show','other'].includes(s2In) ? s2In : '';
-    const s3 = ['thinking','reject_us','reject_candidate','registration'].includes(s3In) ? s3In : '';
+    const statusInput = {
+      status1: body.status1 || slot.status1 || 'not_confirmed',
+      status2: body.status2 || slot.status2,
+      status3: body.status3 || slot.status3
+    };
+    const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(statusInput);
 
     const model = {
       id,
@@ -219,18 +211,24 @@ export async function onRequestPut(context) {
   if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
   
-  // Handle status updates
+  // Handle status updates with validation
+  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3 };
+  let statusChanged = false;
+  
   if (body.status1 !== undefined) {
-    const s1 = ['confirmed','not_confirmed','fail'].includes(body.status1) ? body.status1 : 'not_confirmed';
-    cur.status1 = s1;
+    if (!validateStatus('status1', body.status1)) return badRequest('invalid status1');
+    cur.status1 = body.status1;
+    statusChanged = true;
   }
   if (body.status2 !== undefined) {
-    const s2 = ['arrived','no_show','other'].includes(body.status2) ? body.status2 : '';
-    cur.status2 = s2 || undefined;
+    if (!validateStatus('status2', body.status2)) return badRequest('invalid status2');
+    cur.status2 = body.status2 || undefined;
+    statusChanged = true;
   }
   if (body.status3 !== undefined) {
-    const s3 = ['thinking','reject_us','reject_candidate','registration'].includes(body.status3) ? body.status3 : '';
-    cur.status3 = s3 || undefined;
+    if (!validateStatus('status3', body.status3)) return badRequest('invalid status3');
+    cur.status3 = body.status3 || undefined;
+    statusChanged = true;
   }
   
   // Handle registration updates
@@ -245,7 +243,7 @@ export async function onRequestPut(context) {
     if (body.registration.phone !== undefined) cur.registration.phone = body.registration.phone;
     
     // Update registration statuses snapshot if statuses were changed
-    if (body.status1 !== undefined || body.status2 !== undefined || body.status3 !== undefined) {
+    if (statusChanged) {
       cur.registration.statuses = cur.registration.statuses || {};
       if (body.status1 !== undefined) cur.registration.statuses.status1 = cur.status1;
       if (body.status2 !== undefined && cur.status2) cur.registration.statuses.status2 = cur.status2;
@@ -253,7 +251,52 @@ export async function onRequestPut(context) {
     }
   }
   
+  // Add status change history if statuses changed
+  if (statusChanged) {
+    cur.history = cur.history || [];
+    cur.history.push({
+      ts: Date.now(),
+      type: 'status_change',
+      userId: sess.user.id,
+      changes: {
+        ...(oldStatuses.status1 !== cur.status1 ? { status1: { from: oldStatuses.status1, to: cur.status1 } } : {}),
+        ...(oldStatuses.status2 !== cur.status2 ? { status2: { from: oldStatuses.status2, to: cur.status2 } } : {}),
+        ...(oldStatuses.status3 !== cur.status3 ? { status3: { from: oldStatuses.status3, to: cur.status3 } } : {})
+      }
+    });
+  }
+  
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));
+  
+  // Sync statuses with linked slot if status changed and model has slot reference
+  if (statusChanged && cur.registration && cur.registration.slotRef) {
+    try {
+      const slotKey = `slot:${cur.registration.slotRef.date}:${cur.registration.slotRef.id}`;
+      const slot = await env.CRM_KV.get(slotKey, { type: 'json' });
+      if (slot) {
+        const slotStatuses = normalizeStatuses({ status1: cur.status1, status2: cur.status2, status3: cur.status3 });
+        slot.status1 = slotStatuses.status1;
+        slot.status2 = slotStatuses.status2;
+        slot.status3 = slotStatuses.status3;
+        
+        slot.history = slot.history || [];
+        slot.history.push({
+          ts: Date.now(),
+          userId: sess.user.id,
+          action: 'status_sync_from_model',
+          modelId: cur.id,
+          status1: slot.status1,
+          status2: slot.status2,
+          status3: slot.status3
+        });
+        
+        await env.CRM_KV.put(slotKey, JSON.stringify(slot));
+      }
+    } catch (e) {
+      console.warn('Failed to sync model->slot statuses:', e);
+    }
+  }
+  
   return json(cur);
 }
 

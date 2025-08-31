@@ -1,5 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId } from '../_utils.js';
+import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry, syncSlotModelStatuses } from '../_status.js';
 
 // slot key: slot:<date>:<id>  where date = YYYY-MM-DD
 // slot: {
@@ -42,13 +43,7 @@ export async function onRequestGet(context) {
   const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
   const raw = fetched.filter(Boolean);
   // normalize statuses to always be present in API response
-  const items = raw.map(s => {
-    const out = { ...s };
-    out.status1 = ['confirmed','not_confirmed','fail'].includes(out.status1 || '') ? out.status1 : 'not_confirmed';
-    out.status2 = (out.status2 && ['arrived','no_show','other'].includes(out.status2)) ? out.status2 : undefined;
-    out.status3 = (out.status3 && ['thinking','reject_us','reject_candidate','registration'].includes(out.status3)) ? out.status3 : undefined;
-    return out;
-  });
+  const items = raw.map(s => normalizeStatuses(s));
   items.sort((a,b)=> (a.start||'').localeCompare(b.start||''));
   return json({ items });
 }
@@ -87,11 +82,13 @@ export async function onRequestPost(context) {
   const slot = { 
     id, date, start, end, title,
     notes: notesStr || undefined,
-    // statuses
-    status1: (body.status1 || 'not_confirmed'), // confirmed|not_confirmed|fail
-    status2: (body.status2 || undefined),       // arrived|no_show|other
+    // statuses (normalized)
+    ...normalizeStatuses({
+      status1: body.status1 || 'not_confirmed',
+      status2: body.status2,
+      status3: body.status3
+    }),
     status2Comment: (body.status2Comment || undefined),
-    status3: (body.status3 || undefined),       // thinking|reject_us|reject_candidate|registration
     // optional assignment to employee
     employeeId: (body.employeeId || '').trim() || undefined,
     interview: { text: (body.interviewText || '').trim() || undefined },
@@ -149,30 +146,35 @@ export async function onRequestPut(context) {
     if (n.length > 2000) return badRequest('notes too long (max 2000)');
     cur.notes = n || undefined;
   }
-  // Status updates
+  // Status updates with validation
+  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3 };
+  let statusChanged = false;
+  
   if ('status1' in body) {
-    const s1 = String(body.status1);
-    if (!['confirmed','not_confirmed','fail'].includes(s1)) return badRequest('invalid status1');
-    cur.status1 = s1;
+    if (!validateStatus('status1', body.status1)) return badRequest('invalid status1');
+    cur.status1 = body.status1;
+    statusChanged = true;
   }
   if ('status2' in body) {
-    const s2 = body.status2 ? String(body.status2) : undefined;
-    if (s2 && !['arrived','no_show','other'].includes(s2)) return badRequest('invalid status2');
-    cur.status2 = s2;
-  }
-  if ('status2Comment' in body) {
-    const cmt = (body.status2Comment || '').trim();
-    cur.status2Comment = cmt || undefined;
+    if (!validateStatus('status2', body.status2)) return badRequest('invalid status2');
+    cur.status2 = body.status2 || undefined;
+    statusChanged = true;
+    if ('status2Comment' in body) {
+      cur.status2Comment = body.status2Comment ? String(body.status2Comment) : undefined;
+    }
   }
   if ('status3' in body) {
-    const s3 = body.status3 ? String(body.status3) : undefined;
-    if (s3 && !['thinking','reject_us','reject_candidate','registration'].includes(s3)) return badRequest('invalid status3');
-    cur.status3 = s3;
+    if (!validateStatus('status3', body.status3)) return badRequest('invalid status3');
+    cur.status3 = body.status3 || undefined;
+    statusChanged = true;
   }
+  
   // Auto-set status3 to registration when both conditions met and not explicitly provided
   if (!('status3' in body)) {
-    if (cur.status1 === 'confirmed' && cur.status2 === 'arrived' && !cur.status3) {
-      cur.status3 = 'registration';
+    const autoStatuses = autoSetRegistrationStatus(cur);
+    if (autoStatuses.status3 !== cur.status3) {
+      cur.status3 = autoStatuses.status3;
+      statusChanged = true;
     }
   }
   if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
@@ -185,25 +187,26 @@ export async function onRequestPut(context) {
   const timeChanged = (cur.start !== prevStart) || (cur.end !== prevEnd);
   if (timeChanged && !body.comment) return badRequest('comment required for time change');
 
-  // Ensure status fields persist and have sane defaults in response
-  if (!['confirmed','not_confirmed','fail'].includes(cur.status1 || '')) cur.status1 = 'not_confirmed';
-  if (cur.status2 && !['arrived','no_show','other'].includes(cur.status2)) cur.status2 = undefined;
-  if (cur.status3 && !['thinking','reject_us','reject_candidate','registration'].includes(cur.status3)) cur.status3 = undefined;
+  // Normalize statuses
+  const normalized = normalizeStatuses(cur);
+  cur.status1 = normalized.status1;
+  cur.status2 = normalized.status2;
+  cur.status3 = normalized.status3;
 
   // Save
   const toSave = { ...cur, history: [
     ...(Array.isArray(cur.history) ? cur.history : []),
     ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
-    ...(('status1' in body || 'status2' in body || 'status3' in body) ? [{ ts: Date.now(), userId: sess.user.id, action: 'status_change', status1: cur.status1, status2: cur.status2, status3: cur.status3, status2Comment: cur.status2Comment }] : []),
+    ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3 })] : []),
   ] };
   await env.CRM_KV.put(key, JSON.stringify(toSave));
-  const responseObj = {
-    ...toSave,
-    // Ensure statuses are explicitly present in response
-    status1: toSave.status1 || 'not_confirmed',
-    status2: toSave.status2 || undefined,
-    status3: toSave.status3 || undefined,
-  };
+  
+  // Sync statuses with linked model if status changed
+  if (statusChanged && cur.modelId) {
+    await syncSlotModelStatuses(env, cur.id, cur.date, cur.modelId, { status1: cur.status1, status2: cur.status2, status3: cur.status3 });
+  }
+  
+  const responseObj = normalizeStatuses(toSave);
   return json(responseObj);
 }
 
