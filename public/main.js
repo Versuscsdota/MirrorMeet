@@ -166,7 +166,7 @@ async function renderCalendar() {
         <div class="employee-info">
           <div class="employee-header">
             <div class="empl-name">${s.start || ''}–${s.end || ''} ${s.title ? '· ' + s.title : ''}</div>
-            <div class="employee-actions">
+            <div class="employee-actions" style="display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;">
               <button type="button" class="open-slot" data-id="${s.id}">Открыть</button>
               ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type="button" class="edit-slot" data-id="${s.id}">Редактировать</button>` : ''}
               ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type="button" class="delete-slot" data-id="${s.id}">Удалить</button>` : ''}

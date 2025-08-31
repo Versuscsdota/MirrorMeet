@@ -94,13 +94,19 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 
 .employee-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .employee-actions button {
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 10px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
   border: 1px solid;
   background: transparent;
   cursor: pointer;
@@ -177,15 +183,15 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 
 /* Slot action buttons */
 .open-slot, .edit-slot, .delete-slot {
-  padding: 4px 8px;
-  font-size: 11px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 10px;
+  border-radius: 3px;
   border: 1px solid;
   background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-left: 4px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .open-slot {
