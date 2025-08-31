@@ -16,12 +16,30 @@ export async function onRequestGet(context) {
     if (!model) return notFound('model');
     // ensure statuses are present with defaults
     const out = normalizeStatuses(model);
+    // Derive registeredAt for response if missing
+    try {
+      if (out && out.registration) {
+        if (!out.registration.registeredAt) {
+          const regHist = Array.isArray(out.history) ? out.history.find(h => h && h.type === 'registration' && h.ts) : null;
+          if (regHist && regHist.ts) out.registration.registeredAt = regHist.ts;
+        }
+      }
+    } catch {}
     return json(out);
   }
   const list = await env.CRM_KV.list({ prefix: 'model:' });
   const fetched = await Promise.all(list.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
   const itemsRaw = fetched.filter(Boolean);
-  const items = itemsRaw.map(m => normalizeStatuses(m));
+  const items = itemsRaw.map(m => {
+    const out = normalizeStatuses(m);
+    try {
+      if (out && out.registration && !out.registration.registeredAt) {
+        const regHist = Array.isArray(out.history) ? out.history.find(h => h && h.type === 'registration' && h.ts) : null;
+        if (regHist && regHist.ts) out.registration.registeredAt = regHist.ts;
+      }
+    } catch {}
+    return out;
+  });
   items.sort((a,b) => b.createdAt - a.createdAt);
   return json({ items });
 }

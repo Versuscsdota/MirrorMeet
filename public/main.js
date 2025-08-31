@@ -1467,10 +1467,18 @@ async function renderModelCard(id) {
             ${(model.registration && model.registration.fullName) ? `<h2 class="profile-fullname">${model.registration.fullName}</h2>` : ''}
             ${(() => {
               const reg = model.registration || {};
+              // 1) explicit registeredAt
               if (reg.registeredAt) {
                 const when = new Date(reg.registeredAt).toLocaleString('ru-RU');
                 return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${when}</div>`;
               }
+              // 2) history entry of type 'registration'
+              const hist = Array.isArray(model.history) ? model.history.find(h => h && h.type === 'registration' && h.ts) : null;
+              if (hist && hist.ts) {
+                const when = new Date(hist.ts).toLocaleString('ru-RU');
+                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${when}</div>`;
+              }
+              // 3) fallback: slot time
               if (reg.slotRef) {
                 const d = new Date(reg.slotRef.date).toLocaleDateString('ru-RU');
                 const t = reg.slotRef.start ? reg.slotRef.start.slice(0,5) : '';
