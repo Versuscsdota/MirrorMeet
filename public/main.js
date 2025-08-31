@@ -544,7 +544,7 @@ async function renderCalendar() {
           <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
         </div>` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-          ${canCreateModel ? `<button id="createModelBtn" type="button">Регистрация</button>` : ''}
+          ${canCreateModel ? `<span id="createModelBtnWrap"></span>` : ''}
           <div id="s3Group" style="display:flex;gap:6px">
             <button type="button" class="s3btn" data-v="thinking" title="Думает">🤔</button>
             <button type="button" class="s3btn" data-v="reject_us" title="Отказ с нашей">⛔</button>
@@ -597,15 +597,31 @@ async function renderCalendar() {
       }
     }
 
+    // Helper: render registration button based on status1/2/3
+    const renderRegButton = () => {
+      if (!canCreateModel) return;
+      const wrap = box.querySelector('#createModelBtnWrap');
+      if (!wrap) return;
+      const s2El = box.querySelector('#s2');
+      const currentS2 = s2El ? s2El.value : (s.status2 || '');
+      const canShow = (s.status1 === 'confirmed') && (currentS2 === 'arrived') && (!s.status3);
+      wrap.innerHTML = canShow ? `<button id="createModelBtn" type="button">Регистрация</button>` : '';
+      if (canShow) {
+        const btn = wrap.querySelector('#createModelBtn');
+        if (btn) {
+          btn.onclick = onRegisterClick;
+        }
+      }
+    };
+
     // status2 UI toggle
     const s2 = box.querySelector('#s2');
     const s2cWrap = box.querySelector('#s2cWrap');
     if (s2 && s2cWrap) {
       s2.onchange = async () => { 
         s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
-        // Toggle registration availability based on status1 + status2
-        const regBtn = box.querySelector('#createModelBtn');
-        if (regBtn) regBtn.disabled = !(s.status1 === 'confirmed' && s2.value === 'arrived');
+        // Re-render registration button based on status1 + status2 + empty status3
+        renderRegButton();
         // Auto-derive status3=registration when both conditions met and slot has no status3
         if (s.status1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
           try {
@@ -628,8 +644,7 @@ async function renderCalendar() {
     }
 
     // Initialize registration button state
-    const regBtnInit = box.querySelector('#createModelBtn');
-    if (regBtnInit) regBtnInit.disabled = !(s.status1 === 'confirmed' && (s.status2 === 'arrived'));
+    renderRegButton();
 
     // status3 buttons behavior: highlight current and save on click
     const s3Group = box.querySelector('#s3Group');
@@ -655,6 +670,8 @@ async function renderCalendar() {
           const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status3: val }) });
           Object.assign(s, updated);
           highlightS3(updated.status3 || '');
+          // Re-render registration button as status3 changed
+          renderRegButton();
         } catch (err) { alert(err.message); }
       });
     }
@@ -687,10 +704,8 @@ async function renderCalendar() {
       } catch (e) { alert(e.message); }
     };
 
-    // Hook create model action (if visible)
-    if (canCreateModel) {
-      const btn = box.querySelector('#createModelBtn');
-      if (btn) btn.onclick = async () => {
+    // Hook create model action (function declaration for hoisting)
+    async function onRegisterClick() {
         // Prefill from slot
         const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
         const form = document.createElement('div');
@@ -786,7 +801,12 @@ async function renderCalendar() {
             window.renderModelCard(model.id);
           }
         } catch (e) { setError(e.message); }
-      };
+      }
+    }
+    // If the button is present initially, ensure handler is attached (renderRegButton attaches too)
+    if (canCreateModel) {
+      const initialBtn = box.querySelector('#createModelBtn');
+      if (initialBtn) initialBtn.onclick = onRegisterClick;
     }
 
     // Status3 button: prompt and save
@@ -867,8 +887,7 @@ async function renderCalendar() {
     selectedDateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   }
   
-  await Promise.all([loadMonth(), load()]);
-}
+  await Promise.all([loadMonth(), load()])
 
 function renderLogin() {
   el('#app').innerHTML = `
