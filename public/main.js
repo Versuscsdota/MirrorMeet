@@ -92,6 +92,18 @@ async function renderCalendar() {
     renderList();
   }
 
+  // Global delegation fallback in case container nodes are replaced
+  if (!window._slotActionsDelegated) {
+    document.addEventListener('click', (e) => {
+      const del = e.target.closest && e.target.closest('.delete-slot');
+      if (del) { e.preventDefault(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
+      const edt = e.target.closest && e.target.closest('.edit-slot');
+      if (edt) { e.preventDefault(); e.stopPropagation(); editSlot(edt.dataset.id); return; }
+      const op = e.target.closest && e.target.closest('.open-slot');
+      if (op) { e.preventDefault(); e.stopPropagation(); openSlot(op.dataset.id); return; }
+    });
+    window._slotActionsDelegated = true;
+  }
   async function loadMonth() {
     try {
       console.debug('[calendar] loadMonth start', { currentMonth });
@@ -124,15 +136,18 @@ async function renderCalendar() {
       </li>
     `).join('');
 
-    // Wire actions via event delegation (prevents duplicate handlers on re-render)
-    list.onclick = (e) => {
-      const del = e.target.closest && e.target.closest('.delete-slot');
-      if (del) { e.preventDefault(); e.stopPropagation(); return deleteSlot(del.dataset.id); }
-      const edt = e.target.closest && e.target.closest('.edit-slot');
-      if (edt) { e.preventDefault(); e.stopPropagation(); return editSlot(edt.dataset.id); }
-      const op = e.target.closest && e.target.closest('.open-slot');
-      if (op) { e.preventDefault(); e.stopPropagation(); return openSlot(op.dataset.id); }
-    };
+    // Wire actions via event delegation with addEventListener (set once)
+    if (!list._delegated) {
+      list.addEventListener('click', (e) => {
+        const del = e.target.closest && e.target.closest('.delete-slot');
+        if (del) { e.preventDefault(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
+        const edt = e.target.closest && e.target.closest('.edit-slot');
+        if (edt) { e.preventDefault(); e.stopPropagation(); editSlot(edt.dataset.id); return; }
+        const op = e.target.closest && e.target.closest('.open-slot');
+        if (op) { e.preventDefault(); e.stopPropagation(); openSlot(op.dataset.id); return; }
+      });
+      list._delegated = true;
+    }
   }
 
   // Month grid with slot previews
@@ -231,7 +246,8 @@ async function renderCalendar() {
 
   async function editSlot(id) {
     const s = slots.find(x => x.id === id);
-    if (!s) return;
+    if (!s) { console.debug('[deleteSlot] not found', { id }); return; }
+    console.debug('[deleteSlot] start', { id, slot: s });
     const form = document.createElement('div');
     form.innerHTML = `
       <label>Начало<input id="sStart" type="time" value="${s.start || ''}" /></label>
@@ -269,7 +285,7 @@ async function renderCalendar() {
     if (window.currentUser.role === 'root') {
       if (!await confirmRootPassword(`удаление слота ${s.start}-${s.end}`)) return;
     }
-    if (!confirm('Удалить слот?')) return;
+    if (!confirm('Удалить слот?')) { console.debug('[deleteSlot] cancelled by user'); return; }
     try {
       if (btn) btn.disabled = true;
       // Use slot's own date to avoid mismatch if selected date changed
@@ -277,6 +293,7 @@ async function renderCalendar() {
       slots = slots.filter(x => x.id !== s.id);
       renderList();
     } catch (e) {
+      console.warn('[deleteSlot] error', e);
       alert(e.message);
     } finally {
       if (btn) btn.disabled = false;
