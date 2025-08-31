@@ -1405,8 +1405,18 @@ async function renderModels() {
       const photoUrl = m.mainPhotoId ? `/api/files?id=${m.mainPhotoId}` : '';
       const initials = (m.fullName || m.name || '').trim().charAt(0).toUpperCase();
       const s1 = (() => { const s = m.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })();
-      const s2 = m.status2 ? `<span class=\"status-badge secondary\">${m.status2}</span>` : '';
-      const s3 = m.status3 ? `<span class=\"status-badge secondary\">${m.status3}</span>` : '';
+      const s2 = m.status2 ? (() => { 
+        const s = m.status2; 
+        const t = s==='arrived'?'Пришла':s==='no_show'?'Не пришла':s==='other'?'Другое':s; 
+        const cls = s==='arrived'?'success':s==='no_show'?'danger':'secondary'; 
+        return `<span class=\"status-badge ${cls}\">${t}</span>`; 
+      })() : '';
+      const s3 = m.status3 ? (() => { 
+        const s = m.status3; 
+        const t = s==='thinking'?'Думает':s==='reject_us'?'Отказ с нашей стороны':s==='reject_candidate'?'Отказ кандидата':s==='registration'?'Регистрация':s; 
+        const cls = s==='registration'?'success':s==='reject_us'||s==='reject_candidate'?'danger':s==='thinking'?'warning':'secondary'; 
+        return `<span class=\"status-badge ${cls}\">${t}</span>`; 
+      })() : '';
       return `
         <div class="model-card-redesigned">
           <div class="model-avatar">
