@@ -205,21 +205,6 @@ async function renderCalendar() {
       <div class="sched-header" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
         ${timeSlots.map(t => `<div class=\"sched-cell\" style=\"padding:4px;text-align:center;font-size:11px\">${t}</div>`).join('')}
       </div>
-
-      ${Array.isArray(model.history) && model.history.length ? `
-      <div class="info-section history-section">
-        <h3 class="section-title">🕓 История</h3>
-        <div class="timeline">
-          ${[...model.history].sort((a,b)=> (a.ts||0)-(b.ts||0)).map(h => {
-            const when = h.ts ? new Date(h.ts).toLocaleString('ru-RU') : '';
-            const slot = h.slot ? ` · ${h.slot.date || ''} ${h.slot.start || ''} ${h.slot.title || ''}` : '';
-            const text = (h.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            const type = ({registration:'Регистрация',interview:'Интервью'})[h.type] || 'Событие';
-            return `<div class=\"timeline-item\"><div class=\"tl-dot\"></div><div class=\"tl-content\"><div class=\"tl-head\">${type}<span class=\"tl-time\">${when}${slot}</span></div>${text?`<div class=\"tl-text\">${text}</div>`:''}</div></div>`;
-          }).join('')}
-        </div>
-      </div>
-      ` : ''}
       ${[0,1].map(row => `
         <div class=\"sched-row\" style=\"display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);\">
           ${timeSlots.map(t => {
