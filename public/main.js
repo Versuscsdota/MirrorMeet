@@ -1470,7 +1470,7 @@ async function renderModelCard(id) {
                   <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
                 </svg>
               </button>
-              <button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}" onclick="console.log('DELETE BUTTON CLICKED'); alert('Delete clicked'); if(window._handleDeleteModel) { window._handleDeleteModel(this); } else { alert('Handler not found'); }">Удалить модель</button>
+              <button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}" onclick="console.log('DELETE BUTTON CLICKED'); alert('Delete clicked for model: ${model.id}'); if(window._handleDeleteModel) { window._handleDeleteModel(this); } else { alert('Handler not found'); }">Удалить модель</button>
             </div>
           </div>
         </div>
@@ -1812,7 +1812,12 @@ async function renderModelCard(id) {
   console.log('[renderModelCard] delete button found:', !!_delBtn);
   if (_delBtn) {
     console.log('[renderModelCard] binding onclick to delete button');
-    _delBtn.onclick = async () => window._handleDeleteModel(_delBtn);
+    _delBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[delete button] onclick fired');
+      await window._handleDeleteModel(_delBtn);
+    };
   }
 
   // Delegated fallback in case direct binding didn’t attach
