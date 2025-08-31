@@ -206,10 +206,10 @@ async function renderCalendar() {
               return `
                 <div class="sched-cell" style="padding:2px;position:relative">
                   ${slot ? `
-                    <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500" title="Клиент: ${slot.title}\n${slot.notes || ''}">
-                      <div style="display:flex;align-items:center;gap:4px">
-                        <span style="font-size:16px;line-height:1;opacity:0.9">●</span>
-                        <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${slot.title.split(' ')[0] || 'Слот'}</span>
+                    <div class="slot-block" data-id="${slot.id}" style="color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
+                      <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
+                        <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
+                        <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${slot.title.split(' ')[0] || 'Слот'}</span>
                       </div>
                       <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;z-index:10">
                         <button type="button" class="open-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Открыть">👁</button>
