@@ -216,13 +216,20 @@ async function renderCalendar() {
       `).join('')}
     `;
     
-    // Wire slot hover actions
+    // Wire slot hover actions and allow opening by clicking the whole block
     [...table.querySelectorAll('.slot-block')].forEach(block => {
       const actions = block.querySelector('.slot-actions-mini');
       if (actions) {
         block.onmouseenter = () => actions.style.display = 'flex';
         block.onmouseleave = () => actions.style.display = 'none';
       }
+      // Open slot on block click unless clicking on inline action buttons
+      block.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('.slot-actions-mini')) return;
+        const id = block.dataset.id;
+        console.debug('[block click] open-slot', id);
+        openSlot(id);
+      });
     });
 
     // Wire actions via event delegation
