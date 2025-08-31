@@ -632,7 +632,7 @@ async function renderCalendar() {
           // Ingest slot files and write interview history into model
           await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date, slotId: s.id }) });
           // Mark status3 = registration
-          try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, status3: 'registration' }) }); } catch {}
+          try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
           // Navigate to models and open the created model
           renderModels();
           if (model && model.id && typeof window.renderModelCard === 'function') {
@@ -660,7 +660,7 @@ async function renderCalendar() {
       const { close, setError } = m;
       try {
         const val = form.querySelector('#s3').value || undefined;
-        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date, status3: val }) });
+        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || date, status3: val }) });
         // update local slot
         slots = slots.map(x => x.id === s.id ? updated : x);
         renderList();
@@ -676,7 +676,7 @@ async function renderCalendar() {
       const text = () => (box.querySelector('#iText').value || '').trim();
       const s2v = (box.querySelector('#s2') && box.querySelector('#s2').value) || '';
       const s2c = (box.querySelector('#s2c') && box.querySelector('#s2c').value || '').trim();
-      const body = { id: s.id, date, interviewText: text() };
+      const body = { id: s.id, date: s.date || date, interviewText: text() };
       if (s2v) body.status2 = s2v;
       body.status2Comment = s2c || undefined;
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
