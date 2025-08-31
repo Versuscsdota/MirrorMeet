@@ -13,6 +13,14 @@ const api = async (path, opts = {}) => {
 
 const el = (sel) => document.querySelector(sel);
 
+// Format date as YYYY-MM-DD in LOCAL timezone (avoid toISOString UTC shift)
+function ymdLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // Simple modal helpers
 function showModal({ title = '', content, submitText = 'Сохранить' }) {
   return new Promise((resolve, reject) => {
@@ -59,7 +67,7 @@ const Employee = {
 // Calendar: slot-based without employee linkage
 async function renderCalendar() {
   const view = el('#view');
-  const today = new Date().toISOString().slice(0,10);
+  const today = ymdLocal(new Date());
   let date = today;
   let currentMonth = today.slice(0,7); // YYYY-MM
   let slots = [];
@@ -166,7 +174,7 @@ async function renderCalendar() {
     while (cells.length % 7) cells.push(null);
 
     const byDate = new Map((monthDays||[]).map(d => [d.date, d]));
-    const todayStr = new Date().toISOString().slice(0,10);
+    const todayStr = ymdLocal(new Date());
 
     grid.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--muted);margin-bottom:4px;text-align:center">
@@ -175,7 +183,7 @@ async function renderCalendar() {
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
         ${cells.map(c => {
           if (!c) return `<div style="height:40px;border:1px solid #1a1a1a;background:#0a0a0a"></div>`;
-          const dstr = c.toISOString().slice(0,10);
+          const dstr = ymdLocal(c);
           const info = byDate.get(dstr);
           const isToday = dstr === todayStr;
           const isSelected = dstr === date;
