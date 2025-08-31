@@ -172,6 +172,11 @@ export async function onRequestPut(context) {
   const timeChanged = (cur.start !== prevStart) || (cur.end !== prevEnd);
   if (timeChanged && !body.comment) return badRequest('comment required for time change');
 
+  // Ensure status fields persist and have sane defaults in response
+  if (!['confirmed','not_confirmed','fail'].includes(cur.status1 || '')) cur.status1 = 'not_confirmed';
+  if (cur.status2 && !['arrived','no_show','other'].includes(cur.status2)) cur.status2 = undefined;
+  if (cur.status3 && !['thinking','reject_us','reject_candidate','registration'].includes(cur.status3)) cur.status3 = undefined;
+
   // Save
   await env.CRM_KV.put(key, JSON.stringify({ ...cur, history: [
     ...(Array.isArray(cur.history) ? cur.history : []),

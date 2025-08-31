@@ -450,7 +450,7 @@ async function renderCalendar() {
         if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
         if (!title) { setError('Заполните ФИО'); return; }
         try {
-          const payload = { id: s.id, date, start, end, title, notes, comment, status1 };
+          const payload = { id: s.id, date: (s.date || date), start, end, title, notes, comment, status1 };
           console.log('[editSlot] API payload:', payload);
           const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
           console.log('[editSlot] API response:', updated);
