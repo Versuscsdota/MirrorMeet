@@ -280,6 +280,7 @@ export async function onRequestPut(context) {
   if ('name' in body) cur.name = safeTrim(body.name, typeof cur.name === 'string' ? cur.name : '');
   if ('note' in body) cur.note = safeTrim(body.note, typeof cur.note === 'string' ? cur.note : '');
   if ('fullName' in body) cur.fullName = safeTrim(body.fullName, typeof cur.fullName === 'string' ? cur.fullName : '');
+  if ('webcamAccounts' in body) cur.webcamAccounts = safeTrim(body.webcamAccounts, typeof cur.webcamAccounts === 'string' ? cur.webcamAccounts : '');
   if (body.contacts !== undefined) {
     cur.contacts = cur.contacts || {};
     if ('phone' in body.contacts) cur.contacts.phone = safeTrim(body.contacts.phone, typeof cur.contacts.phone === 'string' ? cur.contacts.phone : '');

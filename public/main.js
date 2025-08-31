@@ -1543,6 +1543,23 @@ async function renderModelCard(id) {
             </div>
           </div>
         ` : '' })()}
+        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `
+          <div class="info-section accounts-section">
+            <h3 class="section-title">🔐 Аккаунты</h3>
+            <div class="info-cards">
+              <div class="info-card full-width">
+                <div class="info-icon">🌐</div>
+                <div class="info-content" style="width:100%">
+                  <div class="info-label">Вебкам сайты (формат: сайт логин:пароль, одна запись на строку)</div>
+                  <textarea id="webcamAccounts" rows="6" placeholder="bonga john:pass123\nstripchat kate:qwe321" style="width:100%">${(model.webcamAccounts||'')}</textarea>
+                  <div style="margin-top:8px">
+                    <button id="saveWebcamAccounts" type="button">Сохранить</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
         ${(model.tags && model.tags.length) ? `
           <div class="info-section tags-section">
             <h3 class="section-title">🏷️ Теги</h3>
