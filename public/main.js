@@ -513,7 +513,7 @@ async function renderCalendar() {
     const s = slots.find(x => x.id === id);
     if (!s) return;
     const box = document.createElement('div');
-    const canCreateModel = window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin');
+    const canCreateModel = window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role);
     box.innerHTML = `
       <div style="display:grid;gap:8px">
         <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>

@@ -78,7 +78,7 @@ export async function onRequestPost(context) {
       createdBy: sess.user.id,
       // Registration snapshot
       registration: {
-        slotRef: { id: slot.id, date: slot.date, start: slot.start, end: slot.end },
+        slotRef: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
         birthDate,
         docType: docType || null,
         docNumber: docNumber || null,
@@ -142,9 +142,9 @@ export async function onRequestPost(context) {
     const slot = await env.CRM_KV.get(`slot:${date}:${slotId}`, { type: 'json' });
     if (!slot) return notFound('slot');
 
-    // Ensure registration object and attach slotRef
+    // Ensure registration object and attach slotRef (include title so UI does not need to fetch slot)
     model.registration = model.registration || {};
-    model.registration.slotRef = { id: slot.id, date: slot.date, start: slot.start, end: slot.end };
+    model.registration.slotRef = { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title };
 
     // Optionally sync statuses
     if (sync === 'slot_to_model') {
