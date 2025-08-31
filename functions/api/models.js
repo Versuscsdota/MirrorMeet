@@ -28,6 +28,62 @@ export async function onRequestPost(context) {
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
 
+  // Action: register new model directly from a slot with full registration data
+  if (body.action === 'registerFromSlot') {
+    const date = (body.date || '').trim();
+    const slotId = (body.slotId || '').trim();
+    if (!date || !slotId) return badRequest('date and slotId required');
+    const slot = await env.CRM_KV.get(`slot:${date}:${slotId}`, { type: 'json' });
+    if (!slot) return notFound('slot');
+
+    const name = (body.name || slot.title || '').trim();
+    if (!name) return badRequest('name required');
+    const fullName = (body.fullName || name).trim();
+    const phone = (body.phone || '').trim();
+    const birthDate = (body.birthDate || '').trim();
+    const docType = (body.docType || '').trim(); // passport | driver | foreign
+    const docNumber = (body.docNumber || '').trim();
+    const internshipDate = (body.internshipDate || '').trim();
+    const regComment = (body.comment || '').trim();
+    const id = newId('mdl');
+
+    const model = {
+      id,
+      name,
+      note: regComment,
+      fullName,
+      age: null,
+      height: null,
+      weight: null,
+      measurements: '',
+      contacts: { phone, email: '', instagram: '', telegram: '' },
+      tags: [],
+      history: [],
+      comments: [],
+      mainPhotoId: null,
+      createdAt: Date.now(),
+      createdBy: sess.user.id,
+      // Registration snapshot
+      registration: {
+        slotRef: { id: slot.id, date: slot.date, start: slot.start, end: slot.end },
+        birthDate,
+        docType: docType || null,
+        docNumber: docNumber || null,
+        internshipDate: internshipDate || null,
+        comment: regComment || ''
+      },
+      // propagate statuses from slot
+      status1: slot.status1 || 'not_confirmed',
+      status2: slot.status2 || '',
+      status3: slot.status3 || ''
+    };
+
+    // initial history
+    model.history.push({ ts: Date.now(), type: 'registration', slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title }, text: (slot.interview && slot.interview.text) || '' });
+    await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
+    return json(model);
+  }
+
   // Action: ingest slot into existing model (copy files and add interview history)
   if (body.action === 'ingestFromSlot') {
     const modelId = (body.modelId || '').trim();

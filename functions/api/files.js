@@ -132,6 +132,7 @@ export async function onRequestPost(context) {
   const files = (typeof fd.getAll === 'function') ? fd.getAll('file') : [fd.get('file')].filter(Boolean);
   const nameSingle = (fd.get('name') || '').toString();
   const description = (fd.get('description') || '').toString();
+  const category = (fd.get('category') || '').toString().trim(); // optional: e.g., 'doc' | 'photo'
   if ((!modelId && !slotId) || !files || files.length === 0) return badRequest('modelId or slotId and at least one file required');
 
   const MAX_BYTES = Number(env.MAX_UPLOAD_BYTES || 50 * 1024 * 1024);
@@ -171,9 +172,10 @@ export async function onRequestPost(context) {
     const objectKey = entity.type === 'model' ? `files/models/${entity.id}/${id}` : `files/slots/${entity.id}/${id}`;
     await env.CRM_FILES.put(objectKey, f.stream(), { httpMetadata: { contentType } });
 
+    const baseMeta = { id, name, description, objectKey, contentType, size, createdAt: Date.now() };
     const meta = entity.type === 'model'
-      ? { id, entity: 'model', modelId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() }
-      : { id, entity: 'slot', slotId: entity.id, name, description, objectKey, contentType, size, createdAt: Date.now() };
+      ? { ...baseMeta, entity: 'model', modelId: entity.id, category: category || undefined }
+      : { ...baseMeta, entity: 'slot', slotId: entity.id, category: category || undefined };
     await env.CRM_KV.put(`file:${id}`, JSON.stringify(meta));
     if (entity.type === 'model') {
       await env.CRM_KV.put(`file_model:${entity.id}:${id}`, '1');

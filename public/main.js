@@ -632,20 +632,88 @@ async function renderCalendar() {
     if (canCreateModel) {
       const btn = box.querySelector('#createModelBtn');
       if (btn) btn.onclick = async () => {
-        const name = (s.title || `Модель от ${date} ${s.start || ''}`);
-        const note = (box.querySelector('#iText').value || '').trim();
+        // Prefill from slot
+        const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
+        const form = document.createElement('div');
+        form.innerHTML = `
+          <div style="display:grid;gap:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/"/g,'&quot;')}" placeholder="Иванов Иван" required /></label>
+              <label>Телефон<input id="rPhone" value="${guessedPhone}" placeholder="+7 999 123-45-67" /></label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>Дата рождения<input id="rBirth" type="date" /></label>
+              <label>Дата первой стажировки<input id="rIntern" type="date" /></label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>Тип документа
+                <select id="rDocType">
+                  <option value="passport">Паспорт РФ</option>
+                  <option value="driver">Водительские права</option>
+                  <option value="foreign">Загранпаспорт</option>
+                </select>
+              </label>
+              <label>Серия и номер / Номер<input id="rDocNum" placeholder="0000 000000" /></label>
+            </div>
+            <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
+            <div>
+              <h4>Фото документов</h4>
+              <input id="rDocs" type="file" multiple accept="image/*,.pdf" />
+            </div>
+            <div>
+              <h4>Фотографии</h4>
+              <input id="rPhotos" type="file" multiple accept="image/*,video/*" />
+            </div>
+          </div>`;
+        const res = await showModal({ title: 'Регистрация модели', content: form, submitText: 'Зарегистрировать' });
+        if (!res) return;
+        const { close, setError } = res;
+        const fullName = form.querySelector('#rFullName').value.trim();
+        const phone = form.querySelector('#rPhone').value.trim();
+        const birthDate = form.querySelector('#rBirth').value;
+        const internshipDate = form.querySelector('#rIntern').value;
+        const docType = form.querySelector('#rDocType').value;
+        const docNumber = form.querySelector('#rDocNum').value.trim();
+        const comment = form.querySelector('#rComment').value.trim();
+        if (!fullName) { setError('Укажите ФИО'); return; }
         try {
-          const model = await api('/api/models', { method: 'POST', body: JSON.stringify({ name, note }) });
-          // Ingest slot files and write interview history into model
-          await api('/api/models', { method: 'POST', body: JSON.stringify({ action: 'ingestFromSlot', modelId: model.id, date: (s.date || date), slotId: s.id }) });
-          // Mark status3 = registration
+          // Create model from slot
+          const payload = {
+            action: 'registerFromSlot',
+            date: (s.date || date),
+            slotId: s.id,
+            name: fullName,
+            fullName,
+            phone,
+            birthDate,
+            internshipDate,
+            docType,
+            docNumber,
+            comment
+          };
+          const model = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
+          // Upload grouped files
+          const docs = form.querySelector('#rDocs').files;
+          const photos = form.querySelector('#rPhotos').files;
+          async function uploadGroup(files, category){
+            if (!files || files.length === 0) return;
+            const fd = new FormData();
+            fd.append('modelId', model.id);
+            fd.append('category', category);
+            for (const f of files) fd.append('file', f);
+            await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
+          }
+          await uploadGroup(docs, 'doc');
+          await uploadGroup(photos, 'photo');
+          // Mark slot status3
           try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
-          // Navigate to models and open the created model
+          close();
+          // Navigate to the model profile
           renderModels();
           if (model && model.id && typeof window.renderModelCard === 'function') {
             window.renderModelCard(model.id);
           }
-        } catch (e) { alert(e.message); }
+        } catch (e) { setError(e.message); }
       };
     }
 
@@ -1315,6 +1383,11 @@ async function renderModelCard(id) {
           <div>
             <h1 style="margin:0">${model.name}</h1>
             ${model.fullName ? `<h2 class="full-name" style="margin:4px 0 0 0">${model.fullName}</h2>` : ''}
+            <div class="status-badges" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              ${(() => { const s = model.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const bg = s==='confirmed'?'#16a34a':s==='fail'?'#dc2626':'#334155'; return `<span style=\"background:${bg};color:#fff;padding:2px 6px;border-radius:6px;font-size:11px\">status1: ${t}</span>`; })()}
+              ${model.status2 ? `<span style="background:#1f2937;color:#e5e7eb;padding:2px 6px;border-radius:6px;font-size:11px">status2: ${model.status2}</span>` : ''}
+              ${model.status3 ? `<span style="background:#1f2937;color:#e5e7eb;padding:2px 6px;border-radius:6px;font-size:11px">status3: ${model.status3}</span>` : ''}
+            </div>
             <div class="profile-actions" style="margin-top:8px">
               <button id="editProfile">Редактировать профиль</button>
               <button id="deleteModel" style="background: #dc2626;">Удалить модель</button>
@@ -1328,6 +1401,17 @@ async function renderModelCard(id) {
             ${model.weight ? `<div class="info-item"><label>Вес</label><span>${model.weight} кг</span></div>` : ''}
             ${model.measurements ? `<div class="info-item"><label>Параметры</label><span>${model.measurements}</span></div>` : ''}
           </div>
+          ${model.registration ? `
+            <div class="registration" style="margin-top:8px">
+              <h4>Регистрация</h4>
+              <div style="font-size:12px;color:#9aa">
+                ${model.registration.birthDate ? `<div><strong>Дата рождения:</strong> ${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div>` : ''}
+                ${model.registration.docType || model.registration.docNumber ? `<div><strong>Документ:</strong> ${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div>` : ''}
+                ${model.registration.internshipDate ? `<div><strong>Первая стажировка:</strong> ${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div>` : ''}
+                ${model.registration.comment ? `<div style="white-space:pre-wrap"><strong>Комментарий:</strong> ${model.registration.comment}</div>` : ''}
+              </div>
+            </div>
+          ` : ''}
           ${(model.contacts && (model.contacts.phone || model.contacts.email || model.contacts.instagram || model.contacts.telegram)) ? `
             <div class="contacts">
               <h4>Контакты</h4>
