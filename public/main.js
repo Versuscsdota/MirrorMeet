@@ -1686,6 +1686,49 @@ async function renderModelCard(id) {
         <label>Instagram<input id="mInstagram" value="${(model.contacts && model.contacts.instagram) || ''}" /></label>
         <label>Telegram<input id="mTelegram" value="${(model.contacts && model.contacts.telegram) || ''}" /></label>
       </div>
+      ${reg.birthDate ? `<label>Дата рождения<input id="mBirthDate" type="date" value="${reg.birthDate}" /></label>` : ''}
+      ${reg.docType || reg.docNumber ? `
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+          <label>Тип документа
+            <select id="mDocType">
+              <option value="">Не указан</option>
+              <option value="passport" ${reg.docType === 'passport' ? 'selected' : ''}>Паспорт</option>
+              <option value="driver" ${reg.docType === 'driver' ? 'selected' : ''}>Водительские права</option>
+              <option value="foreign" ${reg.docType === 'foreign' ? 'selected' : ''}>Загранпаспорт</option>
+            </select>
+          </label>
+          <label>Номер документа<input id="mDocNumber" value="${reg.docNumber || ''}" /></label>
+        </div>` : ''}
+      ${reg.internshipDate ? `<label>Первая стажировка<input id="mInternshipDate" type="date" value="${reg.internshipDate}" /></label>` : ''}
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #2a2a2a">
+        <h4 style="margin:0 0 12px 0;color:#2bb3b1">Статусы</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <label>Статус 1
+            <select id="mStatus1">
+              <option value="not_confirmed" ${model.status1 === 'not_confirmed' ? 'selected' : ''}>Не подтвердилось</option>
+              <option value="confirmed" ${model.status1 === 'confirmed' ? 'selected' : ''}>Подтвердилось</option>
+              <option value="fail" ${model.status1 === 'fail' ? 'selected' : ''}>Слив</option>
+            </select>
+          </label>
+          <label>Статус 2
+            <select id="mStatus2">
+              <option value="">Не указан</option>
+              <option value="arrived" ${model.status2 === 'arrived' ? 'selected' : ''}>Пришла</option>
+              <option value="no_show" ${model.status2 === 'no_show' ? 'selected' : ''}>Не пришла</option>
+              <option value="other" ${model.status2 === 'other' ? 'selected' : ''}>Другое</option>
+            </select>
+          </label>
+          <label>Статус 3
+            <select id="mStatus3">
+              <option value="">Не указан</option>
+              <option value="thinking" ${model.status3 === 'thinking' ? 'selected' : ''}>Думает</option>
+              <option value="reject_us" ${model.status3 === 'reject_us' ? 'selected' : ''}>Отказ с нашей</option>
+              <option value="reject_candidate" ${model.status3 === 'reject_candidate' ? 'selected' : ''}>Отказ кандидата</option>
+              <option value="registration" ${model.status3 === 'registration' ? 'selected' : ''}>Регистрация</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <label>Теги<input id="mTags" value="${(model.tags || []).join(', ')}" placeholder="фотомодель, реклама, fashion" /></label>
       <label>Примечания<textarea id="mNote" rows="3">${model.note || ''}</textarea></label>
     `;
@@ -1704,12 +1747,38 @@ async function renderModelCard(id) {
     const telegram = form.querySelector('#mTelegram').value.trim();
     const tags = form.querySelector('#mTags').value.split(',').map(t => t.trim()).filter(Boolean);
     const note = form.querySelector('#mNote').value.trim();
+    
+    // Registration fields (if present)
+    const birthDate = form.querySelector('#mBirthDate') ? form.querySelector('#mBirthDate').value : undefined;
+    const docType = form.querySelector('#mDocType') ? form.querySelector('#mDocType').value : undefined;
+    const docNumber = form.querySelector('#mDocNumber') ? form.querySelector('#mDocNumber').value.trim() : undefined;
+    const internshipDate = form.querySelector('#mInternshipDate') ? form.querySelector('#mInternshipDate').value : undefined;
+    
+    // Status fields
+    const status1 = form.querySelector('#mStatus1').value;
+    const status2 = form.querySelector('#mStatus2').value || undefined;
+    const status3 = form.querySelector('#mStatus3').value || undefined;
+    
     if (!name) { setError('Укажите псевдоним модели'); return; }
     try {
-      await api('/api/models', { method: 'PUT', body: JSON.stringify({ 
+      const payload = { 
         id, name, fullName, age, height, weight, measurements, 
-        contacts: { phone, email, instagram, telegram }, tags, note 
-      }) });
+        contacts: { phone, email, instagram, telegram }, tags, note,
+        status1, status2, status3
+      };
+      
+      // Add registration fields if they exist
+      if (birthDate !== undefined || docType !== undefined || docNumber !== undefined || internshipDate !== undefined) {
+        payload.registration = {
+          ...reg,
+          ...(birthDate !== undefined ? { birthDate } : {}),
+          ...(docType !== undefined ? { docType } : {}),
+          ...(docNumber !== undefined ? { docNumber } : {}),
+          ...(internshipDate !== undefined ? { internshipDate } : {})
+        };
+      }
+      
+      await api('/api/models', { method: 'PUT', body: JSON.stringify(payload) });
       close();
       renderModelCard(id); // refresh profile
     } catch (e) {

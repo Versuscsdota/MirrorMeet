@@ -218,6 +218,41 @@ export async function onRequestPut(context) {
   }
   if (body.tags !== undefined) cur.tags = Array.isArray(body.tags) ? body.tags.filter(t => t.trim()).map(t => t.trim()) : [];
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
+  
+  // Handle status updates
+  if (body.status1 !== undefined) {
+    const s1 = ['confirmed','not_confirmed','fail'].includes(body.status1) ? body.status1 : 'not_confirmed';
+    cur.status1 = s1;
+  }
+  if (body.status2 !== undefined) {
+    const s2 = ['arrived','no_show','other'].includes(body.status2) ? body.status2 : '';
+    cur.status2 = s2 || undefined;
+  }
+  if (body.status3 !== undefined) {
+    const s3 = ['thinking','reject_us','reject_candidate','registration'].includes(body.status3) ? body.status3 : '';
+    cur.status3 = s3 || undefined;
+  }
+  
+  // Handle registration updates
+  if (body.registration !== undefined) {
+    cur.registration = cur.registration || {};
+    if (body.registration.birthDate !== undefined) cur.registration.birthDate = body.registration.birthDate;
+    if (body.registration.docType !== undefined) cur.registration.docType = body.registration.docType;
+    if (body.registration.docNumber !== undefined) cur.registration.docNumber = body.registration.docNumber;
+    if (body.registration.internshipDate !== undefined) cur.registration.internshipDate = body.registration.internshipDate;
+    if (body.registration.comment !== undefined) cur.registration.comment = body.registration.comment;
+    if (body.registration.fullName !== undefined) cur.registration.fullName = body.registration.fullName;
+    if (body.registration.phone !== undefined) cur.registration.phone = body.registration.phone;
+    
+    // Update registration statuses snapshot if statuses were changed
+    if (body.status1 !== undefined || body.status2 !== undefined || body.status3 !== undefined) {
+      cur.registration.statuses = cur.registration.statuses || {};
+      if (body.status1 !== undefined) cur.registration.statuses.status1 = cur.status1;
+      if (body.status2 !== undefined && cur.status2) cur.registration.statuses.status2 = cur.status2;
+      if (body.status3 !== undefined && cur.status3) cur.registration.statuses.status3 = cur.status3;
+    }
+  }
+  
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));
   return json(cur);
 }
