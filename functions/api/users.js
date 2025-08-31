@@ -3,8 +3,7 @@ import { requireRole, sha256, newId, incUserCount, auditLog } from '../_utils.js
 
 const ROLES = ['root','admin','interviewer','curator'];
 
-export async function onRequestGet(context) {
-  const { env, request } = context;
+export async function GET(env, request) {
   const url = new URL(request.url);
   if (url.searchParams.get('me')) {
     const { sess, error } = await requireRole(env, request, []);
@@ -25,8 +24,7 @@ export async function onRequestGet(context) {
   return json({ items });
 }
 
-export async function onRequestPut(context) {
-  const { env, request } = context;
+export async function PUT(env, request) {
   // Any authenticated user can change their own login/password
   const { sess, error } = await requireRole(env, request, []);
   if (error) return error;
@@ -52,8 +50,7 @@ export async function onRequestPut(context) {
   return json({ ok: true, user: { id: updated.id, login: updated.login, role: updated.role, fullName: updated.fullName, mustChange: false } });
 }
 
-export async function onRequestPost(context) {
-  const { env, request } = context;
+export async function POST(env, request) {
   const { sess, error } = await requireRole(env, request, ['root']);
   if (error) return error;
   let body;
@@ -75,8 +72,7 @@ export async function onRequestPost(context) {
   return json({ ok: true, user });
 }
 
-export async function onRequestDelete(context) {
-  const { env, request } = context;
+export async function DELETE(env, request) {
   const { sess, error } = await requireRole(env, request, ['root']);
   if (error) return error;
   const url = new URL(request.url);

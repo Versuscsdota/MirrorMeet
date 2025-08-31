@@ -10,8 +10,7 @@ import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createSta
 //   createdAt, createdBy
 // }
 
-export async function onRequestGet(context) {
-  const { env, request } = context;
+export async function GET(env, request) {
   const { error } = await requireRole(env, request, ['root','admin','interviewer']);
   if (error) return error;
   const url = new URL(request.url);
@@ -48,8 +47,7 @@ export async function onRequestGet(context) {
   return json({ items });
 }
 
-export async function onRequestPost(context) {
-  const { env, request } = context;
+export async function POST(env, request) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
@@ -100,8 +98,7 @@ export async function onRequestPost(context) {
   return json(slot);
 }
 
-export async function onRequestPut(context) {
-  const { env, request } = context;
+export async function PUT(env, request) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
@@ -218,8 +215,7 @@ export async function onRequestPut(context) {
   return json(responseObj);
 }
 
-export async function onRequestDelete(context) {
-  const { env, request } = context;
+export async function DELETE(env, request) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);

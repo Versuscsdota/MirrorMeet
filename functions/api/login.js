@@ -1,7 +1,6 @@
 import { json, text, badRequest, cookieSerialize, sha256, newId, firstUserExists, incUserCount, makeJwt } from '../_utils.js';
 
-export async function onRequestPost(context) {
-  const { env, request } = context;
+export async function POST(env, request) {
   try {
     const { SESSION_COOKIE_NAME = 'mirrorsid', SESSION_TTL_SECONDS = 60 * 60 * 24 * 7, COOKIE_SECURE = true } = env;
 

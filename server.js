@@ -100,68 +100,80 @@ class RequestShim {
   }
 }
 
-async function callHandler(handler, req, res, parsedForm) {
+// Helper to call API handlers with Node.js-style parameters
+async function callHandler(handler, req, res, parsedForm = null) {
   try {
-    const resp = await handler({ env, request: new RequestShim(req, parsedForm), context: {} });
-    const status = resp.status || 200;
-    const headers = {};
-    resp.headers && resp.headers.forEach((v, k) => { headers[k] = v; });
-    const bodyBuf = await (async () => {
-      if (resp.body && typeof resp.body.getReader === 'function') {
-        const reader = resp.body.getReader();
-        const chunks = [];
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(Buffer.from(value));
-        }
-        return Buffer.concat(chunks);
+    const request = {
+      url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+      method: req.method,
+      headers: {
+        get: (name) => req.get(name) || null,
+        'content-type': req.get('content-type')
+      },
+      json: () => Promise.resolve(req.body),
+      formData: () => Promise.resolve(parsedForm || { fields: req.body || {}, files: [] })
+    };
+    
+    const response = await handler(process.env, request);
+    
+    if (response.headers) {
+      for (const [key, value] of Object.entries(response.headers)) {
+        res.set(key, value);
       }
-      if (typeof resp.text === 'function') return await resp.text();
-      return '';
-    })();
-    res.set(headers);
-    res.status(status).send(bodyBuf);
-  } catch (e) {
-    res.status(500).send(`Server error: ${e?.message || String(e)}`);
+    }
+    
+    res.status(response.status || 200);
+    
+    if (response.body) {
+      if (typeof response.body === 'string') {
+        res.send(response.body);
+      } else {
+        res.json(response.body);
+      }
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    console.error('Handler error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
 // API routes
-app.post('/api/login', (req, res) => callHandler(login.onRequestPost, req, res));
-app.post('/api/logout', (req, res) => callHandler(logout.onRequestPost, req, res));
+app.post('/api/login', (req, res) => callHandler(login.POST, req, res));
+app.post('/api/logout', (req, res) => callHandler(logout.POST, req, res));
 
-app.get('/api/users', (req, res) => callHandler(users.onRequestGet, req, res));
-app.post('/api/users', (req, res) => callHandler(users.onRequestPost, req, res));
-app.put('/api/users', (req, res) => callHandler(users.onRequestPut, req, res));
-app.delete('/api/users', (req, res) => callHandler(users.onRequestDelete, req, res));
+app.get('/api/users', (req, res) => callHandler(users.GET, req, res));
+app.post('/api/users', (req, res) => callHandler(users.POST, req, res));
+app.put('/api/users', (req, res) => callHandler(users.PUT, req, res));
+app.delete('/api/users', (req, res) => callHandler(users.DELETE, req, res));
 
-app.get('/api/employees', (req, res) => callHandler(employees.onRequestGet, req, res));
-app.post('/api/employees', (req, res) => callHandler(employees.onRequestPost, req, res));
-app.put('/api/employees', (req, res) => callHandler(employees.onRequestPut, req, res));
-app.delete('/api/employees', (req, res) => callHandler(employees.onRequestDelete, req, res));
+app.get('/api/employees', (req, res) => callHandler(employees.GET, req, res));
+app.post('/api/employees', (req, res) => callHandler(employees.POST, req, res));
+app.delete('/api/employees', (req, res) => callHandler(employees.DELETE, req, res));
+app.put('/api/employees', (req, res) => callHandler(employees.PUT, req, res));
 
-app.get('/api/models', (req, res) => callHandler(models.onRequestGet, req, res));
-app.post('/api/models', (req, res) => callHandler(models.onRequestPost, req, res));
-app.put('/api/models', (req, res) => callHandler(models.onRequestPut, req, res));
-app.delete('/api/models', (req, res) => callHandler(models.onRequestDelete, req, res));
+app.get('/api/models', (req, res) => callHandler(models.GET, req, res));
+app.post('/api/models', (req, res) => callHandler(models.POST, req, res));
+app.put('/api/models', (req, res) => callHandler(models.PUT, req, res));
+app.delete('/api/models', (req, res) => callHandler(models.DELETE, req, res));
 
-app.get('/api/schedule', (req, res) => callHandler(schedule.onRequestGet, req, res));
-app.post('/api/schedule', (req, res) => callHandler(schedule.onRequestPost, req, res));
-app.put('/api/schedule', (req, res) => callHandler(schedule.onRequestPut, req, res));
-app.delete('/api/schedule', (req, res) => callHandler(schedule.onRequestDelete, req, res));
+app.get('/api/schedule', (req, res) => callHandler(schedule.GET, req, res));
+app.post('/api/schedule', (req, res) => callHandler(schedule.POST, req, res));
+app.put('/api/schedule', (req, res) => callHandler(schedule.PUT, req, res));
+app.delete('/api/schedule', (req, res) => callHandler(schedule.DELETE, req, res));
 
 // Audit (read-only)
-app.get('/api/audit', (req, res) => callHandler(audit.onRequestGet, req, res));
+app.get('/api/audit', (req, res) => callHandler(audit.GET, req, res));
 
 // Files API with multipart support
-app.get('/api/files', (req, res) => callHandler(files.onRequestGet, req, res));
+app.get('/api/files', (req, res) => callHandler(files.GET, req, res));
 app.post('/api/files', upload.any(), async (req, res) => {
   const filesArr = Array.isArray(req.files) ? req.files : (req.file ? [req.file] : []);
   const parsedForm = { fields: req.body || {}, files: filesArr };
-  await callHandler(files.onRequestPost, req, res, parsedForm);
+  await callHandler(files.POST, req, res, parsedForm);
 });
-app.delete('/api/files', (req, res) => callHandler(files.onRequestDelete, req, res));
+app.delete('/api/files', (req, res) => callHandler(files.DELETE, req, res));
 
 // Static assets
 app.use(express.static(path.join(__dirname, 'public')));

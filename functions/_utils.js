@@ -151,7 +151,7 @@ export async function auditLog(env, req, sess, action, details = {}) {
     const day = d.toISOString().slice(0, 10); // YYYY-MM-DD
     const rid = crypto.getRandomValues(new Uint8Array(4)).reduce((s,b)=>s+ b.toString(16).padStart(2,'0'), '');
     const key = `audit:${day}:${ts}:${rid}`;
-    const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || '';
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || '';
     const ua = req.headers.get('user-agent') || '';
     const ttlDays = Number(env.AUDIT_TTL_DAYS || 90);
     const expirationTtl = Math.max(1, Math.floor(ttlDays * 24 * 60 * 60));

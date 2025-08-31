@@ -13,8 +13,7 @@ function sanitizeStr(v, max = 120) {
 function isEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function isPhone(v){ return /^[+0-9 ()-]{6,}$/.test(v); }
 
-export async function onRequestGet(context) {
-  const { env, request } = context;
+export async function GET(env, request) {
   // Only admin/root can read list
   const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
@@ -76,8 +75,7 @@ export async function onRequestGet(context) {
   return json(items);
 }
 
-export async function onRequestPost(context) {
-  const { env, request } = context;
+export async function POST(env, request) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return forbidden('Только администратор и root могут регистрировать новых пользователей');
   let body;
@@ -144,11 +142,11 @@ export async function onRequestPost(context) {
   return json({ ...employee, credentials: { login, password } }, { status: 201 });
 }
 
-export async function onRequestDelete(context) {
-  const { env, request } = context;
+export async function DELETE(env, request) {
   // Only root can delete employees
   const { sess, error } = await requireRole(env, request, ['root']);
   if (error) return forbidden('Только root может удалить сотрудника');
+  const url = new URL(request.url);
   let id = url.searchParams.get('id');
   // Fallback: allow id in JSON body for DELETE as well
   if (!id) {
@@ -189,11 +187,11 @@ export async function onRequestDelete(context) {
   return json({ ok: true });
 }
 
-export async function onRequestPut(context) {
-  const { env, request } = context;
+export async function PUT(env, request) {
   // Only root can edit employees
   const { sess, error } = await requireRole(env, request, ['root']);
   if (error) return forbidden('Только root может редактировать сотрудников');
+  let body;
   try { body = await request.json(); } catch { return badRequest('Invalid JSON'); }
   
   const id = sanitizeStr(body.id);

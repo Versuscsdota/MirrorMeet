@@ -30,8 +30,7 @@ function encodeRFC5987(str) {
   return encodeURIComponent(str).replace(/['()]/g, escape).replace(/\*/g, '%2A');
 }
 
-export async function onRequestGet(context) {
-  const { env, request } = context;
+export async function GET(env, request) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const modelId = url.searchParams.get('modelId');
@@ -122,8 +121,7 @@ export async function onRequestGet(context) {
   return badRequest('modelId or slotId required');
 }
 
-export async function onRequestPost(context) {
-  const { env, request } = context;
+export async function POST(env, request) {
   // Uploads: only root/admin
 
   if (!request.headers.get('content-type')?.includes('multipart/form-data')) return badRequest('multipart/form-data required');
@@ -196,8 +194,7 @@ export async function onRequestPost(context) {
   return json({ ok: true, files: created });
 }
 
-export async function onRequestDelete(context) {
-  const { env, request } = context;
+export async function DELETE(env, request) {
   const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   const url = new URL(request.url);

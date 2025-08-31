@@ -11,8 +11,7 @@ function addDays(isoDate, days) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function onRequestGet(context) {
-  const { env, request } = context;
+export async function GET(env, request) {
   const { error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
 
