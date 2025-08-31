@@ -1274,7 +1274,8 @@ function renderAppShell(me) {
             <button id="nav-employees">Сотрудники</button>
             <button id="nav-files">Файлы</button>
           ` : (me.role === 'interviewer') ? `
-            <button id="nav-calendar">Календарь</button>
+            <button id=\"nav-models\">Модели</button>
+            <button id=\"nav-calendar\">Календарь</button>
           ` : ''
         }
       </nav>
