@@ -590,6 +590,48 @@ async function renderCalendar() {
           <h4>История</h4>
           <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
         </div>` : ''}
+        ${canCreateModel ? `
+        <div id="regPanel" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <h4>Регистрация модели</h4>
+          <div style="display:grid;gap:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/\"/g,'&quot;')}" placeholder="Иванов Иван" /></label>
+              <label>Телефон
+                <input id="rPhone" type="tel" value="" placeholder="+7 999 123-45-67" />
+              </label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>Дата рождения<input id="rBirth" type="date" /></label>
+              <label>Дата первой стажировки<input id="rIntern" type="date" /></label>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <label>Тип документа
+                <select id="rDocType">
+                  <option value="passport">Паспорт РФ</option>
+                  <option value="driver">Водительские права</option>
+                  <option value="foreign">Загранпаспорт</option>
+                </select>
+              </label>
+              <label>Серия и номер / Номер
+                <input id="rDocNum" placeholder="0000 000000" />
+              </label>
+            </div>
+            <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
+            <div>
+              <h4>Фото документов</h4>
+              <input id="rDocs" type="file" multiple accept="image/*,.pdf" />
+            </div>
+            <div>
+              <h4>Фотографии</h4>
+              <input id="rPhotos" type="file" multiple accept="image/*,video/*" />
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button id="regSubmit" type="button">Создать модель</button>
+            </div>
+            <div id="regError" style="color:#f87171"></div>
+          </div>
+        </div>
+        ` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
           ${canCreateModel ? `<button id="createModelBtn" type="button">Регистрация</button>` : ''}
           <div id="s3Group" style="display:flex;gap:6px">
@@ -736,65 +778,32 @@ async function renderCalendar() {
       } catch (e) { alert(e.message); btn.disabled = false; }
     };
 
-    // Hook create model action (if visible)
+    // Регистрация внутри модалки слота
     if (canCreateModel) {
-      const btn = box.querySelector('#createModelBtn');
-      if (btn) btn.onclick = async () => {
-        // Prefill from slot
-        const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
-        const form = document.createElement('div');
-        form.innerHTML = `
-          <div style="display:grid;gap:10px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/\"/g,'&quot;')}" placeholder="Иванов Иван" /></label>
-              <label>Телефон
-                <input id="rPhone" type="tel" value="${guessedPhone}" placeholder="+7 999 123-45-67" />
-              </label>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>Дата рождения<input id="rBirth" type="date" /></label>
-              <label>Дата первой стажировки<input id="rIntern" type="date" /></label>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>Тип документа
-                <select id="rDocType">
-                  <option value="passport">Паспорт РФ</option>
-                  <option value="driver">Водительские права</option>
-                  <option value="foreign">Загранпаспорт</option>
-                </select>
-              </label>
-              <label>Серия и номер / Номер
-                <input id="rDocNum" placeholder="0000 000000" />
-              </label>
-            </div>
-            <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
-            <div>
-              <h4>Фото документов</h4>
-              <input id="rDocs" type="file" multiple accept="image/*,.pdf" />
-            </div>
-            <div>
-              <h4>Фотографии</h4>
-              <input id="rPhotos" type="file" multiple accept="image/*,video/*" />
-            </div>
-          </div>`;
-        const res = await showModal({ title: 'Регистрация модели', content: form, submitText: 'Зарегистрировать' });
-        if (!res) return;
-        const { close, setError } = res;
-        const fullName = form.querySelector('#rFullName').value.trim();
-        const phone = form.querySelector('#rPhone').value.trim();
-        const birthDate = form.querySelector('#rBirth').value;
-        const internshipDate = form.querySelector('#rIntern').value;
-        const docType = form.querySelector('#rDocType').value;
-        const docNumber = form.querySelector('#rDocNum').value.trim();
-        const comment = form.querySelector('#rComment').value.trim();
-        // Валидация убрана по просьбе: сохраняем без проверок полей
+      // Предзаполнение телефона из заметок
+      const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
+      const rPhone = box.querySelector('#rPhone'); if (rPhone && !rPhone.value) rPhone.value = guessedPhone;
+      const toggleBtn = box.querySelector('#createModelBtn');
+      const panel = box.querySelector('#regPanel');
+      if (toggleBtn && panel) toggleBtn.onclick = () => {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        const f = box.querySelector('#rFullName'); if (panel.style.display !== 'none' && f) f.focus();
+      };
+      const submitBtn = box.querySelector('#regSubmit');
+      if (submitBtn && panel) submitBtn.onclick = async () => {
+        const errorEl = box.querySelector('#regError'); if (errorEl) errorEl.textContent = '';
+        const fullName = (box.querySelector('#rFullName')?.value || '').trim();
+        const phone = (box.querySelector('#rPhone')?.value || '').trim();
+        const birthDate = box.querySelector('#rBirth')?.value || '';
+        const internshipDate = box.querySelector('#rIntern')?.value || '';
+        const docType = box.querySelector('#rDocType')?.value || '';
+        const docNumber = (box.querySelector('#rDocNum')?.value || '').trim();
+        const comment = (box.querySelector('#rComment')?.value || '').trim();
         try {
-          // Create model from slot
-          // Also propagate the latest selected statuses from the edit slot modal (even if not saved yet)
-          // Read from the slot modal container `box` where these controls live
-          const selS1 = (box && box.querySelector('#sStatus1') ? box.querySelector('#sStatus1').value : (s.status1 || 'not_confirmed'));
-          const selS2 = (box && box.querySelector('#s2') ? box.querySelector('#s2').value : (s.status2 || ''));
-          const selS3Btn = box && box.querySelector('#s3Group .s3btn[data-selected="true"]');
+          submitBtn.disabled = true; const prev = submitBtn.textContent; submitBtn.textContent = 'Создание…';
+          const selS1 = s.status1 || 'not_confirmed';
+          const selS2 = (box.querySelector('#s2')?.value || s.status2 || '');
+          const selS3Btn = box.querySelector('#s3Group .s3btn[data-selected="true"]');
           const selS3 = selS3Btn ? selS3Btn.dataset.v : (s.status3 || '');
           const payload = {
             action: 'registerFromSlot',
@@ -813,9 +822,7 @@ async function renderCalendar() {
             status3: selS3 || undefined
           };
           const model = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
-          // Upload grouped files
-          const docs = form.querySelector('#rDocs').files;
-          const photos = form.querySelector('#rPhotos').files;
+          // Загрузка файлов
           async function uploadGroup(files, category){
             if (!files || files.length === 0) return;
             const fd = new FormData();
@@ -824,17 +831,20 @@ async function renderCalendar() {
             for (const f of files) fd.append('file', f);
             await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
           }
+          const docs = box.querySelector('#rDocs')?.files;
+          const photos = box.querySelector('#rPhotos')?.files;
           await uploadGroup(docs, 'doc');
           await uploadGroup(photos, 'photo');
-          // Mark slot status3
+          // Обновить статус слота
           try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
-          close();
-          // Navigate to the model profile
+          // Закрыть модалку слота
+          const backdrop = box.closest('.modal-backdrop'); if (backdrop) backdrop.remove();
+          // Открыть профиль модели
           renderModels();
-          if (model && model.id && typeof window.renderModelCard === 'function') {
-            window.renderModelCard(model.id);
-          }
-        } catch (e) { setError(e.message); }
+          if (model && model.id && typeof window.renderModelCard === 'function') window.renderModelCard(model.id);
+        } catch (e) {
+          const errorEl2 = box.querySelector('#regError'); if (errorEl2) errorEl2.textContent = e.message || 'Ошибка регистрации';
+        } finally { submitBtn.textContent = 'Создать модель'; submitBtn.disabled = false; }
       };
     }
 
