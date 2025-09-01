@@ -632,16 +632,20 @@ async function renderCalendar() {
         const eh = Math.floor((total % (24 * 60)) / 60);
         const em = total % 60;
         const end = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
-        const title = form.querySelector('#sTitle').value.trim();
-        const notes = form.querySelector('#sNotes').value.trim();
-        const status1 = (form.querySelector('#sStatus1').value || 'not_confirmed');
+        const title = (box.querySelector('#regName').value || '').trim();
+        const phone = (box.querySelector('#regPhone').value || '').trim();
+        const notesBase = form.querySelector('#sNotes') ? form.querySelector('#sNotes').value.trim() : '';
+        const notes = phone ? `Телефон: ${phone}${notesBase?`\n${notesBase}`:''}` : notesBase;
+        const status1 = (box.querySelector('#regS1').value || 'not_confirmed');
+        const status2 = (box.querySelector('#regS2').value || '');
+        const status4 = (box.querySelector('#regS4').value || '');
         const timeChanged = (start !== currStart);
         const comment = timeChanged ? ((form.querySelector('#sComment') && form.querySelector('#sComment').value) || '').trim() : '';
-        console.log('[editSlot] Form values:', { status1, title, notes, timeChanged, comment });
+        console.log('[editSlot] Save slot:', { status1, status2, status4, title, notes, timeChanged, comment });
         if (timeChanged && !comment) { setError('Требуется комментарий для изменения времени'); return; }
         if (!title) { setError('Заполните ФИО'); return; }
         try {
-          const payload = { id: s.id, date: (s.date || date), start, end, title, notes, comment, status1 };
+          const payload = { id: s.id, date: (s.date || date), start, end, title, notes, comment, status1, status2: status2 || undefined, status4: status4 || undefined };
           console.log('[editSlot] API payload:', payload);
           const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
           console.log('[editSlot] API response:', updated);
@@ -653,6 +657,85 @@ async function renderCalendar() {
     });
     
     await modalPromise;
+
+    // Wire registration action inside the already open modal lifecycle
+    const doRegisterBtn = box.querySelector('#doRegister');
+    if (doRegisterBtn) {
+      doRegisterBtn.onclick = async () => {
+        // no-op: currently not used (we place registration under StartReg flow below)
+      };
+    }
+
+    // Attach handler to perform registration when regSection visible and user clicks a special footer button we add below
+    const regSection = box.querySelector('#regSection');
+    if (regSection) {
+      // Add footer button only when section is shown
+      const tryAddFooter = () => {
+        if (!regSection || regSection.dataset.footer) return;
+        const footer = document.createElement('div');
+        footer.style.display = 'flex';
+        footer.style.gap = '8px';
+        footer.style.marginTop = '8px';
+        const regBtn = document.createElement('button');
+        regBtn.textContent = 'Зарегистрировать';
+        regBtn.className = 'primary';
+        footer.appendChild(regBtn);
+        regSection.appendChild(footer);
+        regSection.dataset.footer = '1';
+        regBtn.onclick = async () => {
+          const name = (box.querySelector('#regName').value || '').trim();
+          const fullName = name;
+          const phone = (box.querySelector('#regPhone').value || '').trim();
+          const birthDate = (box.querySelector('#regBirth').value || '').trim();
+          const docType = (box.querySelector('#regDocType').value || '').trim();
+          const docNumber = (box.querySelector('#regDocNumber').value || '').trim();
+          const internshipDate = (box.querySelector('#regIntern').value || '').trim();
+          if (!birthDate || !docType || !docNumber) { alert('Заполните обязательные поля регистрации'); return; }
+          try {
+            // 1) Upload chosen files to slot (so backend will link them during registration)
+            const photo = box.querySelector('#regPhoto').files?.[0];
+            const audio = box.querySelector('#regAudio').files?.[0];
+            if (photo || audio) {
+              const fd = new FormData();
+              fd.append('slotId', s.id);
+              if (photo) fd.append('file', photo);
+              if (audio) fd.append('file', audio);
+              await api('/api/files', { method: 'POST', body: fd });
+            }
+            // 2) Register model from slot
+            const payload = {
+              action: 'registerFromSlot',
+              date: s.date || date,
+              slotId: s.id,
+              name,
+              fullName,
+              phone,
+              birthDate,
+              docType,
+              docNumber,
+              internshipDate,
+              comment: (s.interview && s.interview.text) || ''
+            };
+            const res = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
+            // 3) Refresh slots list to reflect link and statuses
+            const rel = await api('/api/schedule?date=' + encodeURIComponent(s.date || date));
+            slots = rel.items || [];
+            renderList();
+            // 4) Close modal
+            const modal = document.querySelector('.modal-backdrop');
+            if (modal) modal.remove();
+            alert('Модель зарегистрирована');
+          } catch (e) {
+            alert(e.message);
+          }
+        };
+      };
+      // If already visible (after click), add footer
+      if (regSection.style.display !== 'none') tryAddFooter();
+      // Also hook startRegBtn to add footer after show
+      const startBtn = box.querySelector('#startRegBtn');
+      if (startBtn) startBtn.addEventListener('click', tryAddFooter, { once: true });
+    }
   }
 
   async function deleteSlot(id) {
@@ -699,22 +782,63 @@ async function renderCalendar() {
     if (!s) return;
     const box = document.createElement('div');
     const canCreateModel = window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role);
+    const phoneInit = s.phone || s.contacts?.phone || '';
+    const s1 = s.status1 || 'not_confirmed';
+    const s2 = s.status2 || '';
+    const s4 = s.status4 || '';
     box.innerHTML = `
-      <div style="display:grid;gap:8px">
-        <div><strong>${s.start || ''}–${s.end || ''}</strong> ${s.title ? '· ' + s.title : ''}</div>
-        <div style="font-size:11px;color:#9aa;user-select:text">ID: <code>${s.id}</code></div>
-        <label>Заметки интервью<textarea id="iText" rows="5" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
-        <div>
-          <label>Статус посещения
-            <select id="s2">
-              <option value="" ${!s.status2 ? 'selected' : ''}>—</option>
-              <option value="arrived" ${s.status2 === 'arrived' ? 'selected' : ''}>Пришла</option>
-              <option value="no_show" ${s.status2 === 'no_show' ? 'selected' : ''}>Не пришла</option>
-              <option value="other" ${s.status2 === 'other' ? 'selected' : ''}>Другое</option>
+      <div style="display:grid;gap:12px">
+        <div><strong>${s.start || ''}–${s.end || ''}</strong></div>
+        <label>ФИО<input id="regName" placeholder="Иванов Иван Иванович" value="${(s.title||'').replace(/"/g,'&quot;')}" /></label>
+        <label>Телефон<input id="regPhone" placeholder="+7 (999) 123-45-67" value="${phoneInit}" /></label>
+        <label>Статус слота
+          <select id="regS1">
+            <option value="confirmed" ${s1==='confirmed'?'selected':''}>Подтвержден</option>
+            <option value="not_confirmed" ${!s1 || s1==='not_confirmed'?'selected':''}>Не подтвержден</option>
+            <option value="fail" ${s1==='fail'?'selected':''}>Слив</option>
+          </select>
+        </label>
+        <label>Статус прихода
+          <select id="regS2">
+            <option value="" ${!s2?'selected':''}>—</option>
+            <option value="arrived" ${s2==='arrived'?'selected':''}>Пришла</option>
+            <option value="no_show" ${s2==='no_show'?'selected':''}>Не пришла</option>
+            <option value="other" ${s2==='other'?'selected':''}>Другое</option>
+          </select>
+        </label>
+        <label>Статус собеседования
+          <select id="regS4">
+            <option value="" ${!s4?'selected':''}>—</option>
+            <option value="registration" ${s4==='registration'?'selected':''}>Регистрация</option>
+          </select>
+        </label>
+
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="startRegBtn" type="button" class="success" style="display:none">Начать регистрацию</button>
+          <span id="startHint" style="font-size:12px;color:#9aa">Кнопка появится при: Подтвержден · Пришла · Регистрация</span>
+        </div>
+
+        <div id="regSection" style="display:none;border-top:1px solid var(--border);padding-top:12px;display:grid;gap:10px">
+          <label>Дата рождения*<input id="regBirth" type="date" /></label>
+          <label>Документ* 
+            <select id="regDocType">
+              <option value="">Выберите документ</option>
+              <option value="passport">Паспорт</option>
+              <option value="driver">Водительское</option>
+              <option value="foreign">Загранпаспорт</option>
             </select>
           </label>
-          <label id="s2cWrap" style="display:${s.status2 === 'other' ? 'block' : 'none'}">Комментарий к статусу<textarea id="s2c" rows="2" placeholder="Уточните причину">${s.status2Comment || ''}</textarea></label>
+          <label>Данные документа*<input id="regDocNumber" placeholder="Серия, номер и другие данные" /></label>
+          <label>Дата стажировки<input id="regIntern" type="date" /></label>
+          <div>
+            <label>Загрузка фото <input id="regPhoto" type="file" accept="image/*" /></label>
+          </div>
+          <div>
+            <label>Загрузка аудио <input id="regAudio" type="file" accept="audio/*" /></label>
+          </div>
         </div>
+
+        <label>Заметки интервью<textarea id="iText" rows="4" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
           <h4>Вложения</h4>
           <div id="attList" style="display:grid;gap:8px"></div>
@@ -723,30 +847,28 @@ async function renderCalendar() {
             <input id="upName" placeholder="Название файла (для одиночной загрузки)" />
             <button id="uploadBtn" type="button">Загрузить</button>
           </div>
-          <div id="dropZone" class="drop-zone">Перетащите файлы сюда для загрузки</div>
-        </div>
-        ${Array.isArray(s.history) && s.history.length ? `<div>
-          <h4>История</h4>
-          <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
-        </div>` : ''}
-        <div id="dataBlock" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-          <h4>Данные</h4>
-          <div id="formsWrap" style="display:grid;gap:8px"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-            <button id="saveDataBlock" type="button">Сохранить данные</button>
-            ${canCreateModel ? `<button id="registerFromData" type="button">Зарегистрировать модель</button>` : ''}
-          </div>
-          <div id="dataBlockError" style="color:#f87171"></div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-          <div id="s3Group" style="display:flex;gap:6px">
-            <button type="button" class="s3btn" data-v="thinking" title="Думает">🤔</button>
-            <button type="button" class="s3btn" data-v="reject_us" title="Отказ с нашей">⛔</button>
-            <button type="button" class="s3btn" data-v="reject_candidate" title="Отказ кандидата">🙅‍♀️</button>
-          </div>
         </div>
       </div>`;
     const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
+
+    // UI state handlers
+    function updateStartVisibility() {
+      const v1 = box.querySelector('#regS1').value;
+      const v2 = box.querySelector('#regS2').value;
+      const v4 = box.querySelector('#regS4').value;
+      const canStart = (v1 === 'confirmed' && v2 === 'arrived' && v4 === 'registration');
+      box.querySelector('#startRegBtn').style.display = canStart ? 'inline-flex' : 'none';
+    }
+    ['#regS1','#regS2','#regS4'].forEach(sel => {
+      const elx = box.querySelector(sel);
+      if (elx) elx.onchange = updateStartVisibility;
+    });
+    updateStartVisibility();
+
+    box.querySelector('#startRegBtn').onclick = () => {
+      box.querySelector('#regSection').style.display = 'grid';
+      box.querySelector('#startHint').style.display = 'none';
+    };
 
     async function refreshFiles() {
       try {
@@ -793,14 +915,14 @@ async function renderCalendar() {
       }
     }
 
-    // status2 UI toggle
-    const s2 = box.querySelector('#s2');
+    // status2 UI toggle (legacy UI support)
+    const s2El = box.querySelector('#s2');
     const s2cWrap = box.querySelector('#s2cWrap');
-    if (s2 && s2cWrap) {
-      s2.onchange = async () => { 
-        s2cWrap.style.display = (s2.value === 'other') ? 'block' : 'none';
+    if (s2El && s2cWrap) {
+      s2El.onchange = async () => { 
+        s2cWrap.style.display = (s2El.value === 'other') ? 'block' : 'none';
         // Auto-derive status3=registration when both conditions met and slot has no status3
-        if (s.status1 === 'confirmed' && s2.value === 'arrived' && !s.status3) {
+        if (s.status1 === 'confirmed' && s2El.value === 'arrived' && !s.status3) {
           try {
             const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status2: 'arrived' }) });
             Object.assign(s, updated);

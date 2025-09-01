@@ -173,7 +173,26 @@ export async function POST(env, request) {
         await env.CRM_KV.put(slotKey, JSON.stringify(curSlot));
       }
     } catch {}
-    return json(model);
+    // Link/copy files from slot -> model (same logic as ingest)
+    let linked = [];
+    try {
+      const filesList = await env.CRM_KV.list({ prefix: 'file:' });
+      const metas = await Promise.all(filesList.keys.map(k => env.CRM_KV.get(k.name, { type: 'json' })));
+      const slotFiles = metas.filter(f => f && f.entity === 'slot' && f.slotId === slotId);
+      for (const f of slotFiles) {
+        const nfId = newId('fil');
+        const meta = { id: nfId, entity: 'model', modelId: id, name: f.name, description: f.description, objectKey: f.objectKey, contentType: f.contentType, size: f.size, createdAt: Date.now() };
+        await env.CRM_KV.put(`file:${nfId}`, JSON.stringify(meta));
+        await env.CRM_KV.put(`file_model:${id}:${nfId}`, '1');
+        linked.push({ ...meta, url: `/api/files?id=${nfId}` });
+      }
+      if (linked.length) {
+        model.history = model.history || [];
+        model.history.push({ ts: Date.now(), type: 'files_linked_from_slot', slot: { id: slot.id, date: slot.date }, count: linked.length });
+        await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
+      }
+    } catch {}
+    return json({ ...model, files: linked });
   }
 
   // Action: retro-link a slot to an existing model (set registration.slotRef and slot.modelId)
