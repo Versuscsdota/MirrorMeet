@@ -104,33 +104,115 @@ async function renderCalendar() {
   let _snackbarTimer = null;
 
   view.innerHTML = `
-    <div style="display:grid;grid-template-rows:auto 1fr;gap:16px;height:calc(100vh - 120px)">
-      <div class="card" style="padding:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <button id="mPrev" class="ghost" style="padding:4px 8px">◀</button>
-          <strong id="mTitle" style="font-size:14px"></strong>
-          <button id="mNext" class="ghost" style="padding:4px 8px">▶</button>
-        </div>
-        <div id="monthGrid"></div>
-        ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
+    <div class="schedule-container">
+      <div class="schedule-header">
+        <h1>Календарь</h1>
+        <div class="current-date" id="currentDateDisplay">${new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
       </div>
-      <div class="card">
-        <div style="padding:16px;border-bottom:1px solid var(--border)">
-          <h3 style="margin:0;font-size:16px">Расписание на <span id="selectedDate">${today}</span></h3>
+      
+      <div class="schedule-main-content">
+        <div class="schedule-left-panel">
+          <div class="schedule-calendar-container">
+            <div class="schedule-calendar">
+              <div class="schedule-calendar-header">
+                <select id="monthSelect">
+                  <option value="${currentMonth}">${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</option>
+                </select>
+                <button id="todayBtn">Сегодня</button>
+              </div>
+              
+              <div class="schedule-calendar-grid">
+                <div class="schedule-calendar-weekday">Пн</div>
+                <div class="schedule-calendar-weekday">Вт</div>
+                <div class="schedule-calendar-weekday">Ср</div>
+                <div class="schedule-calendar-weekday">Чт</div>
+                <div class="schedule-calendar-weekday">Пт</div>
+                <div class="schedule-calendar-weekday">Сб</div>
+                <div class="schedule-calendar-weekday">Вс</div>
+                <div id="monthGrid"></div>
+              </div>
+              
+              ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" class="schedule-create-slot-btn">Создать слот</button>' : ''}
+            </div>
+          </div>
+          
+          <div class="schedule-color-legend">
+            <h3>Обозначение цветов</h3>
+            <div class="schedule-legend-items">
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-not-confirmed"></div>
+                <span>Не подтвердилась/Не пришла/Пришла</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-confirmed"></div>
+                <span>Подтвердилась</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-drain"></div>
+                <span>Слив</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-registration"></div>
+                <span>Регистрация</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-candidate-refusal"></div>
+                <span>Отказ со стороны кандидата</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-our-refusal"></div>
+                <span>Отказ с нашей стороны</span>
+              </div>
+              <div class="schedule-legend-item">
+                <div class="schedule-legend-color status-thinking"></div>
+                <span>Ушла на подумать</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="sched-wrap">
-          <div id="scheduleTable" class="sched-table"></div>
+        
+        <div class="schedule-slots-container">
+          <div class="schedule-slots-header">
+            <h2 id="selectedDate">${today}</h2>
+          </div>
+          
+          <div class="schedule-slots-grid" id="scheduleTable"></div>
         </div>
       </div>
     </div>`;
-  // Ensure accounts textarea shows the exact value from the fetched model
-  try {
-    const taAcc = el('#webcamAccounts');
-    if (taAcc && typeof model.webcamAccounts === 'string') {
-      taAcc.value = model.webcamAccounts;
-      console.debug('[model] loaded webcamAccounts chars:', model.webcamAccounts.length);
+  // Wire up navigation buttons
+  const todayBtn = el('#todayBtn');
+  if (todayBtn) {
+    todayBtn.onclick = () => {
+      date = today;
+      currentMonth = today.slice(0,7);
+      const selectedDateEl = el('#selectedDate');
+      if (selectedDateEl) {
+        selectedDateEl.textContent = new Date().toLocaleDateString('ru-RU', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long',
+          year: 'numeric'
+        });
+      }
+      loadMonth();
+      load();
+    };
+  }
+  
+  // Wire up create slot button
+  const addSlotBtn = el('#addSlot');
+  if (addSlotBtn) {
+    addSlotBtn.onclick = createSlot;
+  }
+  
+  // Wire up event handlers for schedule events
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.schedule-event[data-id]')) {
+      const slotId = e.target.closest('.schedule-event[data-id]').dataset.id;
+      if (slotId) openSlot(slotId);
     }
-  } catch {}
+  });
 
   async function load() {
     const res = await api('/api/schedule?date=' + encodeURIComponent(date));
@@ -197,16 +279,17 @@ async function renderCalendar() {
     const table = el('#scheduleTable');
     if (!table) return;
     
-    // Generate time slots 12:00 - 18:30, step 30min
+    // Generate time slots 12:00 - 18:00, step 30min
     const timeSlots = [];
     for (let h = 12; h <= 18; h++) {
       for (let m = 0; m < 60; m += 30) {
-        if (h === 18 && m > 30) break; // stop at 18:30
+        if (h === 18 && m > 0) break; // stop at 18:00
         const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
         timeSlots.push(t);
       }
     }
-    // Group by time: map HH:MM -> array of slots at that time (sorted, max first 2 for display)
+    
+    // Group slots by time
     const byTime = new Map();
     (slots || []).forEach(s => {
       const t = (s.start || '').slice(0,5);
@@ -214,70 +297,51 @@ async function renderCalendar() {
       if (!byTime.has(t)) byTime.set(t, []);
       byTime.get(t).push(s);
     });
-    for (const [t, arr] of byTime.entries()) arr.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
-
-    // Helper to render a slot block, color by status1
-    const renderBlock = (slot) => {
-      const s1 = slot.status1 || 'not_confirmed';
-      const bg = s1 === 'confirmed' ? 'var(--accent)' : s1 === 'fail' ? 'var(--danger)' : '#334155';
-      return `
-      <div class="slot-block" data-id="${slot.id}" style="background:${bg};color:var(--bg);padding:8px 6px;border-radius:6px;font-size:11px;cursor:pointer;width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;min-height:32px;font-weight:500;overflow:hidden" title="Клиент: ${slot.title}\n${slot.notes || ''}">
-        <div style="display:flex;align-items:center;gap:4px;width:100%;justify-content:center;overflow:hidden">
-          <span style="font-size:16px;line-height:1;opacity:0.9;flex-shrink:0">●</span>
-          <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px">${(slot.title||'Слот').split(' ')[0]}</span>
-        </div>
-        <div class="slot-actions-mini" style="position:absolute;top:-8px;right:-8px;display:none;z-index:10">
-          <button type="button" class="open-slot" data-id="${slot.id}" style="padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" title="Открыть">👁</button>
-          ${(['root','admin','interviewer'].includes(window.currentUser.role)) ? `<button type=\"button\" class=\"edit-slot\" data-id=\"${slot.id}\" style=\"padding:6px;font-size:12px;border:none;background:var(--accent);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center\" title=\"Редактировать\">✏</button>` : ''}
-          ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button type=\"button\" class=\"delete-slot\" data-id=\"${slot.id}\" style=\"padding:6px;font-size:12px;border:none;background:var(--danger);color:var(--bg);border-radius:4px;cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center\" title=\"Удалить\">🗑</button>` : ''}
-        </div>
-      </div>`;
-    };
-
-    const emptyCell = `<div style="height:32px;border:1px dashed rgba(148, 163, 184, 0.2);border-radius:6px;opacity:0.4;background:rgba(148, 163, 184, 0.02);transition:all 0.2s ease"></div>`;
-
-    table.innerHTML = `
-      <div class="sched-header" style="display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);">
-        ${timeSlots.map(t => `<div class=\"sched-cell\" style=\"padding:4px;text-align:center;font-size:11px\">${t}</div>`).join('')}
-      </div>
-      ${[0,1].map(row => `
-        <div class=\"sched-row\" style=\"display:grid;grid-template-columns:repeat(${timeSlots.length}, 1fr);\">
-          ${timeSlots.map(t => {
-            const arr = byTime.get(t) || [];
-            const slot = arr[row];
-            return `<div class=\"sched-cell\" style=\"padding:2px;position:relative\">${slot ? renderBlock(slot) : emptyCell}</div>`;
-          }).join('')}
-        </div>
-      `).join('')}
-    `;
     
-    // Wire slot hover actions and allow opening by clicking the whole block
-    [...table.querySelectorAll('.slot-block')].forEach(block => {
-      const actions = block.querySelector('.slot-actions-mini');
-      if (actions) {
-        block.onmouseenter = () => actions.style.display = 'flex';
-        block.onmouseleave = () => actions.style.display = 'none';
+    // Helper to get status class
+    const getStatusClass = (status1) => {
+      switch(status1) {
+        case 'confirmed': return 'status-confirmed';
+        case 'fail': return 'status-drain';
+        case 'registered': return 'status-registration';
+        case 'candidate_refusal': return 'status-candidate-refusal';
+        case 'our_refusal': return 'status-our-refusal';
+        case 'thinking': return 'status-thinking';
+        default: return 'status-not-confirmed';
       }
-      // Open slot on block click unless clicking on inline action buttons
-      block.addEventListener('click', (e) => {
-        if (e.target.closest && e.target.closest('.slot-actions-mini')) return;
-        const id = block.dataset.id;
-        openSlot(id);
-      });
-    });
-
-    // Wire actions via event delegation
-    if (!table._delegated) {
-      table.addEventListener('click', (e) => {
-        const del = e.target.closest && e.target.closest('.delete-slot');
-        if (del) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); deleteSlot(del.dataset.id); return; }
-        const edt = e.target.closest && e.target.closest('.edit-slot');
-        if (edt) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); editSlot(edt.dataset.id); return; }
-        const op = e.target.closest && e.target.closest('.open-slot');
-        if (op) { e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); openSlot(op.dataset.id); return; }
-      });
-      table._delegated = true;
-    }
+    };
+    
+    // Render slot events
+    const renderSlotEvents = (slotsAtTime) => {
+      if (!slotsAtTime || slotsAtTime.length === 0) {
+        return '<div class="schedule-event schedule-event-empty">Свободно</div>';
+      }
+      
+      return slotsAtTime.map(slot => {
+        const statusClass = getStatusClass(slot.status1 || 'not_confirmed');
+        const phone = slot.phone || slot.contacts?.phone || '';
+        return `
+          <div class="schedule-event ${statusClass}" data-id="${slot.id}">
+            ${slot.title || 'Без названия'}
+            ${phone ? `<span class="schedule-phone-number">${phone}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    };
+    
+    table.innerHTML = timeSlots.map(time => {
+      const slotsAtTime = byTime.get(time) || [];
+      return `
+        <div class="schedule-slot">
+          <div class="schedule-slot-time">${time}</div>
+          <div class="schedule-slot-events">
+            ${renderSlotEvents(slotsAtTime)}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // No additional wiring needed - handled by document event listener above
   }
 
   // Month grid with slot previews
@@ -286,43 +350,72 @@ async function renderCalendar() {
     const [y, m] = currentMonth.split('-').map(x=>parseInt(x,10));
     const d0 = new Date(y, m-1, 1);
     const monthName = d0.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
-    const titleEl = el('#mTitle');
-    if (titleEl) titleEl.textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+    
+    // Update month select
+    const monthSelect = el('#monthSelect');
+    if (monthSelect) {
+      monthSelect.innerHTML = `<option value="${currentMonth}">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}</option>`;
+    }
+    
     const startDow = (d0.getDay()+6)%7; // Mon=0
     const daysInMonth = new Date(y, m, 0).getDate();
     const cells = [];
-    for (let i=0;i<startDow;i++) cells.push(null);
-    for (let day=1; day<=daysInMonth; day++) cells.push(new Date(y, m-1, day));
-    while (cells.length % 7) cells.push(null);
+    
+    // Add previous month days
+    const prevMonth = new Date(y, m-2, 0);
+    const prevMonthDays = prevMonth.getDate();
+    for (let i = startDow - 1; i >= 0; i--) {
+      cells.push({ day: prevMonthDays - i, isOtherMonth: true });
+    }
+    
+    // Add current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push({ day, isOtherMonth: false, date: new Date(y, m-1, day) });
+    }
+    
+    // Add next month days to fill grid
+    let nextDay = 1;
+    while (cells.length < 42) { // 6 weeks * 7 days
+      cells.push({ day: nextDay++, isOtherMonth: true });
+    }
 
     const byDate = new Map((monthDays||[]).map(d => [d.date, d]));
     const todayStr = ymdLocal(new Date());
 
-    grid.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px;color:var(--muted);margin-bottom:4px;text-align:center">
-        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
-        ${cells.map(c => {
-          if (!c) return `<div style="height:40px;border:1px solid var(--border);background:var(--panel)"></div>`;
-          const dstr = ymdLocal(c);
-          const info = byDate.get(dstr);
-          const isToday = dstr === todayStr;
-          const isSelected = dstr === date;
-          const hasSlots = info && info.count > 0;
-          return `
-            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};background:${isToday ? 'var(--accent-weak)' : (hasSlots ? 'var(--panel-light)' : 'var(--panel)')};font-size:12px;color:${isSelected ? 'var(--accent)' : (hasSlots ? 'var(--text)' : 'var(--muted)')}">
-              ${c.getDate()}
-              ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--accent);border-radius:50%"></div>` : ''}
-            </button>`;
-        }).join('')}
-      </div>`;
+    grid.innerHTML = cells.map(cell => {
+      if (cell.isOtherMonth) {
+        return `<div class="schedule-calendar-day other-month">${cell.day}</div>`;
+      }
+      
+      const dstr = ymdLocal(cell.date);
+      const info = byDate.get(dstr);
+      const isToday = dstr === todayStr;
+      const isSelected = dstr === date;
+      const hasSlots = info && info.count > 0;
+      
+      return `
+        <div class="schedule-calendar-day ${isSelected ? 'selected' : ''}" data-date="${dstr}">
+          ${cell.day}
+          ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--accent);border-radius:50%"></div>` : ''}
+        </div>`;
+    }).join('');
 
-    [...grid.querySelectorAll('.cal-cell')].forEach(btn => btn.onclick = async () => {
-      date = btn.dataset.date;
-      el('#selectedDate').textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-      await load();
-      renderMonth();
+    // Wire up calendar day clicks
+    [...grid.querySelectorAll('.schedule-calendar-day[data-date]')].forEach(dayEl => {
+      dayEl.onclick = async () => {
+        date = dayEl.dataset.date;
+        const selectedDateEl = el('#selectedDate');
+        if (selectedDateEl) {
+          selectedDateEl.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'long',
+            year: 'numeric'
+          });
+        }
+        await load();
+        renderMonth();
+      };
     });
   }
 
