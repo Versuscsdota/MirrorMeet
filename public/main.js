@@ -1,5 +1,3 @@
-import { renderModels } from './models.js';
-
 const api = async (path, opts = {}) => {
   const isFD = (opts && opts.body && typeof FormData !== 'undefined' && opts.body instanceof FormData);
   const headers = isFD ? (opts.headers || {}) : { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -94,8 +92,8 @@ const Employee = {
 };
 
 // Calendar: slot-based without employee linkage
-async function renderCalendar(container) {
-  const view = container;
+async function renderCalendar() {
+  const view = el('#view');
   const today = ymdLocal(new Date());
   let date = today;
   let currentMonth = today.slice(0,7); // YYYY-MM
@@ -114,6 +112,10 @@ async function renderCalendar(container) {
 
   view.innerHTML = `
     <div class="schedule-container">
+      <div class="schedule-header">
+        <h1>Календарь</h1>
+        <div class="current-date" id="currentDateDisplay">${new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+      </div>
       
       <div class="schedule-main-content">
         <div class="schedule-left-panel">
