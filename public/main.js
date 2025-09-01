@@ -1398,17 +1398,25 @@ function renderAppShell(me) {
       renderLogin(); 
     };
   }
+  // Helper to set active nav state
+  function setActiveNav(activeId) {
+    const navButtons = document.querySelectorAll('header nav button[id^="nav"]');
+    navButtons.forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+
   if (me.role === 'root' || me.role === 'admin') {
-    el('#navModels').onclick = renderModels;
-    el('#navSchedule').onclick = renderCalendar;
-    el('#navEmployees').onclick = renderEmployees;
-    el('#navFiles').onclick = renderFileSystem;
+    el('#navModels').onclick = () => { setActiveNav('navModels'); renderModels(); };
+    el('#navSchedule').onclick = () => { setActiveNav('navSchedule'); renderCalendar(); };
+    el('#navEmployees').onclick = () => { setActiveNav('navEmployees'); renderEmployees(); };
+    el('#navFiles').onclick = () => { setActiveNav('navFiles'); renderFileSystem(); };
     const logsBtn = document.getElementById('navAudit');
-    if (logsBtn) logsBtn.onclick = () => { window.location.href = '/audit.html'; };
+    if (logsBtn) logsBtn.onclick = () => { setActiveNav('navAudit'); window.location.href = '/audit.html'; };
   } else if (me.role === 'interviewer') {
-    el('#navSchedule').onclick = renderCalendar;
+    el('#navSchedule').onclick = () => { setActiveNav('navSchedule'); renderCalendar(); };
     const modelsBtn = document.getElementById('navModels');
-    if (modelsBtn) modelsBtn.onclick = renderModels;
+    if (modelsBtn) modelsBtn.onclick = () => { setActiveNav('navModels'); renderModels(); };
   }
 }
 
