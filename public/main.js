@@ -115,7 +115,7 @@ async function renderCalendar() {
         ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" style="width:100%;margin-top:12px">Создать слот</button>' : ''}
       </div>
       <div class="card">
-        <div style="padding:16px;border-bottom:1px solid #1e1e1e">
+        <div style="padding:16px;border-bottom:1px solid var(--border)">
           <h3 style="margin:0;font-size:16px">Расписание на <span id="selectedDate">${today}</span></h3>
         </div>
         <div class="sched-wrap">
@@ -149,8 +149,8 @@ async function renderCalendar() {
     bar.style.left = '50%';
     bar.style.bottom = '20px';
     bar.style.transform = 'translateX(-50%)';
-    bar.style.background = '#111';
-    bar.style.border = '1px solid #2b2b2b';
+    bar.style.background = 'var(--panel-glass)';
+    bar.style.border = '1px solid var(--border)';
     bar.style.padding = '10px 12px';
     bar.style.borderRadius = '8px';
     bar.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
@@ -637,7 +637,7 @@ async function renderCalendar() {
           const isVideo = ct.startsWith('video/');
           return `
             <div class="file-card" style="display:flex;gap:12px;align-items:center">
-              <div style="width:64px;height:48px;display:flex;align-items:center;justify-content:center;background:#111;border:1px solid #222">
+              <div style="width:64px;height:48px;display:flex;align-items:center;justify-content:center;background:var(--panel);border:1px solid var(--border)">
                 ${isImg ? `<img src="${f.url}" style="max-width:100%;max-height:100%;object-fit:contain"/>` : (isAudio ? '🎵' : (isVideo ? '🎞' : '📄'))}
               </div>
               <div style="flex:1">
@@ -706,7 +706,7 @@ async function renderCalendar() {
         const active = b.dataset.v === val;
         b.style.background = active ? 'var(--accent)' : '';
         b.style.color = active ? 'var(--bg)' : '';
-        b.style.border = '1px solid #1f2937';
+        b.style.border = '1px solid var(--border)';
         b.style.borderRadius = '6px';
         b.style.padding = '6px 8px';
         if (active) b.setAttribute('data-selected', 'true'); else b.removeAttribute('data-selected');
@@ -1291,22 +1291,23 @@ async function renderEmployeeCard(id) {
             </div>` : ''}
         </div>
         <div class="card" style="padding:16px">
-          <div style="display:flex;gap:24px;align-items:center;border-bottom:1px solid #1e1e1e;padding-bottom:8px;margin-bottom:12px">
+            <div style="display:flex;gap:24px;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:12px">
             <h3 style="margin:0">Статистика</h3>
             <div style="color:var(--muted)">за период ${range.from} — ${range.to}</div>
           </div>
           <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px">
             <div class="stat-badge"><div class="stat-value">${stats.eventsCount||0}</div><div class="stat-label">событий</div></div>
+            <div class="stat-badge"><div class="stat-value">${stats.hoursTotal||0}</div><div class="stat-label">часов</div></div>
             <div class="stat-badge"><div class="stat-value">${hoursFmt(stats.hoursTotal||0)}</div><div class="stat-label">отработано</div></div>
           </div>
           <div style="overflow:auto">
             <table class="tbl" style="width:100%;font-size:13px;border-collapse:collapse">
-              <thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Дата</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Кол-во</th><th style="text-align:left;padding:6px;border-bottom:1px solid #1e1e1e">Часы</th></tr></thead>
+              <thead><tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Дата</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Кол-во</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Часы</th></tr></thead>
               <tbody>
                 ${byDayArr.map(d => `<tr>
-                  <td style="padding:6px;border-bottom:1px solid #111">${d.date}</td>
-                  <td style="padding:6px;border-bottom:1px solid #111">${d.count||0}</td>
-                  <td style="padding:6px;border-bottom:1px solid #111">${(typeof d.hours === 'number') ? hoursFmt(d.hours) : '—'}</td>
+                  <td style="padding:6px;border-bottom:1px solid var(--border)">${d.date}</td>
+                  <td style="padding:6px;border-bottom:1px solid var(--border)">${d.count||0}</td>
+                  <td style="padding:6px;border-bottom:1px solid var(--border)">${(typeof d.hours === 'number') ? hoursFmt(d.hours) : '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -1785,8 +1786,8 @@ async function renderModelCard(id) {
       const when = c.ts ? new Date(c.ts).toLocaleString('ru') : '';
       const who = c.user && (c.user.login || c.user.fullName || c.user.id) ? ` · ${c.user.login || c.user.fullName || c.user.id}` : '';
       const text = (c.text || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      return `<div class="comment-item" style="padding:8px;border:1px solid #1f2937;border-radius:8px;background:#0b1220">`+
-        `<div style="font-size:12px;color:#94a3b8">${when}${who}</div>`+
+      return `<div class="comment-item" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel)">`+
+        `<div style="font-size:12px;color:var(--muted)">${when}${who}</div>`+
         `<div style="margin-top:4px;white-space:pre-wrap">${text}</div>`+
       `</div>`;
     }).join('');
