@@ -2795,6 +2795,11 @@ main{padding:16px}
   border: 1px solid rgba(255,255,255,0.1);
 }
 
+.schedule-legend-color.status-our-refusal {
+  background: linear-gradient(135deg, #000000, #1a1a1a);
+  border: 1px solid #424242;
+}
+
 .schedule-slots-container {
   flex: 1;
 }
