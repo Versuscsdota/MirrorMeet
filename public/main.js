@@ -848,6 +848,10 @@ async function renderCalendar() {
             <button id="uploadBtn" type="button">Загрузить</button>
           </div>
         </div>
+        ${(window.currentUser && (window.currentUser.role==='root' || window.currentUser.role==='admin')) ? `
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+          <button id="deleteSlotBtn" type="button" style="background:#dc2626;color:#fff">Удалить слот</button>
+        </div>` : ''}
       </div>`;
     const modalPromise = showModal({ title: 'Слот', content: box, submitText: 'Сохранить' });
 
@@ -869,6 +873,26 @@ async function renderCalendar() {
       box.querySelector('#regSection').style.display = 'grid';
       box.querySelector('#startHint').style.display = 'none';
     };
+
+    // Delete slot inside modal (root/admin)
+    const delBtn = box.querySelector('#deleteSlotBtn');
+    if (delBtn) {
+      delBtn.onclick = async () => {
+        try {
+          if (window.currentUser.role === 'root') {
+            if (!await confirmRootPassword('удаление слота')) return;
+          }
+          if (!confirm('Удалить слот?')) return;
+          await api('/api/schedule?id=' + encodeURIComponent(s.id) + '&date=' + encodeURIComponent(s.date || ''), { method: 'DELETE' });
+          slots = slots.filter(x => x.id !== s.id);
+          renderList();
+          const modal = document.querySelector('.modal-backdrop');
+          if (modal) modal.remove();
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+    }
 
     async function refreshFiles() {
       try {
