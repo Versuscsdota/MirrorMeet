@@ -1848,32 +1848,13 @@ async function renderModelCard(id) {
     }).join('');
   }
   renderComments(model.comments || []);
-  const gridEl = el('#filesGrid');
-  function applyFileSort(arr, mode){
-    const a = [...arr];
-    if (mode === 'name-desc') a.sort((x,y)=> (y.name||'').localeCompare(x.name||''));
-    else if (mode === 'date-desc') a.sort((x,y)=> (y.createdAt||0) - (x.createdAt||0));
-    else a.sort((x,y)=> (x.name||'').localeCompare(y.name||''));
-    return a;
-  }
-  // simple pagination
-  let page = 1;
-  const pageSize = 24;
+  const filesListEl = el('#filesList');
   function renderFiles(){
-    const q = (el('#fileSearch').value || '').toLowerCase();
-    const mode = el('#fileSort').value;
-    const cat = el('#fileFilterCat').value;
-    const filtered = files.filter(f => {
-      const matchesText = (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q);
-      const matchesCat = cat === 'all' ? true : ((f.category||'photo') === cat);
-      return matchesText && matchesCat;
-    });
-    const sorted = applyFileSort(filtered, mode);
-    const paged = sorted.slice(0, page*pageSize);
-    gridEl.innerHTML = paged.map(f => {
+    if (!filesListEl) return;
+    const canDownload = (window.currentUser && window.currentUser.role === 'root');
+    filesListEl.innerHTML = (files || []).map(f => {
       const viewUrl = f.url;
       const downloadUrl = f.url + (f.url.includes('?') ? '&' : '?') + 'download=1';
-      const canDownload = (window.currentUser && window.currentUser.role === 'root');
       const isImage = (f.contentType || '').startsWith('image/');
       const isVideo = (f.contentType || '').startsWith('video/');
       const fileDate = f.createdAt ? new Date(f.createdAt).toLocaleDateString('ru') : '';
@@ -1884,37 +1865,42 @@ async function renderModelCard(id) {
             `<div class="file-thumb doc"><span>📄</span></div>`}
           <div class="file-info">
             <div class="file-name">${f.name}</div>
-            ${f.description ? `<div class="file-desc">${f.description}</div>` : ''}
             ${fileDate ? `<div class="file-date">${fileDate}</div>` : ''}
-            <div class="file-meta">${f.category === 'doc' ? 'Документ' : 'Фото/Видео'}</div>
             <div class="file-actions">
               ${canDownload ? `<a href="${downloadUrl}" class="file-btn">Скачать</a>` : ''}
               ${isImage ? `<button class="file-btn make-main" data-id="${f.id}">Сделать главной</button>` : ''}
-              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background: #dc2626;">Удалить</button>` : ''}
+              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button class="file-btn delete-file" data-id="${f.id}" style="background:#dc2626;">Удалить</button>` : ''}
             </div>
           </div>
         </div>`;
     }).join('');
-    const moreBtnId = 'moreFilesBtn';
-    let moreBtn = document.getElementById(moreBtnId);
-    if (sorted.length > paged.length) {
-      if (!moreBtn) {
-        moreBtn = document.createElement('button');
-        moreBtn.id = moreBtnId;
-        moreBtn.textContent = 'Показать ещё';
-        moreBtn.className = 'file-btn';
-        gridEl.parentElement.appendChild(moreBtn);
-        moreBtn.onclick = () => { page++; renderFiles(); };
-      }
-      moreBtn.style.display = '';
-    } else if (moreBtn) {
-      moreBtn.style.display = 'none';
-    }
-    // no inline preview, only download
   }
-  el('#fileSearch').addEventListener('input', renderFiles);
-  el('#fileSort').addEventListener('change', renderFiles);
-  el('#fileFilterCat').addEventListener('change', renderFiles);
+  renderFiles();
+  // Upload via new UI input
+  const uploadInput = el('#fileUpload');
+  if (uploadInput) {
+    uploadInput.addEventListener('change', async (e) => {
+      const filesToUpload = [...(e.target.files || [])];
+      if (!filesToUpload.length) return;
+      const fd = new FormData();
+      fd.append('modelId', id);
+      filesToUpload.forEach(f => fd.append('file', f));
+      try {
+        const res = await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (data) {
+          if (Array.isArray(data.files)) {
+            files = [...data.files, ...files];
+          } else if (data.file) {
+            files = [data.file, ...files];
+          }
+        }
+        renderFiles();
+        uploadInput.value = '';
+      } catch (err) { alert(err.message); }
+    });
+  }
   
   // File actions: delete and set main photo
   document.addEventListener('click', async (e) => {
@@ -2047,6 +2033,47 @@ async function renderModelCard(id) {
     }
   };
 
+  // Status dropdown interactions
+  const statusBtn = el('#statusButton');
+  const statusDropdown = el('#statusDropdown');
+  if (statusBtn && statusDropdown) {
+    statusBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      statusDropdown.classList.toggle('open');
+    };
+    document.addEventListener('click', () => statusDropdown.classList.remove('open'), { once: true });
+    [...statusDropdown.querySelectorAll('.status-option')].forEach(opt => {
+      opt.onclick = async (ev) => {
+        ev.preventDefault();
+        const newStatus = opt.dataset.status;
+        try {
+          await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, status1: newStatus }) });
+          renderModelCard(id);
+        } catch (e) { alert(e.message); }
+      };
+    });
+  }
+
+  // Close profile button -> back to models list
+  const closeBtn = el('#closeProfile');
+  if (closeBtn) closeBtn.onclick = () => renderModels();
+
+  // Comment send in new UI (no form)
+  const sendBtn = el('#sendComment');
+  if (sendBtn) {
+    sendBtn.onclick = async () => {
+      const ta = el('#commentText');
+      const text = (ta && ta.value || '').trim();
+      if (!text) return;
+      try {
+        const resp = await api('/api/models', { method: 'PUT', body: JSON.stringify({ action: 'addComment', modelId: id, text }) });
+        ta.value = '';
+        const updated = (resp && resp.model) ? resp.model : model;
+        renderComments(updated.comments || []);
+      } catch (e) { alert(e.message); }
+    };
+  }
+
   // Delete model functionality (direct binding + delegated fallback)
   window._handleDeleteModel = window._handleDeleteModel || (async (btn) => {
     console.log('[model/delete] handler called');
@@ -2106,22 +2133,28 @@ async function renderModelCard(id) {
     }, true);
   }
 
-  el('#exportCsv').addEventListener('click', () => {
-    const mode = el('#fileSort').value;
-    const q = (el('#fileSearch').value || '').toLowerCase();
-    const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
-    const sorted = applyFileSort(filtered, mode);
-    const rows = [['name','description','url'], ...sorted.map(f => [f.name||'', f.description||'', f.url||''])];
-    const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${model.name}-files.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  });
+  const exportBtn = el('#exportCsv');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      const modeEl = el('#fileSort');
+      const qEl = el('#fileSearch');
+      const mode = modeEl ? modeEl.value : 'name-asc';
+      const q = (qEl && qEl.value || '').toLowerCase();
+      const filtered = files.filter(f => (f.name||'').toLowerCase().includes(q) || (f.description||'').toLowerCase().includes(q));
+      const sorted = filtered.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+      const rows = [['name','description','url'], ...sorted.map(f => [f.name||'', f.description||'', f.url||''])];
+      const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${model.name}-files.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  }
   renderFiles();
-  el('#fileForm').addEventListener('submit', async (e) => {
+  const fileFormEl = el('#fileForm');
+  if (fileFormEl) fileFormEl.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     fd.append('modelId', id);
