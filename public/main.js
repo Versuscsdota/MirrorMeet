@@ -120,7 +120,6 @@ async function renderCalendar() {
                   <option value="${currentMonth}">${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</option>
                 </select>
                 <button id="nextMonth" class="month-nav-btn">▶</button>
-                <button id="todayBtn">Сегодня</button>
               </div>
               
               <div class="schedule-calendar-grid">
@@ -134,43 +133,22 @@ async function renderCalendar() {
                 <div id="monthGrid"></div>
               </div>
               
-              ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" class="schedule-create-slot-btn">Создать слот</button>' : ''}
             </div>
           </div>
           
-          <div class="schedule-color-legend">
-            <h3>Обозначение цветов</h3>
-            <div class="schedule-legend-items">
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-not-confirmed"></div>
-                <span>Не подтвердилась/Не пришла/Пришла</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-confirmed"></div>
-                <span>Подтвердилась</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-drain"></div>
-                <span>Слив</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-registration"></div>
-                <span>Регистрация</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-candidate-refusal"></div>
-                <span>Отказ со стороны кандидата</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-our-refusal"></div>
-                <span>Отказ с нашей стороны</span>
-              </div>
-              <div class="schedule-legend-item">
-                <div class="schedule-legend-color status-thinking"></div>
-                <span>Ушла на подумать</span>
-              </div>
-            </div>
+          <div class="schedule-legend">
+            <h3>Статусы</h3>
+            <div class="legend-item"><span class="legend-color status-not-confirmed"></span>Не подтвердилась/Не пришла/Пришла</div>
+            <div class="legend-item"><span class="legend-color status-confirmed"></span>Подтвердилась</div>
+            <div class="legend-item"><span class="legend-color status-drain"></span>Слив</div>
+            <div class="legend-item"><span class="legend-color status-registration"></span>Регистрация</div>
+            <div class="legend-item"><span class="legend-color status-candidate-refusal"></span>Отказ со стороны кандидата</div>
+            <div class="legend-item"><span class="legend-color status-our-refusal"></span>Отказ с нашей стороны</div>
+            <div class="legend-item"><span class="legend-color status-thinking"></span>Ушла на подумать</div>
           </div>
+          
+          ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" class="schedule-create-slot-btn">Создать слот</button>' : ''}
+        </div>
         </div>
         
         <div class="schedule-slots-container">
