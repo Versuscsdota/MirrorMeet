@@ -812,6 +812,31 @@ async function renderCalendar() {
           </select>
         </label>
 
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="startRegBtn" type="button" class="success" style="display:none">Начать регистрацию</button>
+          <span id="startHint" style="font-size:12px;color:#9aa">Кнопка появится при: Подтвержден · Пришла · Регистрация</span>
+        </div>
+
+        <div id="regSection" style="display:none;border-top:1px solid var(--border);padding-top:12px;display:grid;gap:10px">
+          <label>Дата рождения*<input id="regBirth" type="date" /></label>
+          <label>Документ* 
+            <select id="regDocType">
+              <option value="">Выберите документ</option>
+              <option value="passport">Паспорт</option>
+              <option value="driver">Водительское</option>
+              <option value="foreign">Загранпаспорт</option>
+            </select>
+          </label>
+          <label>Данные документа*<input id="regDocNumber" placeholder="Серия, номер и другие данные" /></label>
+          <label>Дата стажировки<input id="regIntern" type="date" /></label>
+          <div>
+            <label>Загрузка фото <input id="regPhoto" type="file" accept="image/*" /></label>
+          </div>
+          <div>
+            <label>Загрузка аудио <input id="regAudio" type="file" accept="audio/*" /></label>
+          </div>
+        </div>
+
         <label>Заметки интервью<textarea id="iText" rows="4" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
           <h4>Вложения</h4>
@@ -896,7 +921,28 @@ async function renderCalendar() {
       }
     }
 
-    // Removed legacy status2 and status3 UI handlers
+    // Toggle Start Registration button visibility based on statuses
+    function updateStartVisibility() {
+      const v1 = (box.querySelector('#regS1')?.value || '');
+      const v2 = (box.querySelector('#regS2')?.value || '');
+      const v4 = (box.querySelector('#regS4')?.value || '');
+      const canStart = (v1 === 'confirmed' && v2 === 'arrived' && v4 === 'registration');
+      const btn = box.querySelector('#startRegBtn');
+      if (btn) btn.style.display = canStart ? 'inline-flex' : 'none';
+    }
+    ['#regS1','#regS2','#regS4'].forEach(sel => {
+      const elx = box.querySelector(sel);
+      if (elx) elx.onchange = updateStartVisibility;
+    });
+    updateStartVisibility();
+
+    const startBtn = box.querySelector('#startRegBtn');
+    if (startBtn) startBtn.onclick = () => {
+      const sec = box.querySelector('#regSection');
+      const hint = box.querySelector('#startHint');
+      if (sec) sec.style.display = 'grid';
+      if (hint) hint.style.display = 'none';
+    };
 
     // initial
     refreshFiles();
