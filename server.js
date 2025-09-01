@@ -113,23 +113,28 @@ async function callHandler(handler, req, res, parsedForm = null) {
       json: () => Promise.resolve(req.body),
       formData: () => Promise.resolve(parsedForm || { fields: req.body || {}, files: [] })
     };
-    
-    const response = await handler(process.env, request);
-    
-    if (response.headers) {
-      for (const [key, value] of Object.entries(response.headers)) {
+
+    // Pass our constructed env (with CRM_KV, CRM_FILES, etc.) to the handler
+    const response = await handler(env, request);
+
+    // Copy headers from Web Response to Express
+    if (response && response.headers && typeof response.headers.forEach === 'function') {
+      response.headers.forEach((value, key) => {
         res.set(key, value);
-      }
+      });
     }
-    
+
+    // Status
     res.status(response.status || 200);
-    
-    if (response.body) {
-      if (typeof response.body === 'string') {
-        res.send(response.body);
-      } else {
-        res.json(response.body);
-      }
+
+    // Body: stream/send the Response body
+    if (typeof response.text === 'function') {
+      const bodyText = await response.text();
+      // If content-type is JSON but bodyText is empty, send empty
+      res.send(bodyText);
+    } else if (response.body) {
+      // Fallback: try to send as-is
+      res.send(response.body);
     } else {
       res.end();
     }
