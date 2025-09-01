@@ -103,6 +103,13 @@ async function renderCalendar() {
   let _snackbar = null;
   let _snackbarTimer = null;
 
+  const monthLabelInit = (() => {
+    const [yy, mm] = currentMonth.split('-').map(n=>parseInt(n,10));
+    const d = new Date(yy, mm-1, 1);
+    const lbl = d.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+    return lbl.charAt(0).toUpperCase() + lbl.slice(1);
+  })();
+
   view.innerHTML = `
     <div class="schedule-container">
       <div class="schedule-header">
@@ -115,11 +122,13 @@ async function renderCalendar() {
           <div class="schedule-calendar-container">
             <div class="schedule-calendar">
               <div class="schedule-calendar-header">
-                <button id="prevMonth" class="month-nav-btn">◀</button>
-                <select id="monthSelect">
-                  <option value="${currentMonth}">${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</option>
+                <div class="month-title" id="monthTitleWrap">
+                  <h2 id="monthTitle" class="month-title-text">${monthLabelInit}</h2>
+                  <button id="monthTitleBtn" class="icon-btn" aria-label="Изменить месяц"><span class="material-symbols-rounded">expand_more</span></button>
+                </div>
+                <select id="monthSelect" class="visually-hidden" aria-label="Выбор месяца">
+                  <option value="${currentMonth}">${monthLabelInit}</option>
                 </select>
-                <button id="nextMonth" class="month-nav-btn">▶</button>
               </div>
               
               <div class="schedule-calendar-weekdays">
@@ -196,27 +205,11 @@ async function renderCalendar() {
   loadMonth();
   load();
 
-  // Wire up navigation buttons
-  
-  // Wire up month navigation
-  const prevMonthBtn = el('#prevMonth');
-  if (prevMonthBtn) {
-    prevMonthBtn.onclick = () => {
-      const [y, m] = currentMonth.split('-').map(x => parseInt(x, 10));
-      const prevDate = new Date(y, m - 2, 1); // m-2 because month is 1-indexed
-      currentMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-      loadMonth();
-    };
-  }
-  
-  const nextMonthBtn = el('#nextMonth');
-  if (nextMonthBtn) {
-    nextMonthBtn.onclick = () => {
-      const [y, m] = currentMonth.split('-').map(x => parseInt(x, 10));
-      const nextDate = new Date(y, m, 1); // m because month is 1-indexed
-      currentMonth = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
-      loadMonth();
-    };
+  // Wire up month title click to open native select
+  const monthTitleBtn = el('#monthTitleBtn');
+  const monthSelectEl = el('#monthSelect');
+  if (monthTitleBtn && monthSelectEl) {
+    monthTitleBtn.onclick = () => monthSelectEl.showPicker ? monthSelectEl.showPicker() : monthSelectEl.focus();
   }
   
   // Wire up create slot button
@@ -389,6 +382,12 @@ async function renderCalendar() {
         loadMonth();
       };
     }
+    // Update visual month title like mockup
+    const titleEl = el('#monthTitle');
+    if (titleEl) {
+      const lbl = d0.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+      titleEl.textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+    }
     
     const startDow = (d0.getDay()+6)%7; // Mon=0
     const daysInMonth = new Date(y, m, 0).getDate();
@@ -424,12 +423,9 @@ async function renderCalendar() {
       const info = byDate.get(dstr);
       const isToday = dstr === todayStr;
       const isSelected = dstr === date;
-      const hasSlots = info && info.count > 0;
-      
       return `
         <div class="schedule-calendar-day ${isSelected ? 'selected' : ''}" data-date="${dstr}">
           ${cell.day}
-          ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--accent);border-radius:50%"></div>` : ''}
         </div>`;
     }).join('');
 

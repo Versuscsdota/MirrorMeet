@@ -1847,6 +1847,50 @@ main{padding:16px}
   gap: 8px;
 }
 
+/* Month title like in mockup (text + expand_more icon) */
+.month-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.month-title-text {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Keep native select for accessibility but hide visually */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
+
 .schedule-calendar-header select,
 .schedule-calendar-header button {
   padding: 8px 12px;
@@ -1883,7 +1927,7 @@ main{padding:16px}
 .schedule-calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
+  gap: 4px;
   margin-bottom: 8px;
   width: 100%;
 }
@@ -1891,7 +1935,7 @@ main{padding:16px}
 #monthGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
+  gap: 4px;
   width: 100%;
 }
 
@@ -1908,19 +1952,17 @@ main{padding:16px}
 }
 
 .schedule-calendar-day {
-  text-align: center;
-  padding: 8px 4px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  background: var(--surface);
-  transition: all 0.2s ease;
-  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
   color: var(--text);
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .schedule-calendar-day:hover {
@@ -1929,12 +1971,12 @@ main{padding:16px}
 
 .schedule-calendar-day.selected {
   background: var(--accent);
-  color: var(--bg);
+  color: #ffffff;
 }
 
 .schedule-calendar-day.other-month {
   color: var(--muted);
-  background: var(--surface-dim);
+  background: transparent;
 }
 
 .schedule-create-slot-btn {
