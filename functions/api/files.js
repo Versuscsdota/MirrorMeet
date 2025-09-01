@@ -77,8 +77,7 @@ export async function GET(env, request) {
 
   // Listing
   if (modelId) {
-    // Allow interviewers to view model files list
-    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
+    const { error } = await requireRole(env, request, ['root','admin']);
     if (error) return error;
     // Try indexed listing first
     const idx = await env.CRM_KV.list({ prefix: `file_model:${modelId}:` });
@@ -140,20 +139,14 @@ export async function POST(env, request) {
   if (files.length > MAX_FILES) return forbidden(`Слишком много файлов за один раз (макс ${MAX_FILES})`);
 
   let entity = null;
-  let sess;
+  const { sess, error: upErr } = await requireRole(env, request, ['root','admin']);
+  if (upErr) return upErr;
   if (modelId) {
-    // Model uploads: allow interviewer as well
-    const gate = await requireRole(env, request, ['root','admin','interviewer']);
-    if (gate.error) return gate.error;
-    sess = gate.sess;
     const model = await env.CRM_KV.get(`model:${modelId}`);
     if (!model) return notFound('model');
-    entity = { type: 'model', id: modelId, roles: ['root','admin','interviewer'] };
+    entity = { type: 'model', id: modelId, roles: ['root','admin'] };
   } else {
-    // slot upload restricted to root/admin
-    const gate = await requireRole(env, request, ['root','admin']);
-    if (gate.error) return gate.error;
-    sess = gate.sess;
+    // slot upload also restricted to root/admin
     entity = { type: 'slot', id: slotId, roles: ['root','admin'] };
   }
 
