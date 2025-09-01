@@ -111,7 +111,29 @@ async function callHandler(handler, req, res, parsedForm = null) {
         'content-type': req.get('content-type')
       },
       json: () => Promise.resolve(req.body),
-      formData: () => Promise.resolve(parsedForm || { fields: req.body || {}, files: [] })
+      formData: () => {
+        // When parsedForm is provided (via multer), convert to a real Web FormData with File objects
+        if (parsedForm) {
+          const fd = new FormData();
+          // Append fields
+          for (const [k, v] of Object.entries(parsedForm.fields || {})) {
+            // Ensure all values are strings
+            fd.append(k, typeof v === 'string' ? v : String(v));
+          }
+          // Append files under the field name 'file'
+          for (const f of parsedForm.files || []) {
+            const file = new File([f.buffer], f.originalname, { type: f.mimetype });
+            fd.append('file', file);
+          }
+          return Promise.resolve(fd);
+        }
+        // Fallback for non-multipart
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(req.body || {})) {
+          fd.append(k, typeof v === 'string' ? v : String(v));
+        }
+        return Promise.resolve(fd);
+      }
     };
 
     // Pass our constructed env (with CRM_KV, CRM_FILES, etc.) to the handler
