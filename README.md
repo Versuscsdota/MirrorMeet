@@ -6,7 +6,6 @@
 
 **Современная CRM система для управления моделями и расписанием**
 
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange?logo=cloudflare)](https://workers.cloudflare.com/)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -46,17 +45,15 @@ MirrorCRM — это полнофункциональная система уп�
 ## 🚀 Технологический стек
 
 - **Frontend**: Vanilla JavaScript, CSS3
-- **Backend**: Cloudflare Workers
-- **База данных**: Cloudflare KV
-- **Файловое хранилище**: Cloudflare R2
-- **Развёртывание**: Wrangler CLI
+- **Backend**: Node.js + Express (`server.js`)
+- **База данных**: SQLite (через `better-sqlite3`) — адаптер `adapters/kvSqlite.js`
+- **Файловое хранилище**: локальная файловая система — адаптер `adapters/filesLocal.js`
+- **Запуск**: `npm run dev` / `npm start`
 
-## 🛠️ Установка и запуск
+## Установка и запуск
 
 ### Предварительные требования
 - Node.js 18+
-- Cloudflare аккаунт
-- Wrangler CLI
 
 ### Локальная разработка
 
@@ -68,36 +65,40 @@ cd MirrorCRM
 # Установка зависимостей
 npm install
 
-# Настройка Wrangler
-npx wrangler login
+# Создайте .env при необходимости (см. ниже)
 
-# Создание KV пространств
-npx wrangler kv:namespace create "CRM_KV"
-npx wrangler kv:namespace create "CRM_KV" --preview
-
-# Создание R2 bucket
-npx wrangler r2 bucket create crm-files
-
-# Запуск в режиме разработки
+# Запуск сервера
 npm run dev
+# или
+npm start
 ```
 
-### Конфигурация
+### Конфигурация (.env)
 
-Обновите `wrangler.toml` с вашими KV namespace ID:
+Следующие переменные окружения поддерживаются сервером (`server.js`):
 
-```toml
-[[kv_namespaces]]
-binding = "CRM_KV"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+```bash
+# Сетевые настройки
+PORT=8080
 
-[[r2_buckets]]
-binding = "CRM_FILES"
-bucket_name = "crm-files"
+# Сессии
+SESSION_COOKIE_NAME=mirrorsid
+SESSION_TTL_SECONDS=604800
+SESSION_HMAC_SECRET=your_long_random_secret
+COOKIE_SECURE=true
+
+# Хранилища
+KV_SQLITE_PATH=./data.sqlite            # путь к SQLite файлу
+FILES_DIR=./files                       # директория для загружаемых файлов
+
+# Загрузка файлов
+MAX_UPLOAD_MB=50                        # лимит размера одного файла (МБ)
+MAX_FILES_PER_UPLOAD=10                 # файлов за одну загрузку
 ```
 
-## 🔐 Безопасность
+При первом запуске будут использованы значения по умолчанию, файл БД и директория с файлами будут созданы автоматически.
+
+## Безопасность
 
 ### Первоначальная настройка
 1. При первом входе любой логин/пароль создаст **root аккаунт**
