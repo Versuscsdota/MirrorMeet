@@ -1833,7 +1833,6 @@ main{padding:16px}
 
 .schedule-calendar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
   gap: 8px;
@@ -1841,13 +1840,14 @@ main{padding:16px}
 
 .schedule-calendar-header select,
 .schedule-calendar-header button {
-  padding: 8px 14px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 14px;
 }
 
 .schedule-calendar-header select:hover,
@@ -1856,15 +1856,29 @@ main{padding:16px}
 }
 
 .month-nav-btn {
-  padding: 6px 10px !important;
-  min-width: 36px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 8px 12px !important;
+  min-width: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .schedule-calendar-header select {
-  flex: 1;
-  min-width: 140px;
+  min-width: 180px;
+  max-width: 200px;
+}
+
+#todayBtn {
+  margin-left: auto;
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+#todayBtn:hover {
+  background: var(--accent-hover);
 }
 
 .schedule-calendar-grid {
