@@ -1943,40 +1943,6 @@ async function renderModelCard(id) {
       </div>
       <label>Серия и номер / Номер<input id="mDocNumber" value="${reg.docNumber || ''}" /></label>
       <label>Комментарий<textarea id="mComment" rows="3">${reg.comment || ''}</textarea></label>
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid #2a2a2a">
-        <h4 style="margin:0 0 12px 0;color:var(--accent)">Статусы</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
-          <label>Статус 1
-            <select id="mStatus1">
-              <option value="not_confirmed" ${model.status1 === 'not_confirmed' ? 'selected' : ''}>Не подтвердилось</option>
-              <option value="confirmed" ${model.status1 === 'confirmed' ? 'selected' : ''}>Подтвердилось</option>
-              <option value="fail" ${model.status1 === 'fail' ? 'selected' : ''}>Слив</option>
-            </select>
-          </label>
-          <label>Статус 2
-            <select id="mStatus2">
-              <option value="">Не указан</option>
-              <option value="arrived" ${model.status2 === 'arrived' ? 'selected' : ''}>Пришла</option>
-              <option value="no_show" ${model.status2 === 'no_show' ? 'selected' : ''}>Не пришла</option>
-              <option value="other" ${model.status2 === 'other' ? 'selected' : ''}>Другое</option>
-            </select>
-          </label>
-          <label>Статус 3
-            <select id="mStatus3">
-              <option value="">Не указан</option>
-              <option value="thinking" ${model.status3 === 'thinking' ? 'selected' : ''}>Думает</option>
-              <option value="reject_us" ${model.status3 === 'reject_us' ? 'selected' : ''}>Отказ с нашей</option>
-              <option value="reject_candidate" ${model.status3 === 'reject_candidate' ? 'selected' : ''}>Отказ кандидата</option>
-            </select>
-          </label>
-          <label>Статус 4
-            <select id="mStatus4">
-              <option value="">Не указан</option>
-              <option value="registration" ${model.status4 === 'registration' ? 'selected' : ''}>Регистрация</option>
-            </select>
-          </label>
-        </div>
-      </div>
       <label>Теги<input id="mTags" value="${(model.tags || []).join(', ')}" placeholder="фотомодель, реклама, fashion" /></label>
       <label>Примечания<textarea id="mNote" rows="3">${model.note || ''}</textarea></label>
     `;
@@ -1996,18 +1962,11 @@ async function renderModelCard(id) {
     const internshipDate = form.querySelector('#mInternshipDate') ? form.querySelector('#mInternshipDate').value : undefined;
     const comment = form.querySelector('#mComment') ? form.querySelector('#mComment').value.trim() : undefined;
     
-    // Status fields
-    const status1 = form.querySelector('#mStatus1').value;
-    const status2 = form.querySelector('#mStatus2').value || undefined;
-    const status3 = form.querySelector('#mStatus3').value || undefined;
-    const status4 = form.querySelector('#mStatus4') ? (form.querySelector('#mStatus4').value || undefined) : undefined;
-    
     if (!name) { setError('Укажите псевдоним модели'); return; }
     try {
       const payload = { 
         id, name, fullName, 
-        contacts: { phone }, tags, note,
-        status1, status2, status3, status4
+        contacts: { phone }, tags, note
       };
       
       // Add registration fields if they exist
