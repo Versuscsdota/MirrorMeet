@@ -1,11 +1,11 @@
 /* Apple-style CSS Variables for Light/Dark Theme */
 :root {
   /* Light Theme (default) */
-  --bg: #f8f9fa;
-  --bg-secondary: #ffffff;
+  --bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --bg-secondary: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   --panel: rgba(255, 255, 255, 0.8);
-  --panel-light: rgba(255, 255, 255, 0.95);
-  --panel-glass: rgba(255, 255, 255, 0.7);
+  --panel-light: rgba(255, 255, 255, 0.9);
+  --panel-glass: rgba(255, 255, 255, 0.85);
   --text: #1d1d1f;
   --text-secondary: #86868b;
   --muted: #6e6e73;
@@ -35,11 +35,11 @@
 
 /* Dark Theme */
 [data-theme="dark"] {
-  --bg: #000000;
-  --bg-secondary: #1c1c1e;
+  --bg: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #0f0f0f 100%);
+  --bg-secondary: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #0f0f0f 100%);
   --panel: rgba(28, 28, 30, 0.8);
-  --panel-light: rgba(44, 44, 46, 0.8);
-  --panel-glass: rgba(28, 28, 30, 0.7);
+  --panel-light: rgba(44, 44, 46, 0.9);
+  --panel-glass: rgba(28, 28, 30, 0.85);
   --text: #ffffff;
   --text-secondary: #98989d;
   --muted: #8e8e93;
@@ -60,7 +60,7 @@
 }
 
 *{box-sizing:border-box}
-body{margin:0;font-family:var(--font-family);background:var(--bg);color:var(--text);transition:background-color 0.3s ease, color 0.3s ease}
+body{margin:0;font-family:var(--font-family);background:var(--bg);color:var(--text);transition:all 0.3s ease;min-height:100vh}
 /* Apple-style Header */
 header{
   display:flex;
