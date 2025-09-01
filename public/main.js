@@ -610,14 +610,16 @@ async function renderCalendar() {
           const ct = (f.contentType || '').toLowerCase();
           const isImg = ct.startsWith('image/');
           const isAudio = ct.startsWith('audio/');
+          const isVideo = ct.startsWith('video/');
           return `
             <div class="file-card" style="display:flex;gap:12px;align-items:center">
               <div style="width:64px;height:48px;display:flex;align-items:center;justify-content:center;background:#111;border:1px solid #222">
-                ${isImg ? `<img src="${f.url}" style="max-width:100%;max-height:100%;object-fit:contain"/>` : (isAudio ? '🎵' : '📄')}
+                ${isImg ? `<img src="${f.url}" style="max-width:100%;max-height:100%;object-fit:contain"/>` : (isAudio ? '🎵' : (isVideo ? '🎞' : '📄'))}
               </div>
               <div style="flex:1">
                 <div>${f.name}</div>
                 ${isAudio ? `<audio src="${f.url}" controls style="width:100%"></audio>` : ''}
+                ${isVideo ? `<video src="${f.url}" controls style="width:100%"></video>` : ''}
               </div>
               ${canDelete ? `<div><button class="del-slot-file" data-id="${f.id}" style="background:#dc2626">Удалить</button></div>` : ''}
             </div>`;
@@ -712,7 +714,8 @@ async function renderCalendar() {
         .join('');
     }
 
-    box.querySelector('#uploadBtn').onclick = async () => {
+    box.querySelector('#uploadBtn').onclick = async (ev) => {
+      const btn = ev.currentTarget;
       const input = box.querySelector('#upFile');
       const files = input && input.files;
       const nameInput = (box.querySelector('#upName').value || '').trim();
@@ -723,11 +726,13 @@ async function renderCalendar() {
       if (files.length === 1 && nameInput) fd.append('name', nameInput);
       for (const f of files) fd.append('file', f);
       try {
+        btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Загрузка…';
         await api('/api/files', { method: 'POST', body: fd });
         input.value = '';
         box.querySelector('#upName').value = '';
         await refreshFiles();
-      } catch (e) { alert(e.message); }
+        btn.textContent = prev; btn.disabled = false;
+      } catch (e) { alert(e.message); btn.disabled = false; }
     };
 
     // Hook create model action (if visible)

@@ -181,10 +181,17 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 
 /* Modal */
 .modal-backdrop{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:50}
-.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;min-width:320px;max-width:520px;width:90%;padding:16px;box-shadow:0 10px 30px #0009}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;min-width:320px;max-width:680px;width:92%;padding:16px;box-shadow:0 10px 30px #0009}
 .modal header{background:transparent;border:0;padding:0 0 8px 0}
 .modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .modal h3{margin:0 0 8px 0}
+
+/* File card style for attachments in slot modal */
+.file-card{background:#0b0b0b;border:1px solid #1f2937;border-radius:8px;padding:8px}
+.file-card:hover{border-color:#2bb3b150}
+.file-card img,.file-card video{max-width:100%;max-height:240px;border-radius:6px}
+.file-card audio{width:100%}
+.file-card .name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Schedule layout with left sidebar */
 .sched-layout { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
