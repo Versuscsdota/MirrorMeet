@@ -145,12 +145,21 @@ export async function POST(env, request) {
       text: (slot.interview && slot.interview.text) || ''
     });
     await env.CRM_KV.put(`model:${id}`, JSON.stringify(model));
-    // link slot -> model for future status syncs
+    // link slot -> model for future status syncs and append slot history with registration event
     try {
       const slotKey = `slot:${slot.date}:${slot.id}`;
       const curSlot = await env.CRM_KV.get(slotKey, { type: 'json' });
       if (curSlot) {
         curSlot.modelId = id;
+        // Append registration history on slot with user attribution and statuses snapshot
+        curSlot.history = Array.isArray(curSlot.history) ? curSlot.history : [];
+        curSlot.history.push({
+          ts: now,
+          userId: sess.user.id,
+          action: 'registration',
+          modelId: id,
+          statuses: { status1: s1, ...(s2 ? { status2: s2 } : {}), ...(s3 ? { status3: s3 } : {}), status4: s4 }
+        });
         // Also persist merged data_block back to slot if slot has none of these fields (optional light sync)
         try {
           const curDB = normalizeDataBlock(curSlot.data_block);
@@ -173,6 +182,8 @@ export async function POST(env, request) {
         await env.CRM_KV.put(slotKey, JSON.stringify(curSlot));
       }
     } catch {}
+    // Audit registration action
+    try { await auditLog(env, request, sess, 'slot_register', { slotId, date, modelId: id }); } catch {}
     // Link/copy files from slot -> model (same logic as ingest)
     let linked = [];
     try {

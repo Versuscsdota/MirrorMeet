@@ -103,7 +103,7 @@ export async function POST(env, request) {
     createdAt: Date.now(), createdBy: sess.user.id
   };
   await env.CRM_KV.put(`slot:${date}:${id}`, JSON.stringify(slot));
-  await auditLog(env, request, sess, 'slot_create', { id, date, start, end, title, employeeId: slot.employeeId });
+  await auditLog(env, request, sess, 'slot_create', { id, date, start, end, title });
   return json(slot);
 }
 
@@ -121,6 +121,10 @@ export async function PUT(env, request) {
 
   const prevStart = cur.start;
   const prevEnd = cur.end;
+  const prevTitle = typeof cur.title === 'string' ? cur.title : '';
+  const prevNotes = typeof cur.notes === 'string' ? cur.notes : '';
+  const prevInterviewText = (cur.interview && typeof cur.interview.text === 'string') ? cur.interview.text : '';
+  const prevEmployeeId = typeof cur.employeeId === 'string' ? cur.employeeId : undefined;
 
   const reTime = /^([01]\d|2[0-3]):([0-5]\d)$/;
   if ('start' in body) {
@@ -143,14 +147,18 @@ export async function PUT(env, request) {
   const newStartHHMM = (cur.start || '').slice(0,5);
   const cntAtTime = existing.filter(s => s && s.id !== cur.id && (s.start || '').slice(0,5) === newStartHHMM).length;
   if (cntAtTime >= 2) return badRequest('time slot full: maximum 2 slots per time');
+  let titleChanged = false;
   if ('title' in body) {
     const t = (body.title || '').trim();
     if (t.length > 100) return badRequest('title too long (max 100)');
+    titleChanged = (t !== prevTitle);
     cur.title = t;
   }
+  let notesChanged = false;
   if ('notes' in body) {
     const n = (body.notes || '').trim();
     if (n.length > 2000) return badRequest('notes too long (max 2000)');
+    notesChanged = (n !== prevNotes);
     cur.notes = n || undefined;
   }
   // Status updates with validation
@@ -181,10 +189,18 @@ export async function PUT(env, request) {
     statusChanged = true;
   }
   
-  if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
+  let employeeChanged = false;
+  if ('employeeId' in body) {
+    const emp = (body.employeeId || '').trim() || undefined;
+    employeeChanged = (emp !== prevEmployeeId);
+    cur.employeeId = emp;
+  }
+  let interviewChanged = false;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};
-    cur.interview.text = (body.interviewText || '').trim() || undefined;
+    const it = (body.interviewText || '').trim() || undefined;
+    interviewChanged = (it !== prevInterviewText);
+    cur.interview.text = it;
   }
 
   // Update model link if provided
@@ -221,6 +237,10 @@ export async function PUT(env, request) {
     ...(Array.isArray(cur.history) ? cur.history : []),
     ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
     ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 })] : []),
+    ...(titleChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'title_change', from: prevTitle, to: cur.title }] : []),
+    ...(notesChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'notes_change' }] : []),
+    ...(interviewChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'interview_update' }] : []),
+    ...(employeeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'employee_assign', from: prevEmployeeId, to: cur.employeeId }] : []),
     ...(dataChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'data_block_update' }] : []),
   ] };
   await env.CRM_KV.put(key, JSON.stringify(toSave));
