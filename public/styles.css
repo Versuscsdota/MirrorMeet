@@ -1861,6 +1861,12 @@ main{padding:16px}
   margin-bottom: 16px;
 }
 
+#monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
 .schedule-calendar-weekday {
   text-align: center;
   font-weight: 600;
