@@ -781,7 +781,6 @@ async function renderCalendar() {
     const s = slots.find(x => x.id === id);
     if (!s) return;
     const box = document.createElement('div');
-    const canCreateModel = window.currentUser && ['root','admin','interviewer'].includes(window.currentUser.role);
     const phoneInit = s.phone || s.contacts?.phone || '';
     const s1 = s.status1 || 'not_confirmed';
     const s2 = s.status2 || '';
@@ -897,62 +896,7 @@ async function renderCalendar() {
       }
     }
 
-    // status2 UI toggle (legacy UI support)
-    const s2El = box.querySelector('#s2');
-    const s2cWrap = box.querySelector('#s2cWrap');
-    if (s2El && s2cWrap) {
-      s2El.onchange = async () => { 
-        s2cWrap.style.display = (s2El.value === 'other') ? 'block' : 'none';
-        // Auto-derive status3=registration when both conditions met and slot has no status3
-        if (s.status1 === 'confirmed' && s2El.value === 'arrived' && !s.status3) {
-          try {
-            const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status2: 'arrived' }) });
-            Object.assign(s, updated);
-            const s3GroupEl = box.querySelector('#s3Group');
-            if (s3GroupEl) {
-              // reuse highlighter defined below (safe invoke after it exists)
-              const active = updated.status3 || '';
-              [...s3GroupEl.querySelectorAll('.s3btn')].forEach(b => {
-                const isActive = b.dataset.v === active;
-                b.style.background = isActive ? 'var(--accent)' : '';
-                b.style.color = isActive ? 'var(--bg)' : '';
-                if (isActive) b.setAttribute('data-selected','true'); else b.removeAttribute('data-selected');
-              });
-            }
-          } catch (e) { /* ignore */ }
-        }
-      };
-    }
-
-    // Registration button is always enabled (no status-based restriction)
-
-    // status3 buttons behavior: highlight current and save on click
-    const s3Group = box.querySelector('#s3Group');
-    const highlightS3 = (val) => {
-      if (!s3Group) return;
-      [...s3Group.querySelectorAll('.s3btn')].forEach(b => {
-        const active = b.dataset.v === val;
-        b.style.background = active ? 'var(--accent)' : '';
-        b.style.color = active ? 'var(--bg)' : '';
-        b.style.border = '1px solid var(--border)';
-        b.style.borderRadius = '6px';
-        b.style.padding = '6px 8px';
-        if (active) b.setAttribute('data-selected', 'true'); else b.removeAttribute('data-selected');
-      });
-    };
-    highlightS3(s.status3 || '');
-    if (s3Group) {
-      s3Group.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.s3btn');
-        if (!btn) return;
-        const val = btn.dataset.v;
-        try {
-          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: s.date || '', status3: val }) });
-          Object.assign(s, updated);
-          highlightS3(updated.status3 || '');
-        } catch (err) { alert(err.message); }
-      });
-    }
+    // Removed legacy status2 and status3 UI handlers
 
     // initial
     refreshFiles();
@@ -1109,31 +1053,7 @@ async function renderCalendar() {
       };
     })();
 
-    // Status3 button: prompt and save
-    const status3Btn = box.querySelector('#status3Btn');
-    if (status3Btn) status3Btn.onclick = async () => {
-      const form = document.createElement('div');
-      form.innerHTML = `
-        <label>Статус
-          <select id="s3">
-            <option value="" ${!s.status3 ? 'selected' : ''}>—</option>
-            <option value="thinking" ${s.status3 === 'thinking' ? 'selected' : ''}>Думает</option>
-            <option value="reject_us" ${s.status3 === 'reject_us' ? 'selected' : ''}>Отказ с нашей</option>
-            <option value="reject_candidate" ${s.status3 === 'reject_candidate' ? 'selected' : ''}>Отказ кандидата</option>
-          </select>
-        </label>`;
-      const m = await showModal({ title: 'Статус', content: form, submitText: 'Сохранить' });
-      if (!m) return;
-      const { close, setError } = m;
-      try {
-        const val = form.querySelector('#s3').value || undefined;
-        const payload = { id: s.id, date: s.date || date, status3: val };
-        const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
-        // refresh from server to avoid stale local state
-        await load();
-        close();
-      } catch (e) { setError(e.message); }
-    };
+    // Removed legacy status3 prompt
 
     const m = await modalPromise;
     if (!m) return;
@@ -1141,12 +1061,10 @@ async function renderCalendar() {
     try {
       // save interview text + status2
       const text = () => (box.querySelector('#iText').value || '').trim();
-      const s2v = (box.querySelector('#s2') && box.querySelector('#s2').value) || '';
-      const s2c = (box.querySelector('#s2c') && box.querySelector('#s2c').value || '').trim();
+      const s2v = (box.querySelector('#regS2') && box.querySelector('#regS2').value) || '';
       const body = { id: s.id, date: (s.date || date), interviewText: text() };
       // Always send status2 so backend can clear it when empty
       body.status2 = s2v || undefined;
-      body.status2Comment = s2c || undefined;
       const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
       // refresh from server to avoid stale local state
       await load();
