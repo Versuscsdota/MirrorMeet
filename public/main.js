@@ -590,50 +590,17 @@ async function renderCalendar() {
           <h4>История</h4>
           <ul id="slotHistory" style="display:grid;gap:6px;list-style:none;padding:0;margin:0"></ul>
         </div>` : ''}
-        ${canCreateModel ? `
-        <div id="regPanel" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-          <h4>Регистрация модели</h4>
-          <div style="display:grid;gap:10px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>ФИО<input id="rFullName" value="${(s.title||'').replace(/\"/g,'&quot;')}" placeholder="Иванов Иван" /></label>
-              <label>Телефон
-                <input id="rPhone" type="tel" value="" placeholder="+7 999 123-45-67" />
-              </label>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>Дата рождения<input id="rBirth" type="date" /></label>
-              <label>Дата первой стажировки<input id="rIntern" type="date" /></label>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <label>Тип документа
-                <select id="rDocType">
-                  <option value="passport">Паспорт РФ</option>
-                  <option value="driver">Водительские права</option>
-                  <option value="foreign">Загранпаспорт</option>
-                </select>
-              </label>
-              <label>Серия и номер / Номер
-                <input id="rDocNum" placeholder="0000 000000" />
-              </label>
-            </div>
-            <label>Комментарий<textarea id="rComment" rows="3" placeholder="Описание"></textarea></label>
-            <div>
-              <h4>Фото документов</h4>
-              <input id="rDocs" type="file" multiple accept="image/*,.pdf" />
-            </div>
-            <div>
-              <h4>Фотографии</h4>
-              <input id="rPhotos" type="file" multiple accept="image/*,video/*" />
-            </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-              <button id="regSubmit" type="button">Создать модель</button>
-            </div>
-            <div id="regError" style="color:#f87171"></div>
+        <div id="dataBlock" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <h4>Данные</h4>
+          <div id="modelDataList" style="display:grid;gap:6px"></div>
+          <div id="formsWrap" style="display:grid;gap:8px;margin-top:8px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+            <button id="saveDataBlock" type="button">Сохранить данные</button>
+            ${canCreateModel ? `<button id="registerFromData" type="button">Зарегистрировать модель</button>` : ''}
           </div>
+          <div id="dataBlockError" style="color:#f87171"></div>
         </div>
-        ` : ''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-          ${canCreateModel ? `<button id="createModelBtn" type="button">Регистрация</button>` : ''}
           <div id="s3Group" style="display:flex;gap:6px">
             <button type="button" class="s3btn" data-v="thinking" title="Думает">🤔</button>
             <button type="button" class="s3btn" data-v="reject_us" title="Отказ с нашей">⛔</button>
@@ -747,14 +714,19 @@ async function renderCalendar() {
 
     // initial
     refreshFiles();
-    // render history if exists
+    // render history if exists (slot history + data_block.edit_history)
     const historyEl = box.querySelector('#slotHistory');
-    if (historyEl && Array.isArray(s.history)) {
-      const actionLabel = (a) => a === 'create' ? 'создание' : a === 'time_change' ? 'смена времени' : 'изменение';
-      historyEl.innerHTML = s.history
-        .sort((a,b)=> (a.ts||0)-(b.ts||0))
-        .map(h => `<li style="font-size:12px;color:#aaa">${new Date(h.ts||Date.now()).toLocaleString('ru-RU')} · ${actionLabel(h.action)}${h.comment ? ` — ${h.comment}` : ''}</li>`)
-        .join('');
+    if (historyEl) {
+      const rows = [];
+      if (Array.isArray(s.history)) {
+        const actionLabel = (a) => a === 'create' ? 'создание' : a === 'time_change' ? 'смена времени' : 'изменение';
+        rows.push(...s.history
+          .sort((a,b)=> (a.ts||0)-(b.ts||0))
+          .map(h => `<li style="font-size:12px;color:#aaa">${new Date(h.ts||Date.now()).toLocaleString('ru-RU')} · ${actionLabel(h.action)}${h.comment ? ` — ${h.comment}` : ''}</li>`));
+      }
+      const dbh = s.data_block && Array.isArray(s.data_block.edit_history) ? s.data_block.edit_history : [];
+      rows.push(...dbh.map(ev => `<li style="font-size:12px;color:#aaa">${(ev.edited_at ? new Date(ev.edited_at).toLocaleString('ru-RU') : '')} · поле «${ev.changes?.field}»: ${ev.changes?.old_value ?? '—'} → ${ev.changes?.new_value ?? '—'} (uid ${ev.user_id})</li>`));
+      historyEl.innerHTML = rows.join('');
     }
 
     box.querySelector('#uploadBtn').onclick = async (ev) => {
@@ -778,75 +750,122 @@ async function renderCalendar() {
       } catch (e) { alert(e.message); btn.disabled = false; }
     };
 
-    // Регистрация внутри модалки слота
-    if (canCreateModel) {
-      // Предзаполнение телефона из заметок
-      const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim() || '';
-      const rPhone = box.querySelector('#rPhone'); if (rPhone && !rPhone.value) rPhone.value = guessedPhone;
-      const toggleBtn = box.querySelector('#createModelBtn');
-      const panel = box.querySelector('#regPanel');
-      if (toggleBtn && panel) toggleBtn.onclick = () => {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        const f = box.querySelector('#rFullName'); if (panel.style.display !== 'none' && f) f.focus();
+    // ДАННЫЕ: отрисовка форм, сохранение и регистрация модели
+    (function setupDataBlock(){
+      const dataBlock = s.data_block || { model_data: [], forms: [], user_id: undefined, edit_history: [] };
+      // Если форм нет — задать дефолтный список
+      if (!Array.isArray(dataBlock.forms) || dataBlock.forms.length === 0) {
+        dataBlock.forms = [
+          { type: 'string', name: 'fullName', required: true, label: 'ФИО' },
+          { type: 'string', name: 'phone', required: true, label: 'Телефон' },
+          { type: 'date', name: 'birthDate', required: false, label: 'Дата рождения' },
+          { type: 'date', name: 'internshipDate', required: false, label: 'Дата первой стажировки' },
+          { type: 'enum', name: 'docType', required: false, label: 'Тип документа', options: ['passport','driver','foreign'] },
+          { type: 'string', name: 'docNumber', required: false, label: 'Серия и номер' },
+          { type: 'string', name: 'comment', required: false, label: 'Комментарий' }
+        ];
+      }
+      // начальные значения: из slot.title/notes
+      const kv = new Map((Array.isArray(dataBlock.model_data) ? dataBlock.model_data : []).map(x => [String(x.field), x.value]));
+      if (!kv.has('fullName') && s.title) kv.set('fullName', s.title);
+      const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim();
+      if (!kv.has('phone') && guessedPhone) kv.set('phone', guessedPhone);
+
+      const listEl = box.querySelector('#modelDataList');
+      const formsWrap = box.querySelector('#formsWrap');
+      const renderForms = () => {
+        // список данных (readonly мини-таблица)
+        const rows = dataBlock.forms.map(f => {
+          const val = kv.get(f.name) ?? '';
+          return `<div style="display:flex;gap:8px;align-items:center"><div style="width:160px;color:#9aa">${f.label || f.name}${f.required ? ' *' : ''}</div><div style="flex:1;color:#ddd;word-break:break-word">${val || '<span style=\'color:#666\'>—</span>'}</div></div>`;
+        }).join('');
+        if (listEl) listEl.innerHTML = rows;
+        // формы ввода
+        const ctrls = dataBlock.forms.map(f => {
+          const val = kv.get(f.name) ?? '';
+          if (f.type === 'enum' && Array.isArray(f.options) && f.options.length) {
+            return `<label>${f.label || f.name}
+              <select data-name="${f.name}" ${f.required ? 'data-required="1"' : ''}>
+                <option value=""></option>
+                ${f.options.map(opt => `<option value="${opt}" ${String(val)===String(opt)?'selected':''}>${opt}</option>`).join('')}
+              </select>
+            </label>`;
+          }
+          const t = f.type === 'date' ? 'date' : 'text';
+          return `<label>${f.label || f.name}<input data-name="${f.name}" type="${t}" value="${String(val).replace(/\"/g,'&quot;')}" ${f.required ? 'data-required="1"' : ''} /></label>`;
+        }).join('');
+        if (formsWrap) formsWrap.innerHTML = ctrls;
       };
-      const submitBtn = box.querySelector('#regSubmit');
-      if (submitBtn && panel) submitBtn.onclick = async () => {
-        const errorEl = box.querySelector('#regError'); if (errorEl) errorEl.textContent = '';
-        const fullName = (box.querySelector('#rFullName')?.value || '').trim();
-        const phone = (box.querySelector('#rPhone')?.value || '').trim();
-        const birthDate = box.querySelector('#rBirth')?.value || '';
-        const internshipDate = box.querySelector('#rIntern')?.value || '';
-        const docType = box.querySelector('#rDocType')?.value || '';
-        const docNumber = (box.querySelector('#rDocNum')?.value || '').trim();
-        const comment = (box.querySelector('#rComment')?.value || '').trim();
+      renderForms();
+
+      // Сохранение блока данных в слот
+      const saveBtn = box.querySelector('#saveDataBlock');
+      if (saveBtn) saveBtn.onclick = async () => {
+        const errEl = box.querySelector('#dataBlockError'); if (errEl) errEl.textContent = '';
         try {
-          submitBtn.disabled = true; const prev = submitBtn.textContent; submitBtn.textContent = 'Создание…';
+          // собрать значения
+          const inputs = formsWrap.querySelectorAll('[data-name]');
+          const modelData = [];
+          for (const inp of inputs) {
+            const name = inp.getAttribute('data-name');
+            const required = inp.hasAttribute('data-required');
+            const value = (inp.value || '').trim();
+            if (required && !value) { errEl.textContent = `Поле ${name} обязательно`; return; }
+            modelData.push({ field: name, value });
+            kv.set(name, value);
+          }
+          const payload = { id: s.id, date: (s.date || date), dataBlock: {
+            model_data: modelData,
+            forms: dataBlock.forms,
+            user_id: (window.currentUser && window.currentUser.id) || undefined
+          } };
+          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
+          Object.assign(s, updated);
+          renderForms();
+        } catch (e) { const errEl2 = box.querySelector('#dataBlockError'); if (errEl2) errEl2.textContent = e.message; }
+      };
+
+      // Регистрация модели из текущих данных
+      const regBtn = box.querySelector('#registerFromData');
+      if (regBtn) regBtn.onclick = async () => {
+        const errEl = box.querySelector('#dataBlockError'); if (errEl) errEl.textContent = '';
+        try {
+          // ensure saved data first
+          if (box.querySelector('#saveDataBlock')) await box.querySelector('#saveDataBlock').click();
+          const md = Array.from(kv.entries());
+          const asObj = Object.fromEntries(md);
           const selS1 = s.status1 || 'not_confirmed';
           const selS2 = (box.querySelector('#s2')?.value || s.status2 || '');
           const selS3Btn = box.querySelector('#s3Group .s3btn[data-selected="true"]');
           const selS3 = selS3Btn ? selS3Btn.dataset.v : (s.status3 || '');
-          const payload = {
+          const modelPayload = {
             action: 'registerFromSlot',
             date: (s.date || date),
             slotId: s.id,
-            name: fullName,
-            fullName,
-            phone,
-            birthDate,
-            internshipDate,
-            docType,
-            docNumber,
-            comment,
+            name: asObj.fullName,
+            fullName: asObj.fullName,
+            phone: asObj.phone,
+            birthDate: asObj.birthDate,
+            internshipDate: asObj.internshipDate,
+            docType: asObj.docType,
+            docNumber: asObj.docNumber,
+            comment: asObj.comment,
             status1: selS1,
             status2: selS2 || undefined,
             status3: selS3 || undefined
           };
-          const model = await api('/api/models', { method: 'POST', body: JSON.stringify(payload) });
-          // Загрузка файлов
-          async function uploadGroup(files, category){
-            if (!files || files.length === 0) return;
-            const fd = new FormData();
-            fd.append('modelId', model.id);
-            fd.append('category', category);
-            for (const f of files) fd.append('file', f);
-            await fetch('/api/files', { method: 'POST', body: fd, credentials: 'include' });
-          }
-          const docs = box.querySelector('#rDocs')?.files;
-          const photos = box.querySelector('#rPhotos')?.files;
-          await uploadGroup(docs, 'doc');
-          await uploadGroup(photos, 'photo');
-          // Обновить статус слота
-          try { await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), status3: 'registration' }) }); } catch {}
-          // Закрыть модалку слота
+          const model = await api('/api/models', { method: 'POST', body: JSON.stringify(modelPayload) });
+          // привязать модель к слоту и статус3
+          try {
+            await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), modelId: model.id, status3: 'registration' }) });
+          } catch {}
+          // закрыть модал и открыть профиль
           const backdrop = box.closest('.modal-backdrop'); if (backdrop) backdrop.remove();
-          // Открыть профиль модели
           renderModels();
           if (model && model.id && typeof window.renderModelCard === 'function') window.renderModelCard(model.id);
-        } catch (e) {
-          const errorEl2 = box.querySelector('#regError'); if (errorEl2) errorEl2.textContent = e.message || 'Ошибка регистрации';
-        } finally { submitBtn.textContent = 'Создать модель'; submitBtn.disabled = false; }
+        } catch (e) { const errEl2 = box.querySelector('#dataBlockError'); if (errEl2) errEl2.textContent = e.message || 'Ошибка регистрации'; }
       };
-    }
+    })();
 
     // Status3 button: prompt and save
     const status3Btn = box.querySelector('#status3Btn');

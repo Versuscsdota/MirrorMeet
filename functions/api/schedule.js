@@ -188,6 +188,52 @@ export async function PUT(env, request) {
     cur.interview.text = (body.interviewText || '').trim() || undefined;
   }
 
+  // Update model link if provided
+  if ('modelId' in body) {
+    const mid = (body.modelId || '').trim();
+    cur.modelId = mid || undefined;
+  }
+
+  // Unified data block updates
+  let dataChanged = false;
+  if ('dataBlock' in body && body.dataBlock && typeof body.dataBlock === 'object') {
+    const db = cur.data_block || { model_data: [], forms: [], user_id: undefined, edit_history: [] };
+    const incoming = body.dataBlock;
+    // normalize arrays
+    const inModelData = Array.isArray(incoming.model_data) ? incoming.model_data : [];
+    const inForms = Array.isArray(incoming.forms) ? incoming.forms : (db.forms || []);
+    const inUserId = incoming.user_id ?? (db.user_id || (sess.user && sess.user.id));
+    // Build a map for change detection
+    const mapOld = new Map((db.model_data || []).map(x => [String(x.field), x.value]));
+    const mapNew = new Map(inModelData.map(x => [String(x.field), x.value]));
+    const changes = [];
+    for (const [field, oldVal] of mapOld.entries()) {
+      if (!mapNew.has(field)) continue; // ignore removals for now
+      const newVal = mapNew.get(field);
+      if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+        changes.push({ field, old_value: oldVal, new_value: newVal });
+      }
+    }
+    for (const [field, newVal] of mapNew.entries()) {
+      if (!mapOld.has(field)) {
+        changes.push({ field, old_value: null, new_value: newVal });
+      }
+    }
+    if (changes.length) {
+      const iso = new Date().toISOString();
+      const userId = Number(inUserId) || (sess.user && sess.user.id);
+      db.edit_history = Array.isArray(db.edit_history) ? db.edit_history : [];
+      for (const ch of changes) {
+        db.edit_history.push({ edited_at: iso, user_id: userId, changes: ch });
+      }
+      dataChanged = true;
+    }
+    db.model_data = inModelData;
+    db.forms = inForms;
+    db.user_id = inUserId;
+    cur.data_block = db;
+  }
+
   // Require comment when time changed
   const timeChanged = (cur.start !== prevStart) || (cur.end !== prevEnd);
   if (timeChanged && !body.comment) return badRequest('comment required for time change');
@@ -208,7 +254,8 @@ export async function PUT(env, request) {
   try {
     const changed = {
       ...(timeChanged ? { time: { from: { start: cur.start, end: cur.end }, to: { start: toSave.start, end: toSave.end } } } : {}),
-      ...(statusChanged ? { statuses: { from: oldStatuses, to: { status1: toSave.status1, status2: toSave.status2, status3: toSave.status3 } } } : {})
+      ...(statusChanged ? { statuses: { from: oldStatuses, to: { status1: toSave.status1, status2: toSave.status2, status3: toSave.status3 } } } : {}),
+      ...(dataChanged ? { data_block: true } : {})
     };
     if (timeChanged || statusChanged) await auditLog(env, request, sess, 'slot_update', { id, date, ...changed });
   } catch {}
