@@ -103,7 +103,7 @@ export async function POST(env, request) {
     createdAt: Date.now(), createdBy: sess.user.id
   };
   await env.CRM_KV.put(`slot:${date}:${id}`, JSON.stringify(slot));
-  await auditLog(env, request, sess, 'slot_create', { id, date, start, end, title, employeeId });
+  await auditLog(env, request, sess, 'slot_create', { id, date, start, end, title, employeeId: slot.employeeId });
   return json(slot);
 }
 
