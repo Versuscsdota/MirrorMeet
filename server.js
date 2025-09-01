@@ -149,13 +149,14 @@ async function callHandler(handler, req, res, parsedForm = null) {
     // Status
     res.status(response.status || 200);
 
-    // Body: stream/send the Response body
-    if (typeof response.text === 'function') {
+    // Body: prefer raw bytes for correctness (fixes binary previews)
+    if (typeof response.arrayBuffer === 'function') {
+      const ab = await response.arrayBuffer();
+      res.send(Buffer.from(ab));
+    } else if (typeof response.text === 'function') {
       const bodyText = await response.text();
-      // If content-type is JSON but bodyText is empty, send empty
       res.send(bodyText);
     } else if (response.body) {
-      // Fallback: try to send as-is
       res.send(response.body);
     } else {
       res.end();
