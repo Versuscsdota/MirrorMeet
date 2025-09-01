@@ -1369,6 +1369,7 @@ function renderAppShell(me) {
           <button id="navAudit">Аудит</button>
         ` : me.role === 'interviewer' ? `
           <button id="navSchedule" class="active">Расписание</button>
+          <button id="navModels">Модели</button>
         ` : ''}
         <button id="themeToggle" class="ghost" title="Переключить тему">🌓</button>
         <button id="logoutBtn">Выход</button>
@@ -1406,6 +1407,8 @@ function renderAppShell(me) {
     if (logsBtn) logsBtn.onclick = () => { window.location.href = '/audit.html'; };
   } else if (me.role === 'interviewer') {
     el('#navSchedule').onclick = renderCalendar;
+    const modelsBtn = document.getElementById('navModels');
+    if (modelsBtn) modelsBtn.onclick = renderModels;
   }
 }
 
