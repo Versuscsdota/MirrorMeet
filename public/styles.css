@@ -1883,19 +1883,28 @@ main{padding:16px}
 .schedule-calendar-weekday {
   text-align: center;
   font-weight: 600;
-  padding: 10px 6px;
-  font-size: 13px;
+  padding: 8px 4px;
+  font-size: 12px;
   color: var(--muted);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .schedule-calendar-day {
   text-align: center;
-  padding: 10px 6px;
+  padding: 8px 4px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   background: var(--surface);
   transition: all 0.2s ease;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
   color: var(--text);
 }
 
