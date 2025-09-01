@@ -163,8 +163,8 @@ async function renderCalendar() {
     const btn = document.createElement('button');
     btn.textContent = actionText;
     btn.className = 'ghost';
-    btn.style.border = '1px solid #2bb3b1';
-    btn.style.color = '#2bb3b1';
+    btn.style.border = '1px solid var(--accent)';
+    btn.style.color = 'var(--accent)';
     btn.onclick = () => {
       if (_snackbarTimer) { clearTimeout(_snackbarTimer); _snackbarTimer = null; }
       if (_snackbar) { _snackbar.remove(); _snackbar = null; }
@@ -311,9 +311,9 @@ async function renderCalendar() {
           const isSelected = dstr === date;
           const hasSlots = info && info.count > 0;
           return `
-            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? '#2bb3b1' : '#1a1a1a'};background:${isToday ? '#1a2a2a' : (hasSlots ? '#1a1a2a' : '#0a0a0a')};font-size:12px;color:${isSelected ? '#2bb3b1' : (hasSlots ? '#fff' : '#888')}">
+            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? 'var(--accent)' : '#1a1a1a'};background:${isToday ? '#1a2a2a' : (hasSlots ? '#1a1a2a' : '#0a0a0a')};font-size:12px;color:${isSelected ? 'var(--accent)' : (hasSlots ? '#fff' : '#888')}">
               ${c.getDate()}
-              ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:#2bb3b1;border-radius:50%"></div>` : ''}
+              ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--accent);border-radius:50%"></div>` : ''}
             </button>`;
         }).join('')}
       </div>`;
@@ -1911,7 +1911,7 @@ async function renderModelCard(id) {
       <label>Серия и номер / Номер<input id="mDocNumber" value="${reg.docNumber || ''}" /></label>
       <label>Комментарий<textarea id="mComment" rows="3">${reg.comment || ''}</textarea></label>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid #2a2a2a">
-        <h4 style="margin:0 0 12px 0;color:#2bb3b1">Статусы</h4>
+        <h4 style="margin:0 0 12px 0;color:var(--accent)">Статусы</h4>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
           <label>Статус 1
             <select id="mStatus1">
