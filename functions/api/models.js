@@ -1,6 +1,7 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId, auditLog } from '../_utils.js';
 import { normalizeStatuses, validateStatus, createStatusChangeEntry } from '../_status.js';
+import { normalizeDataBlock, mergeDataBlocks, extractModelFieldsFromDataBlock } from '../_schema.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
@@ -83,6 +84,9 @@ export async function POST(env, request) {
     const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(rawStatuses);
     const s4 = 'registration';
 
+    // Merge data_block: slot + incoming
+    const mergedDataBlock = mergeDataBlocks(slot.data_block, body.dataBlock, { recordEdit: true, editedBy: sess.user.id });
+
     const model = {
       id,
       name,
@@ -95,6 +99,7 @@ export async function POST(env, request) {
       mainPhotoId: null,
       createdAt: now,
       createdBy: sess.user.id,
+      data_block: mergedDataBlock,
       // Registration snapshot
       registration: {
         registeredAt: now,
@@ -146,6 +151,12 @@ export async function POST(env, request) {
       const curSlot = await env.CRM_KV.get(slotKey, { type: 'json' });
       if (curSlot) {
         curSlot.modelId = id;
+        // Also persist merged data_block back to slot if slot has none of these fields (optional light sync)
+        try {
+          const curDB = normalizeDataBlock(curSlot.data_block);
+          const backMerged = mergeDataBlocks(curDB, mergedDataBlock, { recordEdit: true, editedBy: sess.user.id });
+          curSlot.data_block = backMerged;
+        } catch {}
         // If a custom name was provided that differs from slot.title, sync the slot title to the model name
         if (model.name && curSlot.title !== model.name) {
           curSlot.history = curSlot.history || [];
@@ -264,6 +275,19 @@ export async function POST(env, request) {
       linked.push({ ...meta, url: `/api/files?id=${id}` });
     }
 
+    // Merge data_block from slot into model
+    try {
+      const mergedDB = mergeDataBlocks(model.data_block, slot.data_block, { recordEdit: true, editedBy: sess.user.id });
+      model.data_block = mergedDB;
+      // Map known fields
+      const fields = extractModelFieldsFromDataBlock(mergedDB);
+      if (fields.fullName !== undefined) model.fullName = fields.fullName;
+      if (fields.phone !== undefined) {
+        model.contacts = model.contacts || {};
+        model.contacts.phone = fields.phone;
+      }
+    } catch {}
+
     // Write history entry into model
     model.history = model.history || [];
     model.history.push({ ts: Date.now(), type: 'interview', slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title }, text: slot.interview?.text });
@@ -358,6 +382,22 @@ export async function PUT(env, request) {
     statusChanged = true;
   }
   
+  // Unified data_block updates on model
+  let dataChanged = false;
+  if ('dataBlock' in body && body.dataBlock && typeof body.dataBlock === 'object') {
+    const existingDB = normalizeDataBlock(cur.data_block);
+    const mergedDB = mergeDataBlocks(existingDB, body.dataBlock, { recordEdit: true, editedBy: sess.user.id });
+    if (JSON.stringify(existingDB) !== JSON.stringify(mergedDB)) dataChanged = true;
+    cur.data_block = mergedDB;
+    // Map to known fields
+    const fields = extractModelFieldsFromDataBlock(mergedDB);
+    if (fields.fullName !== undefined) cur.fullName = fields.fullName;
+    if (fields.phone !== undefined) {
+      cur.contacts = cur.contacts || {};
+      cur.contacts.phone = fields.phone;
+    }
+  }
+  
   // Handle registration updates
   if (body.registration !== undefined) {
     cur.registration = cur.registration || {};
@@ -385,6 +425,11 @@ export async function PUT(env, request) {
     cur.history.push(createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 }));
   }
   
+  // Append data_block_update history if needed
+  if (dataChanged) {
+    cur.history = cur.history || [];
+    cur.history.push({ ts: Date.now(), type: 'data_block_update', userId: sess.user.id });
+  }
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));
   
   // Sync statuses with linked slot if status changed and model has slot reference

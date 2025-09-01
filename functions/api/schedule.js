@@ -1,6 +1,7 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId, auditLog } from '../_utils.js';
 import { normalizeStatuses, validateStatus, createStatusChangeEntry, syncSlotModelStatuses } from '../_status.js';
+import { normalizeDataBlock, mergeDataBlocks, extractModelFieldsFromDataBlock } from '../_schema.js';
 
 // slot key: slot:<date>:<id>  where date = YYYY-MM-DD
 // slot: {
@@ -195,41 +196,13 @@ export async function PUT(env, request) {
   // Unified data block updates
   let dataChanged = false;
   if ('dataBlock' in body && body.dataBlock && typeof body.dataBlock === 'object') {
-    const db = cur.data_block || { model_data: [], forms: [], user_id: undefined, edit_history: [] };
-    const incoming = body.dataBlock;
-    // normalize arrays
-    const inModelData = Array.isArray(incoming.model_data) ? incoming.model_data : [];
-    const inForms = Array.isArray(incoming.forms) ? incoming.forms : (db.forms || []);
-    const inUserId = incoming.user_id ?? (db.user_id || (sess.user && sess.user.id));
-    // Build a map for change detection
-    const mapOld = new Map((db.model_data || []).map(x => [String(x.field), x.value]));
-    const mapNew = new Map(inModelData.map(x => [String(x.field), x.value]));
-    const changes = [];
-    for (const [field, oldVal] of mapOld.entries()) {
-      if (!mapNew.has(field)) continue; // ignore removals for now
-      const newVal = mapNew.get(field);
-      if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-        changes.push({ field, old_value: oldVal, new_value: newVal });
-      }
-    }
-    for (const [field, newVal] of mapNew.entries()) {
-      if (!mapOld.has(field)) {
-        changes.push({ field, old_value: null, new_value: newVal });
-      }
-    }
-    if (changes.length) {
-      const iso = new Date().toISOString();
-      const userId = Number(inUserId) || (sess.user && sess.user.id);
-      db.edit_history = Array.isArray(db.edit_history) ? db.edit_history : [];
-      for (const ch of changes) {
-        db.edit_history.push({ edited_at: iso, user_id: userId, changes: ch });
-      }
+    const existing = normalizeDataBlock(cur.data_block);
+    const merged = mergeDataBlocks(existing, body.dataBlock, { recordEdit: true, editedBy: sess.user.id });
+    // detect change by simple JSON diff
+    if (JSON.stringify(existing) !== JSON.stringify(merged)) {
       dataChanged = true;
     }
-    db.model_data = inModelData;
-    db.forms = inForms;
-    db.user_id = inUserId;
-    cur.data_block = db;
+    cur.data_block = merged;
   }
 
   // Require comment when time changed
@@ -248,6 +221,7 @@ export async function PUT(env, request) {
     ...(Array.isArray(cur.history) ? cur.history : []),
     ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
     ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 })] : []),
+    ...(dataChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'data_block_update' }] : []),
   ] };
   await env.CRM_KV.put(key, JSON.stringify(toSave));
   try {
@@ -262,6 +236,27 @@ export async function PUT(env, request) {
   // Sync statuses with linked model if status changed
   if (statusChanged && cur.modelId) {
     await syncSlotModelStatuses(env, cur.id, cur.date, cur.modelId, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 });
+  }
+  // Sync data_block with linked model when changed
+  if (dataChanged && cur.modelId) {
+    try {
+      const modelKey = `model:${cur.modelId}`;
+      const model = await env.CRM_KV.get(modelKey, { type: 'json' });
+      if (model) {
+        const merged = mergeDataBlocks(model.data_block, cur.data_block, { recordEdit: true, editedBy: sess.user.id });
+        model.data_block = merged;
+        // Optionally map known fields onto model entity
+        const fields = extractModelFieldsFromDataBlock(merged);
+        if (fields.fullName !== undefined) model.fullName = fields.fullName;
+        if (fields.phone !== undefined) {
+          model.contacts = model.contacts || {};
+          model.contacts.phone = fields.phone;
+        }
+        await env.CRM_KV.put(modelKey, JSON.stringify(model));
+      }
+    } catch (e) {
+      console.warn('Failed to sync slot data_block -> model:', e);
+    }
   }
   
   const responseObj = normalizeStatuses(toSave);
