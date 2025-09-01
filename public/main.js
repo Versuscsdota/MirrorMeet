@@ -1551,43 +1551,19 @@ async function renderModels() {
   const data = await api('/api/models');
   let items = data.items || [];
   view.innerHTML = `
-    <section class="bar">
-      <input id="search" placeholder="Поиск по имени/описанию" />
-      <select id="sort">
-        <option value="name-asc">Имя ↑</option>
-        <option value="name-desc">Имя ↓</option>
-      </select>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:8px">
-        <label style="display:flex;gap:6px;align-items:center">Статус подтверждения
-          <select id="fStatus1">
-            <option value="">Все</option>
-            <option value="confirmed">Подтвердилось</option>
-            <option value="not_confirmed">Не подтвердилось</option>
-            <option value="fail">Слив</option>
-          </select>
-        </label>
-        <label style="display:flex;gap:6px;align-items:center">Статус посещения
-          <select id="fStatus2">
-            <option value="">Все</option>
-            <option value="empty">(пусто)</option>
-            <option value="arrived">Пришла</option>
-            <option value="no_show">Не пришла</option>
-            <option value="other">Другое</option>
-          </select>
-        </label>
-        <label style="display:flex;gap:6px;align-items:center">Итог
-          <select id="fStatus3">
-            <option value="">Все</option>
-            <option value="empty">(пусто)</option>
-            <option value="thinking">Думает</option>
-            <option value="reject_us">Отказ с нашей стороны</option>
-            <option value="reject_candidate">Отказ кандидата</option>
-            <option value="registration">Регистрация</option>
-          </select>
-        </label>
+    <div class="models-container">
+      <div class="models-header">
+        <h1>Модели</h1>
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <span class="material-symbols-rounded search-icon">search</span>
+            <input id="search" class="search-input" placeholder="Поиск моделей..." type="text"/>
+          </div>
+        </div>
       </div>
-    </section>
-    <div class="grid" id="modelsGrid"></div>
+      
+      <div class="models-grid" id="modelsGrid"></div>
+    </div>
   `;
   const grid = el('#modelsGrid');
   const getSelected = (id) => {
@@ -1624,41 +1600,23 @@ async function renderModels() {
     grid.innerHTML = sorted.map(m => {
       const photoUrl = m.mainPhotoId ? `/api/files?id=${m.mainPhotoId}` : '';
       const initials = (m.fullName || m.name || '').trim().charAt(0).toUpperCase();
-      const s1 = (() => { const s = m.status1 || 'not_confirmed'; const t = s==='confirmed'?'Подтвердилось':s==='fail'?'Слив':'Не подтвердилось'; const cls = s==='confirmed'?'success':s==='fail'?'danger':'warning'; return `<span class=\"status-badge ${cls}\">${t}</span>`; })();
-      const s2 = m.status2 ? (() => { 
-        const s = m.status2; 
-        const t = s==='arrived'?'Пришла':s==='no_show'?'Не пришла':s==='other'?'Другое':s; 
-        const cls = s==='arrived'?'success':s==='no_show'?'danger':'secondary'; 
-        return `<span class=\"status-badge ${cls}\">${t}</span>`; 
-      })() : '';
-      const s3 = m.status3 ? (() => { 
-        const s = m.status3; 
-        const t = s==='thinking'?'Думает':s==='reject_us'?'Отказ с нашей стороны':s==='reject_candidate'?'Отказ кандидата':s==='registration'?'Регистрация':s; 
-        const cls = s==='registration'?'success':s==='reject_us'||s==='reject_candidate'?'danger':s==='thinking'?'warning':'secondary'; 
-        return `<span class=\"status-badge ${cls}\">${t}</span>`; 
-      })() : '';
+      const displayName = m.fullName || m.name || 'Модель';
+      const telegram = m.telegram || '';
+      const phone = m.phone || '';
+      
       return `
-        <div class="model-card-redesigned">
-          <div class="model-avatar" style="width: 80px; height: 80px;">
-            ${photoUrl ? `<img src="${photoUrl}" alt="${m.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />` : `<div class="avatar-initials" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 32px;">${initials || '?'}</div>`}
+        <div class="model-card" data-id="${m.id}">
+          <div class="model-avatar">
+            ${photoUrl ? `<img src="${photoUrl}" alt="${displayName}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${initials || '?'}</span></div>`}
           </div>
-          <div class="model-info">
-            <div class="model-name">${m.fullName || m.name}</div>
-            <div class="model-contact-info">
-              ${m.telegram ? `<div>Telegram: @${m.telegram}</div>` : ''}
-              ${m.phone ? `<div>Телефон: ${m.phone}</div>` : ''}
-              ${m.surname ? `<div>Фамилия: ${m.surname}</div>` : ''}
-            </div>
+          <h3 class="model-name">${displayName}</h3>
+          <div class="model-contacts">
+            ${telegram ? `<div class="contact-item"><span class="material-symbols-rounded contact-icon telegram-icon">send</span><span class="contact-text">@${telegram}</span></div>` : ''}
+            ${phone ? `<div class="contact-item"><span class="material-symbols-rounded contact-icon phone-icon">phone</span><span class="contact-text">${phone}</span></div>` : ''}
           </div>
-          <button title="Открыть профиль" data-id="${m.id}" class="openModel model-open-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
         </div>`;
     }).join('');
-    [...grid.querySelectorAll('.openModel')].forEach(b => b.onclick = () => renderModelCard(b.dataset.id));
+    [...grid.querySelectorAll('.model-card')].forEach(card => card.onclick = () => renderModelCard(card.dataset.id));
   }
   el('#search').addEventListener('input', renderList);
   el('#sort').addEventListener('change', renderList);
