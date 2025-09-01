@@ -1125,62 +1125,37 @@ async function renderEmployees() {
   const view = el('#view');
   let items = await api('/api/employees');
   view.innerHTML = `
-    <section class="bar">
-      <input id="emplSearch" placeholder="Поиск по ФИО" />
+    <section class="bar" style="align-items:center">
+      <h1 style="margin:0">Сотрудники</h1>
       <span style="flex:1"></span>
-      ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee">Добавить сотрудника</button>' : ''}
+      ${window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin') ? '<button id="addEmployee" class="primary">+ Добавить сотрудника</button>' : ''}
     </section>
-    <div class="grid" id="emplGrid"></div>
+    <div id="emplGrid" style="display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));align-items:stretch"></div>
   `;
   const gridEl = el('#emplGrid');
   const isRoot = window.currentUser.role === 'root';
   
   function renderList(){
-    const q = (el('#emplSearch').value || '').toLowerCase();
-    const filtered = (items || []).filter(e => 
-      (e.fullName||'').toLowerCase().includes(q) ||
-      (e.email||'').toLowerCase().includes(q) ||
-      (String(e.telegram||'').toLowerCase().includes(q)) ||
-      (e.phone||'').toLowerCase().includes(q)
-    );
+    const filtered = (items || []);
     gridEl.innerHTML = filtered.map(e => {
-      const contactEmail = e.email ? `<span class="info-item"><a href="mailto:${e.email}">📧 ${e.email}</a></span>` : '';
-      const contactTg = e.telegram ? `<span class="info-item"><a href="https://t.me/${String(e.telegram).replace('@','')}" target="_blank">💬 @${String(e.telegram).replace('@','')}</a></span>` : '';
-      const contactPhone = e.phone ? `<span class="info-item">📞 ${e.phone}</span>` : '';
-      
+      const tg = e.telegram ? `@${String(e.telegram).replace('@','')}` : '';
+      const phone = e.phone || '';
+      const roleLabel = e.role === 'admin' ? 'Администратор' : e.role === 'curator' ? 'Куратор' : 'Интервьюер';
       return `
-        <div class="card model-card employee-card">
-          <div class="model-header">
-            <div>
-              <h3>${e.fullName || 'Сотрудник'}</h3>
-            </div>
-            <div class="employee-status">
-              <span class="status-badge active">Активен</span>
-            </div>
+        <div class="card" style="padding:20px;border-radius:12px;display:flex;flex-direction:column;align-items:center;text-align:center">
+          <div style="width:96px;height:96px;border-radius:50%;background:linear-gradient(145deg,#fff,#f1f1f1);box-shadow:0 6px 16px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;color:#9aa0a6;font-size:12px">Employee\navatar</div>
+          <div style="margin-top:12px">
+            <div style="font-weight:700;color:var(--fg)">${e.fullName || 'Сотрудник'}</div>
+            <div style="color:var(--muted);margin-top:2px">${roleLabel}</div>
           </div>
-          
-          <div class="employee-contacts">
-            <div class="model-info">
-              ${contactEmail}
-              ${contactTg}
-            </div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;width:100%;align-items:center;color:var(--muted)">
+            ${tg ? `<a href="https://t.me/${tg.replace('@','')}" target="_blank" style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none"><span class="material-symbols-rounded" style="color:#1d4ed8">send</span><span>${tg}</span></a>` : ''}
+            ${phone ? `<div style="display:flex;align-items:center;gap:8px"><span class="material-symbols-rounded" style="color:#16a34a">call</span><span>${phone}</span></div>` : ''}
           </div>
-          
-          ${e.notes ? `<div class="employee-notes"><p class="model-note">${e.notes}</p></div>` : ''}
-          
-          <div class="model-actions">
-            <button data-id="${e.id}" class="openEmployee primary">Открыть профиль</button>
-            <button data-id="${e.id}" class="toggleMore secondary">Подробнее</button>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button data-id="${e.id}" class="openEmployee">Открыть профиль</button>
             ${isRoot ? `<button class="edit-employee secondary" data-id="${e.id}">Изменить</button>` : ''}
             ${isRoot ? `<button class="delete-employee danger" data-id="${e.id}">Удалить</button>` : ''}
-          </div>
-          
-          <div class="employee-more" data-id="${e.id}" style="display:none">
-            <div class="model-info expanded-info">
-              ${contactPhone}
-              ${e.startDate ? `<span class="info-item">📅 Начал работу: ${e.startDate}</span>` : ''}
-              ${e.birthDate ? `<span class="info-item">🎂 Дата рождения: ${e.birthDate}</span>` : ''}
-            </div>
           </div>
         </div>`;
     }).join('');
@@ -1192,14 +1167,7 @@ async function renderEmployees() {
       };
     });
 
-    // Toggle more
-    [...gridEl.querySelectorAll('.toggleMore')].forEach(btn => {
-      btn.onclick = () => {
-        const more = gridEl.querySelector(`.employee-more[data-id="${btn.dataset.id}"]`);
-        if (more) more.style.display = (more.style.display === 'none' || more.style.display === '') ? 'block' : 'none';
-        btn.textContent = (more && more.style.display === 'block') ? 'Скрыть' : 'Показать подробнее';
-      };
-    });
+    // Removed expandable details to match mockup
 
     // Add functionality
     if (isRoot) {
@@ -1220,7 +1188,6 @@ async function renderEmployees() {
       });
     }
   }
-  el('#emplSearch').addEventListener('input', renderList);
   renderList();
   const addBtn = el('#addEmployee');
   if (addBtn) {
