@@ -1870,16 +1870,6 @@ main{padding:16px}
   max-width: 200px;
 }
 
-#todayBtn {
-  margin-left: auto;
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
-}
-
-#todayBtn:hover {
-  background: var(--accent-hover);
-}
 
 .schedule-calendar-grid {
   display: grid;

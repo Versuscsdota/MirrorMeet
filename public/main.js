@@ -120,7 +120,6 @@ async function renderCalendar() {
                   <option value="${currentMonth}">${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</option>
                 </select>
                 <button id="nextMonth" class="month-nav-btn">▶</button>
-                <button id="todayBtn">Сегодня</button>
               </div>
               
               <div class="schedule-calendar-grid">
@@ -183,24 +182,6 @@ async function renderCalendar() {
       </div>
     </div>`;
   // Wire up navigation buttons
-  const todayBtn = el('#todayBtn');
-  if (todayBtn) {
-    todayBtn.onclick = () => {
-      date = today;
-      currentMonth = today.slice(0,7);
-      const selectedDateEl = el('#selectedDate');
-      if (selectedDateEl) {
-        selectedDateEl.textContent = new Date().toLocaleDateString('ru-RU', { 
-          weekday: 'long', 
-          day: 'numeric', 
-          month: 'long',
-          year: 'numeric'
-        });
-      }
-      loadMonth();
-      load();
-    };
-  }
   
   // Wire up month navigation
   const prevMonthBtn = el('#prevMonth');
