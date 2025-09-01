@@ -1,6 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId, auditLog } from '../_utils.js';
-import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry } from '../_status.js';
+import { normalizeStatuses, validateStatus, createStatusChangeEntry } from '../_status.js';
 
 // KV keys
 // model:<id> -> { id, name, note, fullName, age, height, weight, measurements, contacts, tags, history: [], createdAt, createdBy }
@@ -72,14 +72,16 @@ export async function POST(env, request) {
     const id = newId('mdl');
     const now = Date.now();
 
-    // sanitize incoming statuses with fallback to slot, and auto-derive registration when applicable
+    // Sanitize incoming statuses with fallback to slot; no auto-assignment
     const rawStatuses = {
       status1: body.status1 || slot.status1 || 'not_confirmed',
       status2: body.status2 || slot.status2,
-      status3: body.status3 || slot.status3
+      status3: body.status3 || slot.status3,
+      // explicit status4 may be passed, but for registration action we set it below
+      status4: body.status4
     };
-    const autoStatuses = autoSetRegistrationStatus(rawStatuses);
-    const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(autoStatuses);
+    const { status1: s1, status2: s2, status3: s3 } = normalizeStatuses(rawStatuses);
+    const s4 = 'registration';
 
     const model = {
       id,
@@ -109,13 +111,15 @@ export async function POST(env, request) {
         statuses: {
           status1: s1,
           ...(s2 ? { status2: s2 } : {}),
-          ...(s3 ? { status3: s3 } : {})
+          ...(s3 ? { status3: s3 } : {}),
+          status4: s4
         }
       },
       // propagate statuses (request preferred, fallback slot)
       status1: s1,
       status2: s2,
-      status3: s3
+      status3: s3,
+      status4: s4
     };
 
     // initial history with registration snapshot and statuses for timeline
@@ -123,7 +127,7 @@ export async function POST(env, request) {
       ts: now,
       type: 'registration',
       slot: { id: slot.id, date: slot.date, start: slot.start, end: slot.end, title: slot.title },
-      statuses: { status1: s1, ...(s2 ? { status2: s2 } : {}), ...(s3 ? { status3: s3 } : {}) },
+      statuses: { status1: s1, ...(s2 ? { status2: s2 } : {}), ...(s3 ? { status3: s3 } : {}), status4: s4 },
       registration: {
         birthDate: birthDate || null,
         docType: docType || null,
@@ -330,7 +334,7 @@ export async function PUT(env, request) {
   if (body.mainPhotoId !== undefined) cur.mainPhotoId = body.mainPhotoId || null;
   
   // Handle status updates with validation
-  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3 };
+  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 };
   let statusChanged = false;
   
   if (body.status1 !== undefined) {
@@ -346,6 +350,11 @@ export async function PUT(env, request) {
   if (body.status3 !== undefined) {
     if (!validateStatus('status3', body.status3)) return badRequest('invalid status3');
     cur.status3 = body.status3 || undefined;
+    statusChanged = true;
+  }
+  if (body.status4 !== undefined) {
+    if (!validateStatus('status4', body.status4)) return badRequest('invalid status4');
+    cur.status4 = body.status4 || undefined;
     statusChanged = true;
   }
   
@@ -366,13 +375,14 @@ export async function PUT(env, request) {
       if (body.status1 !== undefined) cur.registration.statuses.status1 = cur.status1;
       if (body.status2 !== undefined && cur.status2) cur.registration.statuses.status2 = cur.status2;
       if (body.status3 !== undefined && cur.status3) cur.registration.statuses.status3 = cur.status3;
+      if (body.status4 !== undefined && cur.status4) cur.registration.statuses.status4 = cur.status4;
     }
   }
   
   // Add status change history if statuses changed
   if (statusChanged) {
     cur.history = cur.history || [];
-    cur.history.push(createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3 }));
+    cur.history.push(createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 }));
   }
   
   await env.CRM_KV.put(`model:${id}`, JSON.stringify(cur));
@@ -383,10 +393,11 @@ export async function PUT(env, request) {
       const slotKey = `slot:${cur.registration.slotRef.date}:${cur.registration.slotRef.id}`;
       const slot = await env.CRM_KV.get(slotKey, { type: 'json' });
       if (slot) {
-        const slotStatuses = normalizeStatuses({ status1: cur.status1, status2: cur.status2, status3: cur.status3 });
+        const slotStatuses = normalizeStatuses({ status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 });
         slot.status1 = slotStatuses.status1;
         slot.status2 = slotStatuses.status2;
         slot.status3 = slotStatuses.status3;
+        slot.status4 = slotStatuses.status4;
         
         slot.history = slot.history || [];
         slot.history.push({
@@ -396,7 +407,8 @@ export async function PUT(env, request) {
           modelId: cur.id,
           status1: slot.status1,
           status2: slot.status2,
-          status3: slot.status3
+          status3: slot.status3,
+          status4: slot.status4
         });
         
         await env.CRM_KV.put(slotKey, JSON.stringify(slot));

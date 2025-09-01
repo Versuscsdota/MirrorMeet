@@ -20,12 +20,18 @@ const STATUS_DEFINITIONS = {
     }
   },
   status3: {
-    values: ['thinking', 'reject_us', 'reject_candidate', 'registration'],
+    values: ['thinking', 'reject_us', 'reject_candidate'],
     default: undefined,
     labels: {
       thinking: 'Думает',
       reject_us: 'Отказ с нашей',
-      reject_candidate: 'Отказ кандидата',
+      reject_candidate: 'Отказ кандидата'
+    }
+  },
+  status4: {
+    values: ['registration'],
+    default: undefined,
+    labels: {
       registration: 'Регистрация'
     }
   }
@@ -47,6 +53,10 @@ export function normalizeStatuses(obj) {
   result.status3 = (obj.status3 && STATUS_DEFINITIONS.status3.values.includes(obj.status3)) 
     ? obj.status3 
     : undefined;
+  
+  result.status4 = (obj.status4 && STATUS_DEFINITIONS.status4.values.includes(obj.status4))
+    ? obj.status4
+    : undefined;
     
   return result;
 }
@@ -63,17 +73,6 @@ export function validateStatus(statusKey, value) {
   return !value || def.values.includes(value);
 }
 
-// Auto-set status3 to registration when conditions are met
-export function autoSetRegistrationStatus(statuses) {
-  const result = { ...statuses };
-  
-  if (result.status1 === 'confirmed' && result.status2 === 'arrived' && !result.status3) {
-    result.status3 = 'registration';
-  }
-  
-  return result;
-}
-
 // Create status change history entry
 export function createStatusChangeEntry(userId, oldStatuses, newStatuses) {
   return {
@@ -83,10 +82,12 @@ export function createStatusChangeEntry(userId, oldStatuses, newStatuses) {
     status1: newStatuses.status1,
     status2: newStatuses.status2,
     status3: newStatuses.status3,
+    status4: newStatuses.status4,
     changes: {
       ...(oldStatuses.status1 !== newStatuses.status1 ? { status1: { from: oldStatuses.status1, to: newStatuses.status1 } } : {}),
       ...(oldStatuses.status2 !== newStatuses.status2 ? { status2: { from: oldStatuses.status2, to: newStatuses.status2 } } : {}),
-      ...(oldStatuses.status3 !== newStatuses.status3 ? { status3: { from: oldStatuses.status3, to: newStatuses.status3 } } : {})
+      ...(oldStatuses.status3 !== newStatuses.status3 ? { status3: { from: oldStatuses.status3, to: newStatuses.status3 } } : {}),
+      ...(oldStatuses.status4 !== newStatuses.status4 ? { status4: { from: oldStatuses.status4, to: newStatuses.status4 } } : {})
     }
   };
 }
@@ -99,12 +100,13 @@ export async function syncSlotModelStatuses(env, slotId, slotDate, modelId, newS
     // Update model statuses
     const model = await env.CRM_KV.get(`model:${modelId}`, { type: 'json' });
     if (model) {
-      const oldStatuses = { status1: model.status1, status2: model.status2, status3: model.status3 };
+      const oldStatuses = { status1: model.status1, status2: model.status2, status3: model.status3, status4: model.status4 };
       const normalizedStatuses = normalizeStatuses(newStatuses);
       
       model.status1 = normalizedStatuses.status1;
       model.status2 = normalizedStatuses.status2;
       model.status3 = normalizedStatuses.status3;
+      model.status4 = normalizedStatuses.status4;
       
       // Add history entry for status sync
       model.history = model.history || [];

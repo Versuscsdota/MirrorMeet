@@ -1,6 +1,6 @@
 import { json, badRequest, notFound } from '../_utils.js';
 import { requireRole, newId, auditLog } from '../_utils.js';
-import { normalizeStatuses, validateStatus, autoSetRegistrationStatus, createStatusChangeEntry, syncSlotModelStatuses } from '../_status.js';
+import { normalizeStatuses, validateStatus, createStatusChangeEntry, syncSlotModelStatuses } from '../_status.js';
 
 // slot key: slot:<date>:<id>  where date = YYYY-MM-DD
 // slot: {
@@ -84,7 +84,8 @@ export async function POST(env, request) {
     ...normalizeStatuses({
       status1: body.status1 || 'not_confirmed',
       status2: body.status2,
-      status3: body.status3
+      status3: body.status3,
+      status4: body.status4
     }),
     status2Comment: (body.status2Comment || undefined),
     // optional assignment to employee
@@ -152,7 +153,7 @@ export async function PUT(env, request) {
     cur.notes = n || undefined;
   }
   // Status updates with validation
-  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3 };
+  const oldStatuses = { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 };
   let statusChanged = false;
   
   if ('status1' in body) {
@@ -173,15 +174,12 @@ export async function PUT(env, request) {
     cur.status3 = body.status3 || undefined;
     statusChanged = true;
   }
-  
-  // Auto-set status3 to registration when both conditions met and not explicitly provided
-  if (!('status3' in body)) {
-    const autoStatuses = autoSetRegistrationStatus(cur);
-    if (autoStatuses.status3 !== cur.status3) {
-      cur.status3 = autoStatuses.status3;
-      statusChanged = true;
-    }
+  if ('status4' in body) {
+    if (!validateStatus('status4', body.status4)) return badRequest('invalid status4');
+    cur.status4 = body.status4 || undefined;
+    statusChanged = true;
   }
+  
   if ('employeeId' in body) cur.employeeId = (body.employeeId || '').trim() || undefined;
   if ('interviewText' in body) {
     cur.interview = cur.interview || {};
@@ -243,18 +241,19 @@ export async function PUT(env, request) {
   cur.status1 = normalized.status1;
   cur.status2 = normalized.status2;
   cur.status3 = normalized.status3;
+  cur.status4 = normalized.status4;
 
   // Save
   const toSave = { ...cur, history: [
     ...(Array.isArray(cur.history) ? cur.history : []),
     ...(timeChanged ? [{ ts: Date.now(), userId: sess.user.id, action: 'time_change', comment: String(body.comment||'') }] : []),
-    ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3 })] : []),
+    ...(statusChanged ? [createStatusChangeEntry(sess.user.id, oldStatuses, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 })] : []),
   ] };
   await env.CRM_KV.put(key, JSON.stringify(toSave));
   try {
     const changed = {
       ...(timeChanged ? { time: { from: { start: cur.start, end: cur.end }, to: { start: toSave.start, end: toSave.end } } } : {}),
-      ...(statusChanged ? { statuses: { from: oldStatuses, to: { status1: toSave.status1, status2: toSave.status2, status3: toSave.status3 } } } : {}),
+      ...(statusChanged ? { statuses: { from: oldStatuses, to: { status1: toSave.status1, status2: toSave.status2, status3: toSave.status3, status4: toSave.status4 } } } : {}),
       ...(dataChanged ? { data_block: true } : {})
     };
     if (timeChanged || statusChanged) await auditLog(env, request, sess, 'slot_update', { id, date, ...changed });
@@ -262,7 +261,7 @@ export async function PUT(env, request) {
   
   // Sync statuses with linked model if status changed
   if (statusChanged && cur.modelId) {
-    await syncSlotModelStatuses(env, cur.id, cur.date, cur.modelId, { status1: cur.status1, status2: cur.status2, status3: cur.status3 });
+    await syncSlotModelStatuses(env, cur.id, cur.date, cur.modelId, { status1: cur.status1, status2: cur.status2, status3: cur.status3, status4: cur.status4 });
   }
   
   const responseObj = normalizeStatuses(toSave);
