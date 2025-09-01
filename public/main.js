@@ -181,6 +181,21 @@ async function renderCalendar() {
         </div>
       </div>
     </div>`;
+  // After rendering, set initial selected date label like on day click
+  const selectedDateElInit = el('#selectedDate');
+  if (selectedDateElInit) {
+    selectedDateElInit.textContent = new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+
+  // Kick off initial data load
+  loadMonth();
+  load();
+
   // Wire up navigation buttons
   
   // Wire up month navigation

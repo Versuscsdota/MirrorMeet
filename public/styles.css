@@ -17,6 +17,11 @@
   --danger: #ff3b30;
   --success: #30d158;
   --warning: #ff9500;
+  /* Surfaces used by schedule/calendar */
+  --surface: var(--panel);
+  --surface-hover: var(--panel-light);
+  --surface-dim: rgba(0, 0, 0, 0.02);
+  --accent-hover: var(--accent-strong);
   
   /* Apple Typography */
   --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
@@ -51,6 +56,11 @@
   --danger: #ff453a;
   --success: #32d74b;
   --warning: #ff9f0a;
+  /* Surfaces used by schedule/calendar */
+  --surface: var(--panel);
+  --surface-hover: var(--panel-light);
+  --surface-dim: rgba(255, 255, 255, 0.05);
+  --accent-hover: var(--accent-strong);
   
   /* Dark Theme Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
