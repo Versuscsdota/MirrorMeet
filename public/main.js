@@ -1582,15 +1582,16 @@ async function renderModelCard(id) {
   const displayName = model.fullName || model.name || 'Модель';
   const telegram = model.telegram || '';
   const phone = model.phone || '';
-  // Determine which status to display in the header (priority: status4 > status3 > status1)
-  const getCurrentStatusKey = (m) => {
-    if (m.status4 === 'registration') return 'registration';
-    if (m.status3 === 'reject_candidate') return 'reject_candidate';
-    if (m.status3 === 'reject_us') return 'reject_us';
-    if (m.status3 === 'thinking') return 'thinking';
-    return m.status1 || 'not_confirmed';
+  // Collect all active statuses for display and editing
+  const getActiveStatusKeys = (m) => {
+    const keys = [];
+    const s1 = m.status1 || 'not_confirmed';
+    if (s1) keys.push(s1);
+    if (m.status3) keys.push(m.status3);
+    if (m.status4 === 'registration') keys.push('registration');
+    return keys;
   };
-  const currentStatus = getCurrentStatusKey(model);
+  const activeStatuses = getActiveStatusKeys(model);
   
   // Status mapping
   const statusMap = {
@@ -1618,17 +1619,26 @@ async function renderModelCard(id) {
         <div class="profile-header-right">
           <div class="status-dropdown">
             <button class="status-button" id="statusButton">
-              <span class="status-indicator" style="background-color: ${statusMap[currentStatus]?.color || 'var(--status-gray)'}"></span>
-              ${statusMap[currentStatus]?.label || currentStatus}
+              <span class="status-chips">
+                ${activeStatuses.map(k => `
+                  <span class="status-chip">
+                    <span class="status-indicator" style="background-color: ${statusMap[k]?.color || 'var(--status-gray)'}"></span>
+                    ${statusMap[k]?.label || k}
+                  </span>
+                `).join('')}
+              </span>
               <span class="material-symbols-rounded">expand_more</span>
             </button>
             <div class="status-dropdown-content" id="statusDropdown">
-              ${Object.entries(statusMap).map(([key, value]) => `
-                <a href="#" class="status-option" data-status="${key}">
-                  <span class="status-indicator" style="background-color: ${value.color}"></span>
-                  ${key === 'reject_candidate' ? '<span class="line-through">' + value.label + '</span>' : value.label}
-                </a>
-              `).join('')}
+              ${Object.entries(statusMap).map(([key, value]) => {
+                const checked = activeStatuses.includes(key) ? 'checked' : '';
+                return `
+                  <label class="status-option" data-status="${key}">
+                    <input type="checkbox" class="status-checkbox" data-status="${key}" ${checked} />
+                    <span class="status-indicator" style="background-color: ${value.color}"></span>
+                    ${key === 'reject_candidate' ? '<span class="line-through">' + value.label + '</span>' : value.label}
+                  </label>`;
+              }).join('')}
             </div>
           </div>
           <button class="icon-button" id="editProfile" title="Редактировать">
@@ -1956,7 +1966,7 @@ async function renderModelCard(id) {
     }
   };
 
-  // Status dropdown interactions
+  // Status dropdown interactions with multi-select
   const statusBtn = el('#statusButton');
   const statusDropdown = el('#statusDropdown');
   if (statusBtn && statusDropdown) {
@@ -1995,25 +2005,47 @@ async function renderModelCard(id) {
         openMenu();
       }
     };
-    [...statusDropdown.querySelectorAll('.status-option')].forEach(opt => {
-      opt.onclick = async (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const newStatus = opt.dataset.status;
-        try {
-          const payload = { id };
-          if (['not_confirmed','confirmed','fail'].includes(newStatus)) {
-            payload.status1 = newStatus;
-          } else if (newStatus === 'registration') {
-            payload.status4 = newStatus;
-          } else {
-            // reject_candidate, reject_us, thinking
-            payload.status3 = newStatus;
-          }
-          await api('/api/models', { method: 'PUT', body: JSON.stringify(payload) });
-          renderModelCard(id);
-        } catch (e) { alert(e.message); }
-      };
+    const group1 = ['not_confirmed','confirmed','fail'];
+    const group3 = ['reject_candidate','reject_us','thinking'];
+
+    const applyFromCheckboxes = async () => {
+      // Read current selections
+      const selected = Array.from(statusDropdown.querySelectorAll('.status-checkbox'))
+        .filter(inp => inp.checked)
+        .map(inp => inp.dataset.status);
+      // Enforce one per group by last-checked wins (UI handlers also enforce, but double-check)
+      let s1 = selected.find(k => group1.includes(k)) || 'not_confirmed';
+      let s3 = selected.find(k => group3.includes(k)) || '';
+      const s4 = selected.includes('registration') ? 'registration' : '';
+      const payload = { id, status1: s1 };
+      if (s3) payload.status3 = s3; else payload.status3 = '';
+      if (s4) payload.status4 = 'registration'; else payload.status4 = '';
+      try {
+        await api('/api/models', { method: 'PUT', body: JSON.stringify(payload) });
+        // Refresh chips without closing dropdown
+        renderModelCard(id);
+      } catch (e) { alert(e.message); }
+    };
+
+    // Handle checkbox changes; keep only one per group toggled
+    statusDropdown.querySelectorAll('.status-checkbox').forEach(inp => {
+      inp.addEventListener('change', (ev) => {
+        const key = inp.dataset.status;
+        // If a group1 key is checked, uncheck other group1
+        if (group1.includes(key) && inp.checked) {
+          statusDropdown.querySelectorAll('.status-checkbox').forEach(other => {
+            if (other !== inp && group1.includes(other.dataset.status)) other.checked = false;
+          });
+        }
+        // If a group3 key is checked, uncheck other group3
+        if (group3.includes(key) && inp.checked) {
+          statusDropdown.querySelectorAll('.status-checkbox').forEach(other => {
+            if (other !== inp && group3.includes(other.dataset.status)) other.checked = false;
+          });
+        }
+        // registration is independent
+        applyFromCheckboxes();
+      });
     });
   }
 
