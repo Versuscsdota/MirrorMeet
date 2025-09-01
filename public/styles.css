@@ -2025,7 +2025,8 @@ main{padding:16px}
   display: none;
 }
 
-.status-dropdown:hover .status-dropdown-content {
+.status-dropdown:hover .status-dropdown-content,
+.status-dropdown-content.open {
   display: block;
 }
 
