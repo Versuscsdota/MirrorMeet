@@ -310,17 +310,19 @@ async function renderCalendar() {
       byTime.get(t).push(s);
     });
     
-    // Helper to get status class
-    const getStatusClass = (status1) => {
-      switch(status1) {
-        case 'confirmed': return 'status-confirmed';
-        case 'fail': return 'status-drain';
-        case 'registered': return 'status-registration';
-        case 'candidate_refusal': return 'status-candidate-refusal';
-        case 'our_refusal': return 'status-our-refusal';
-        case 'thinking': return 'status-thinking';
-        default: return 'status-not-confirmed';
-      }
+    // Helper to get status class based on slot statuses (status1/3/4)
+    const getStatusClass = (slot) => {
+      const s1 = slot?.status1;
+      const s3 = slot?.status3;
+      const s4 = slot?.status4;
+      // Priority: fail/confirmed (status1), then registration (status4), then status3 values
+      if (s1 === 'fail') return 'status-drain';
+      if (s1 === 'confirmed') return 'status-confirmed';
+      if (s4 === 'registration') return 'status-registration';
+      if (s3 === 'reject_candidate') return 'status-candidate-refusal';
+      if (s3 === 'reject_us') return 'status-our-refusal';
+      if (s3 === 'thinking') return 'status-thinking';
+      return 'status-not-confirmed';
     };
     
     // Render slot events
@@ -330,7 +332,7 @@ async function renderCalendar() {
       }
       
       return slotsAtTime.map(slot => {
-        const statusClass = getStatusClass(slot.status1 || 'not_confirmed');
+        const statusClass = getStatusClass(slot);
         const phone = slot.phone || slot.contacts?.phone || '';
         return `
           <div class="schedule-event ${statusClass}" data-id="${slot.id}">
@@ -1632,7 +1634,15 @@ async function renderModelCard(id) {
   const displayName = model.fullName || model.name || 'Модель';
   const telegram = model.telegram || '';
   const phone = model.phone || '';
-  const currentStatus = model.status1 || 'not_confirmed';
+  // Determine which status to display in the header (priority: status4 > status3 > status1)
+  const getCurrentStatusKey = (m) => {
+    if (m.status4 === 'registration') return 'registration';
+    if (m.status3 === 'reject_candidate') return 'reject_candidate';
+    if (m.status3 === 'reject_us') return 'reject_us';
+    if (m.status3 === 'thinking') return 'thinking';
+    return m.status1 || 'not_confirmed';
+  };
+  const currentStatus = getCurrentStatusKey(model);
   
   // Status mapping
   const statusMap = {
@@ -1954,7 +1964,7 @@ async function renderModelCard(id) {
       <label>Комментарий<textarea id="mComment" rows="3">${reg.comment || ''}</textarea></label>
       <div style="margin-top:16px;padding-top:16px;border-top:1px solid #2a2a2a">
         <h4 style="margin:0 0 12px 0;color:var(--accent)">Статусы</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px">
           <label>Статус 1
             <select id="mStatus1">
               <option value="not_confirmed" ${model.status1 === 'not_confirmed' ? 'selected' : ''}>Не подтвердилось</option>
@@ -1976,7 +1986,12 @@ async function renderModelCard(id) {
               <option value="thinking" ${model.status3 === 'thinking' ? 'selected' : ''}>Думает</option>
               <option value="reject_us" ${model.status3 === 'reject_us' ? 'selected' : ''}>Отказ с нашей</option>
               <option value="reject_candidate" ${model.status3 === 'reject_candidate' ? 'selected' : ''}>Отказ кандидата</option>
-              <option value="registration" ${model.status3 === 'registration' ? 'selected' : ''}>Регистрация</option>
+            </select>
+          </label>
+          <label>Статус 4
+            <select id="mStatus4">
+              <option value="">Не указан</option>
+              <option value="registration" ${model.status4 === 'registration' ? 'selected' : ''}>Регистрация</option>
             </select>
           </label>
         </div>
@@ -2004,13 +2019,14 @@ async function renderModelCard(id) {
     const status1 = form.querySelector('#mStatus1').value;
     const status2 = form.querySelector('#mStatus2').value || undefined;
     const status3 = form.querySelector('#mStatus3').value || undefined;
+    const status4 = form.querySelector('#mStatus4') ? (form.querySelector('#mStatus4').value || undefined) : undefined;
     
     if (!name) { setError('Укажите псевдоним модели'); return; }
     try {
       const payload = { 
         id, name, fullName, 
         contacts: { phone }, tags, note,
-        status1, status2, status3
+        status1, status2, status3, status4
       };
       
       // Add registration fields if they exist
@@ -2047,7 +2063,16 @@ async function renderModelCard(id) {
         ev.preventDefault();
         const newStatus = opt.dataset.status;
         try {
-          await api('/api/models', { method: 'PUT', body: JSON.stringify({ id, status1: newStatus }) });
+          const payload = { id };
+          if (['not_confirmed','confirmed','fail'].includes(newStatus)) {
+            payload.status1 = newStatus;
+          } else if (newStatus === 'registration') {
+            payload.status4 = newStatus;
+          } else {
+            // reject_candidate, reject_us, thinking
+            payload.status3 = newStatus;
+          }
+          await api('/api/models', { method: 'PUT', body: JSON.stringify(payload) });
           renderModelCard(id);
         } catch (e) { alert(e.message); }
       };
