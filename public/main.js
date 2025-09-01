@@ -304,14 +304,14 @@ async function renderCalendar() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">
         ${cells.map(c => {
-          if (!c) return `<div style="height:40px;border:1px solid #1a1a1a;background:#0a0a0a"></div>`;
+          if (!c) return `<div style="height:40px;border:1px solid var(--border);background:var(--panel)"></div>`;
           const dstr = ymdLocal(c);
           const info = byDate.get(dstr);
           const isToday = dstr === todayStr;
           const isSelected = dstr === date;
           const hasSlots = info && info.count > 0;
           return `
-            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? 'var(--accent)' : '#1a1a1a'};background:${isToday ? '#1a2a2a' : (hasSlots ? '#1a1a2a' : '#0a0a0a')};font-size:12px;color:${isSelected ? 'var(--accent)' : (hasSlots ? '#fff' : '#888')}">
+            <button class="cal-cell" data-date="${dstr}" style="height:40px;display:flex;align-items:center;justify-content:center;position:relative;padding:2px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};background:${isToday ? 'var(--accent-weak)' : (hasSlots ? 'var(--panel-light)' : 'var(--panel)')};font-size:12px;color:${isSelected ? 'var(--accent)' : (hasSlots ? 'var(--text)' : 'var(--muted)')}">
               ${c.getDate()}
               ${hasSlots ? `<div style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--accent);border-radius:50%"></div>` : ''}
             </button>`;
