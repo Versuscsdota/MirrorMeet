@@ -1870,11 +1870,11 @@ main{padding:16px}
 }
 
 
-.schedule-calendar-grid {
+.schedule-calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 3px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   width: 100%;
 }
 

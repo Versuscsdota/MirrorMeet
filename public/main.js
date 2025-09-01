@@ -122,7 +122,7 @@ async function renderCalendar() {
                 <button id="nextMonth" class="month-nav-btn">▶</button>
               </div>
               
-              <div class="schedule-calendar-grid">
+              <div class="schedule-calendar-weekdays">
                 <div class="schedule-calendar-weekday">Пн</div>
                 <div class="schedule-calendar-weekday">Вт</div>
                 <div class="schedule-calendar-weekday">Ср</div>
@@ -130,8 +130,8 @@ async function renderCalendar() {
                 <div class="schedule-calendar-weekday">Пт</div>
                 <div class="schedule-calendar-weekday">Сб</div>
                 <div class="schedule-calendar-weekday">Вс</div>
-                <div id="monthGrid"></div>
               </div>
+              <div id="monthGrid"></div>
               
               ${(window.currentUser && ['root','admin'].includes(window.currentUser.role)) ? '<button id="addSlot" class="schedule-create-slot-btn">Создать слот</button>' : ''}
             </div>
