@@ -1960,14 +1960,45 @@ async function renderModelCard(id) {
   const statusBtn = el('#statusButton');
   const statusDropdown = el('#statusDropdown');
   if (statusBtn && statusDropdown) {
+    // Prevent dropdown from closing when interacting inside it
+    statusDropdown.addEventListener('click', (e) => e.stopPropagation());
+    statusDropdown.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    // Toggle open/close on button
+    let onDocClick;
+    let onEsc;
+    const openMenu = () => {
+      if (statusDropdown.classList.contains('open')) return;
+      statusDropdown.classList.add('open');
+      onDocClick = (e) => {
+        if (!statusDropdown.contains(e.target) && !statusBtn.contains(e.target)) {
+          closeMenu();
+        }
+      };
+      onEsc = (e) => {
+        if (e.key === 'Escape') closeMenu();
+      };
+      document.addEventListener('click', onDocClick, true);
+      document.addEventListener('keydown', onEsc, true);
+    };
+    const closeMenu = () => {
+      statusDropdown.classList.remove('open');
+      if (onDocClick) document.removeEventListener('click', onDocClick, true);
+      if (onEsc) document.removeEventListener('keydown', onEsc, true);
+    };
+
     statusBtn.onclick = (ev) => {
       ev.stopPropagation();
-      statusDropdown.classList.toggle('open');
+      if (statusDropdown.classList.contains('open')) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
     };
-    document.addEventListener('click', () => statusDropdown.classList.remove('open'), { once: true });
     [...statusDropdown.querySelectorAll('.status-option')].forEach(opt => {
       opt.onclick = async (ev) => {
         ev.preventDefault();
+        ev.stopPropagation();
         const newStatus = opt.dataset.status;
         try {
           const payload = { id };
