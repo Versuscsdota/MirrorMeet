@@ -115,9 +115,11 @@ async function renderCalendar() {
           <div class="schedule-calendar-container">
             <div class="schedule-calendar">
               <div class="schedule-calendar-header">
+                <button id="prevMonth" class="month-nav-btn">◀</button>
                 <select id="monthSelect">
                   <option value="${currentMonth}">${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</option>
                 </select>
+                <button id="nextMonth" class="month-nav-btn">▶</button>
                 <button id="todayBtn">Сегодня</button>
               </div>
               
@@ -197,6 +199,27 @@ async function renderCalendar() {
       }
       loadMonth();
       load();
+    };
+  }
+  
+  // Wire up month navigation
+  const prevMonthBtn = el('#prevMonth');
+  if (prevMonthBtn) {
+    prevMonthBtn.onclick = () => {
+      const [y, m] = currentMonth.split('-').map(x => parseInt(x, 10));
+      const prevDate = new Date(y, m - 2, 1); // m-2 because month is 1-indexed
+      currentMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      loadMonth();
+    };
+  }
+  
+  const nextMonthBtn = el('#nextMonth');
+  if (nextMonthBtn) {
+    nextMonthBtn.onclick = () => {
+      const [y, m] = currentMonth.split('-').map(x => parseInt(x, 10));
+      const nextDate = new Date(y, m, 1); // m because month is 1-indexed
+      currentMonth = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`;
+      loadMonth();
     };
   }
   
@@ -351,10 +374,24 @@ async function renderCalendar() {
     const d0 = new Date(y, m-1, 1);
     const monthName = d0.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
     
-    // Update month select
+    // Update month select and populate with nearby months
     const monthSelect = el('#monthSelect');
     if (monthSelect) {
-      monthSelect.innerHTML = `<option value="${currentMonth}">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}</option>`;
+      const options = [];
+      for (let i = -6; i <= 6; i++) {
+        const optionDate = new Date(y, m - 1 + i, 1);
+        const optionValue = `${optionDate.getFullYear()}-${String(optionDate.getMonth() + 1).padStart(2, '0')}`;
+        const optionLabel = optionDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        const selected = optionValue === currentMonth ? ' selected' : '';
+        options.push(`<option value="${optionValue}"${selected}>${optionLabel.charAt(0).toUpperCase() + optionLabel.slice(1)}</option>`);
+      }
+      monthSelect.innerHTML = options.join('');
+      
+      // Wire up month select change
+      monthSelect.onchange = () => {
+        currentMonth = monthSelect.value;
+        loadMonth();
+      };
     }
     
     const startDow = (d0.getDay()+6)%7; // Mon=0

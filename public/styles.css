@@ -1836,6 +1836,7 @@ main{padding:16px}
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  gap: 8px;
 }
 
 .schedule-calendar-header select,
@@ -1852,6 +1853,18 @@ main{padding:16px}
 .schedule-calendar-header select:hover,
 .schedule-calendar-header button:hover {
   background: var(--surface-hover);
+}
+
+.month-nav-btn {
+  padding: 6px 10px !important;
+  min-width: 36px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.schedule-calendar-header select {
+  flex: 1;
+  min-width: 140px;
 }
 
 .schedule-calendar-grid {
