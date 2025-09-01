@@ -90,6 +90,13 @@ export async function POST(env, request) {
     // optional assignment to employee
     employeeId: (body.employeeId || '').trim() || undefined,
     interview: { text: (body.interviewText || '').trim() || undefined },
+    // unified data block for model-related data captured at slot level
+    data_block: {
+      model_data: Array.isArray(body?.dataBlock?.model_data) ? body.dataBlock.model_data : [],
+      forms: Array.isArray(body?.dataBlock?.forms) ? body.dataBlock.forms : [],
+      user_id: (body?.dataBlock?.user_id || undefined),
+      edit_history: Array.isArray(body?.dataBlock?.edit_history) ? body.dataBlock.edit_history : []
+    },
     history: [{ ts: Date.now(), userId: sess.user.id, action: 'create' }],
     createdAt: Date.now(), createdBy: sess.user.id
   };
