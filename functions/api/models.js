@@ -435,6 +435,20 @@ export async function PUT(env, request) {
       cur.contacts.phone = fields.phone;
     }
   }
+  // If profile fields changed, also reflect them into data_block so sync to slot carries them
+  if (profileChanged) {
+    try {
+      const db0 = normalizeDataBlock(cur.data_block);
+      const patch = { model_data: [] };
+      if ('fullName' in body) patch.model_data.push({ field: 'fullName', value: cur.fullName || '' });
+      if (body.contacts && ('phone' in body.contacts)) patch.model_data.push({ field: 'phone', value: (cur.contacts && cur.contacts.phone) || '' });
+      if (patch.model_data.length) {
+        const merged = mergeDataBlocks(db0, patch, { recordEdit: true, editedBy: sess.user.id });
+        if (JSON.stringify(db0) !== JSON.stringify(merged)) dataChanged = true;
+        cur.data_block = merged;
+      }
+    } catch {}
+  }
   
   // Handle registration updates
   if (body.registration !== undefined) {
