@@ -1373,7 +1373,7 @@ function renderAppShell(me) {
         <button id="logoutBtn">Выход</button>
       </nav>
     </header>
-    <main id="main"></main>
+    <main id="view"></main>
   `;
   
   // Theme toggle functionality
@@ -1397,15 +1397,14 @@ function renderAppShell(me) {
     };
   }
   if (me.role === 'root' || me.role === 'admin') {
-    el('#nav-models').onclick = renderModels;
-    el('#nav-calendar').onclick = renderCalendar;
-    el('#nav-employees').onclick = renderEmployees;
-    el('#nav-files').onclick = renderFileSystem;
-    const logsBtn = document.getElementById('nav-logs');
+    el('#navModels').onclick = renderModels;
+    el('#navSchedule').onclick = renderCalendar;
+    el('#navEmployees').onclick = renderEmployees;
+    el('#navFiles').onclick = renderFileSystem;
+    const logsBtn = document.getElementById('navAudit');
     if (logsBtn) logsBtn.onclick = () => { window.location.href = '/audit.html'; };
   } else if (me.role === 'interviewer') {
-    el('#nav-calendar').onclick = renderCalendar;
-    el('#nav-models').onclick = renderModels;
+    el('#navSchedule').onclick = renderCalendar;
   }
 }
 
