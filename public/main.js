@@ -1629,163 +1629,147 @@ async function renderModelCard(id) {
     }
   }
   const mainFile = (files || []).find(f => f.id === model.mainPhotoId && (f.contentType||'').startsWith('image/'));
+  const displayName = model.fullName || model.name || 'Модель';
+  const telegram = model.telegram || '';
+  const phone = model.phone || '';
+  const currentStatus = model.status1 || 'not_confirmed';
+  
+  // Status mapping
+  const statusMap = {
+    'not_confirmed': { label: 'не подтвердилась', color: 'var(--status-green-light)' },
+    'confirmed': { label: 'подтвердилась', color: 'var(--status-yellow)' },
+    'fail': { label: 'слив', color: 'var(--status-red)' },
+    'registration': { label: 'регистрация', color: 'var(--status-green-dark)' },
+    'reject_candidate': { label: 'отказ со стороны...', color: 'var(--status-green-dark)' },
+    'reject_us': { label: 'отказ с нашей стороны', color: 'var(--status-black)' },
+    'thinking': { label: 'ушла на подумать', color: 'var(--status-gray)' }
+  };
+  
   view.innerHTML = `
-    <div class="model-profile">
-      <div class="profile-hero">
-        <div class="hero-background"></div>
-        <div class="hero-content">
-          <div class="profile-avatar">
-            ${mainFile ? `<img src="${mainFile.url}" alt="${model.name}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${(model.name || '').charAt(0).toUpperCase()}</span></div>`}
+    <div class="model-profile-new">
+      <header class="profile-header">
+        <div class="profile-header-left">
+          <div class="profile-avatar-small">
+            ${mainFile ? `<img src="${mainFile.url}" alt="${displayName}" class="avatar-image" />` : `<div class="avatar-placeholder"><span class="avatar-initials">${(displayName || '').charAt(0).toUpperCase()}</span></div>`}
           </div>
-          <div class="profile-info">
-            ${(() => { const reg = model.registration || {}; const primary = model.name || reg.fullName || 'Модель'; return `<h1 class=\"profile-name\">${primary}</h1>`; })()}
-            ${(() => {
-              const reg = model.registration || {};
-              // 1) explicit registeredAt
-              if (reg.registeredAt) {
-                const when = new Date(reg.registeredAt).toLocaleString('ru-RU');
-                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${when}</div>`;
-              }
-              // 2) history entry of type 'registration'
-              const hist = Array.isArray(model.history) ? model.history.find(h => h && h.type === 'registration' && h.ts) : null;
-              if (hist && hist.ts) {
-                const when = new Date(hist.ts).toLocaleString('ru-RU');
-                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${when}</div>`;
-              }
-              // 3) fallback: slot time
-              if (reg.slotRef) {
-                const d = new Date(reg.slotRef.date).toLocaleDateString('ru-RU');
-                const t = reg.slotRef.start ? reg.slotRef.start.slice(0,5) : '';
-                return `<div class=\"profile-meta\" style=\"color:#94a3b8;font-size:12px;margin-top:4px\">Зарегистрирована: ${d} ${t}</div>`;
-              }
-              return '';
-            })()}
-            <div class="contact-info">
-              ${model.telegram ? `<div class="contact-item"><span class="contact-label">Telegram:</span> <span class="contact-value">@${model.telegram}</span></div>` : ''}
-              ${model.phone ? `<div class="contact-item"><span class="contact-label">Телефон:</span> <span class="contact-value">${model.phone}</span></div>` : ''}
-              ${model.surname ? `<div class="contact-item"><span class="contact-label">Фамилия:</span> <span class="contact-value">${model.surname}</span></div>` : ''}
-            </div>
-            <div class="profile-actions">
-              <button id="editProfile" class="icon-btn" title="Редактировать профиль">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 20h9"/>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-                </svg>
-              </button>
-              ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `<button id="deleteModel" type="button" class="btn btn-danger" data-id="${model.id}" data-name="${model.name}">Удалить модель</button>` : ''}
-            </div>
+          <div class="profile-title-info">
+            <h2 class="profile-title">${displayName}</h2>
+            <p class="profile-username">@${telegram}</p>
           </div>
         </div>
-      </div>
+        <div class="profile-header-right">
+          <div class="status-dropdown">
+            <button class="status-button" id="statusButton">
+              <span class="status-indicator" style="background-color: ${statusMap[currentStatus]?.color || 'var(--status-gray)'}"></span>
+              ${statusMap[currentStatus]?.label || currentStatus}
+              <span class="material-symbols-rounded">expand_more</span>
+            </button>
+            <div class="status-dropdown-content" id="statusDropdown">
+              ${Object.entries(statusMap).map(([key, value]) => `
+                <a href="#" class="status-option" data-status="${key}">
+                  <span class="status-indicator" style="background-color: ${value.color}"></span>
+                  ${key === 'reject_candidate' ? '<span class="line-through">' + value.label + '</span>' : value.label}
+                </a>
+              `).join('')}
+            </div>
+          </div>
+          <button class="icon-button" id="editProfile" title="Редактировать">
+            <span class="material-symbols-rounded">edit</span>
+          </button>
+          <button class="icon-button" id="closeProfile" title="Закрыть">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </div>
+      </header>
       
-      <div class="profile-body">
-        <div class="profile-stats">
-          <div class="stats-grid">
-            ${(() => { const bd = model.registration && model.registration.birthDate; if (bd) { const a = Math.max(0, Math.floor((Date.now() - new Date(bd).getTime()) / (365.25*24*60*60*1000))); return a ? `<div class="stat-card"><div class="stat-value">${a}</div><div class="stat-label">лет</div></div>` : ''; } return ''; })()}
-          </div>
-        </div>
-        ${model.registration ? `
-          <div class="info-section registration-section">
-            <h3 class="section-title">📋 Регистрация</h3>
-            <div class="info-cards">
-              ${(() => { const ref = model.registration.slotRef; if (!ref) return ''; const tm = (ref.start?ref.start.slice(0,5):'') + (ref.end?`–${ref.end.slice(0,5)}`:''); return `<div class=\"info-card full-width\"><div class=\"info-icon\">🗓️</div><div class=\"info-content\"><div class=\"info-label\">Источник</div><div class=\"info-value\">${new Date(ref.date).toLocaleDateString('ru-RU')} ${tm} ${ref.title?`· ${ref.title}`:''}</div></div></div>`; })()}
-              ${(() => {
-                const st = model.registration && model.registration.statuses;
-                if (!st) return '';
-                const map1 = { confirmed: 'Подтвердилось', not_confirmed: 'Не подтвердилось', fail: 'Слив' };
-                const map2 = { arrived: 'Пришла', no_show: 'Не пришла', other: 'Другое' };
-                const map3 = { thinking: 'Думает', reject_us: 'Отказ с нашей', reject_candidate: 'Отказ кандидата', registration: 'Регистрация' };
-                const chips = [
-                  st.status1 ? `<span class=\"status-badge ${st.status1==='confirmed'?'success':st.status1==='fail'?'danger':'warning'}\">${map1[st.status1]||st.status1}</span>` : '',
-                  st.status2 ? `<span class=\"status-badge secondary\">${map2[st.status2]||st.status2}</span>` : '',
-                  st.status3 ? `<span class=\"status-badge secondary\">${map3[st.status3]||st.status3}</span>` : ''
-                ].filter(Boolean).join(' ');
-                return chips ? `<div class=\"info-card full-width\"><div class=\"info-icon\">🏷️</div><div class=\"info-content\"><div class=\"info-label\">Статусы на регистрации</div><div class=\"info-value\">${chips}</div></div></div>` : '';
-              })()}
-              ${model.registration.birthDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎂</div><div class=\"info-content\"><div class=\"info-label\">Дата рождения</div><div class=\"info-value\">${new Date(model.registration.birthDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
-              ${model.registration.docType || model.registration.docNumber ? `<div class=\"info-card\"><div class=\"info-icon\">📄</div><div class=\"info-content\"><div class=\"info-label\">Документ</div><div class=\"info-value\">${(model.registration.docType||'').toString()} ${(model.registration.docNumber||'')}</div></div></div>` : ''}
-              ${model.registration.internshipDate ? `<div class=\"info-card\"><div class=\"info-icon\">🎓</div><div class=\"info-content\"><div class=\"info-label\">Первая стажировка</div><div class=\"info-value\">${new Date(model.registration.internshipDate).toLocaleDateString('ru-RU')}</div></div></div>` : ''}
-              ${model.registration.comment ? `<div class=\"info-card full-width\"><div class=\"info-icon\">💬</div><div class=\"info-content\"><div class=\"info-label\">Комментарий</div><div class=\"info-value\">${model.registration.comment}</div></div></div>` : ''}
+      <main class="profile-main">
+        <div class="profile-grid">
+          <div class="profile-left">
+            <div class="info-section">
+              <h3 class="section-title">Личная информация</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="field-label">Telegram/Nickname</label>
+                  <input type="text" class="field-input" value="@${telegram}" id="telegramInput" />
+                </div>
+                <div class="form-field">
+                  <label class="field-label">ФИО</label>
+                  <input type="text" class="field-input" value="${displayName}" id="fullNameInput" />
+                </div>
+                <div class="form-field">
+                  <label class="field-label">Телефон</label>
+                  <input type="text" class="field-input" value="${phone}" id="phoneInput" />
+                </div>
+                <div class="form-field">
+                  <label class="field-label">Дата рождения</label>
+                  <input type="date" class="field-input" value="${model.registration?.birthDate ? new Date(model.registration.birthDate).toISOString().split('T')[0] : ''}" id="birthDateInput" />
+                </div>
+                <div class="form-field">
+                  <label class="field-label">Дата первой стажировки</label>
+                  <input type="date" class="field-input" value="${model.registration?.internshipDate ? new Date(model.registration.internshipDate).toISOString().split('T')[0] : ''}" id="internshipDateInput" />
+                </div>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <h3 class="section-title">Документы</h3>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label class="field-label">Тип документа</label>
+                  <select class="field-input" id="docTypeInput">
+                    <option value="passport" ${model.registration?.docType === 'passport' ? 'selected' : ''}>Паспорт РФ</option>
+                    <option value="license" ${model.registration?.docType === 'license' ? 'selected' : ''}>Водительское удостоверение</option>
+                    <option value="international" ${model.registration?.docType === 'international' ? 'selected' : ''}>Загранпаспорт</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="field-label">Серия и номер / номер</label>
+                  <input type="text" class="field-input" value="${model.registration?.docNumber || ''}" id="docNumberInput" />
+                </div>
+              </div>
+            </div>
+            
+            <div class="info-section">
+              <h3 class="section-title">История статусов</h3>
+              <div class="status-history" id="statusHistory">
+                <!-- Status history will be populated here -->
+              </div>
             </div>
           </div>
-        ` : ''}
-        ${(() => { const phone = (model.contacts && model.contacts.phone) || (model.registration && model.registration.phone); return phone ? `
-          <div class="info-section contacts-section">
-            <h3 class="section-title">📞 Контакты</h3>
-            <div class="contact-cards">
-              <a href="tel:${phone}" class="contact-card phone"><div class="contact-icon">📱</div><div class="contact-info"><div class="contact-label">Телефон</div><div class="contact-value">${phone}</div></div></a>
+          
+          <div class="profile-right">
+            <div class="info-section">
+              <h3 class="section-title">Комментарии</h3>
+              <div class="comments-list" id="commentsList">
+                <!-- Comments will be populated here -->
+              </div>
+              <div class="comment-input-container">
+                <textarea class="comment-input" placeholder="Добавить комментарий..." rows="3" id="commentText"></textarea>
+                <button class="comment-send-btn" id="sendComment">
+                  <span class="material-symbols-rounded">send</span>
+                </button>
+              </div>
             </div>
-          </div>
-        ` : '' })()}
-        ${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? `
-          <div class="info-section accounts-section">
-            <h3 class="section-title">🔐 Аккаунты</h3>
-            <div class="info-cards">
-              <div class="info-card full-width">
-                <div class="info-icon">🌐</div>
-                <div class="info-content" style="width:100%">
-                  <div class="info-label">Вебкам сайты (формат: сайт логин:пароль, одна запись на строку)</div>
-                  <textarea id="webcamAccounts" rows="6" placeholder="bonga john:pass123\nstripchat kate:qwe321" style="width:100%">${(model.webcamAccounts||'')}</textarea>
-                  <div style="margin-top:8px">
-                    <button id="saveWebcamAccounts" type="button">Сохранить</button>
-                  </div>
+            
+            <div class="info-section">
+              <h3 class="section-title">Файлы</h3>
+              <div class="files-container">
+                <div class="files-header">
+                  <h4 class="files-subtitle">Хранилище файлов</h4>
+                  <label class="upload-btn" for="fileUpload">
+                    <span class="material-symbols-rounded">upload_file</span>
+                    Загрузить
+                  </label>
+                  <input type="file" id="fileUpload" class="file-input" multiple accept="image/*,video/*,.pdf" />
+                </div>
+                <div class="files-list" id="filesList">
+                  <!-- Files will be populated here -->
                 </div>
               </div>
             </div>
           </div>
-        ` : ''}
-        ${(model.tags && model.tags.length) ? `
-          <div class="info-section tags-section">
-            <h3 class="section-title">🏷️ Теги</h3>
-            <div class="tags-container">${model.tags.map(tag => `<span class="tag-chip">${tag}</span>`).join('')}</div>
-          </div>
-        ` : ''}
-        ${model.note ? `
-          <div class="info-section notes-section">
-            <h3 class="section-title">📝 Примечания</h3>
-            <div class="note-content">${model.note}</div>
-          </div>
-        ` : ''}
-      </div>
-      
-      <div class="files-section">
-        <h3 class="section-title">📁 Файлы портфолио</h3>
-        <section class="bar" style="gap:8px;flex-wrap:wrap">
-          <form id="fileForm" style="display:${(window.currentUser && (window.currentUser.role === 'root' || window.currentUser.role === 'admin')) ? 'flex' : 'none'};gap:8px;flex-wrap:wrap">
-            <input type="file" name="file" required accept="image/*,video/*,.pdf" multiple />
-            <input name="name" placeholder="Название" required />
-            <input name="description" placeholder="Описание" />
-            <select name="category">
-              <option value="photo">Фотография/Видео</option>
-              <option value="doc">Документ</option>
-            </select>
-            <button>Загрузить</button>
-          </form>
-          <input id="fileSearch" placeholder="Поиск по файлам" />
-          <select id="fileSort">
-            <option value="name-asc">Имя ↑</option>
-            <option value="name-desc">Имя ↓</option>
-            <option value="date-desc">Дата ↓</option>
-          </select>
-          <select id="fileFilterCat">
-            <option value="all">Все</option>
-            <option value="photo">Фото/Видео</option>
-            <option value="doc">Документы</option>
-          </select>
-          <button id="exportCsv" type="button">Экспорт CSV</button>
-        </section>
-        <div class="files-grid" id="filesGrid"></div>
-        <div id="filePreview" style="margin-top:12px"></div>
-      </div>
-
-      <div class="comments-section">
-        <h3 class="section-title">💬 Комментарии</h3>
-        <div id="commentsList" style="display:grid;gap:8px;margin:8px 0"></div>
-        <form id="commentForm" style="display:flex;gap:8px;align-items:flex-start">
-          <textarea id="commentText" rows="3" placeholder="Добавить комментарий" style="flex:1"></textarea>
-          <button type="submit">Добавить</button>
-        </form>
-      </div>
+        </div>
+      </main>
     </div>`;
   // After render, populate accounts textarea explicitly
   try {
