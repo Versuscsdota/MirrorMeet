@@ -1579,24 +1579,11 @@ async function renderModels() {
   }
   function renderList(){
     const q = (el('#search').value || '').toLowerCase();
-    const mode = el('#sort').value;
-    const s1 = getSelected('#fStatus1');
-    const s2 = getSelected('#fStatus2');
-    const s3 = getSelected('#fStatus3');
     const filtered = items.filter(m => {
-      const matchesText = (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q);
-      const v1 = (m.status1 || 'not_confirmed');
-      const v2 = (m.status2 || '');
-      const v3 = (m.status3 || '');
-      
-      // Single select filter logic
-      const pass1 = !s1 || s1 === v1;
-      const pass2 = !s2 || (s2 === 'empty' ? !v2 : s2 === v2);
-      const pass3 = !s3 || (s3 === 'empty' ? !v3 : s3 === v3);
-      
-      return matchesText && pass1 && pass2 && pass3;
+      const matchesText = (m.name||'').toLowerCase().includes(q) || (m.note||'').toLowerCase().includes(q) || (m.fullName||'').toLowerCase().includes(q);
+      return matchesText;
     });
-    const sorted = applySort(filtered, mode);
+    const sorted = applySort(filtered, 'name-asc');
     grid.innerHTML = sorted.map(m => {
       const photoUrl = m.mainPhotoId ? `/api/files?id=${m.mainPhotoId}` : '';
       const initials = (m.fullName || m.name || '').trim().charAt(0).toUpperCase();
@@ -1619,13 +1606,6 @@ async function renderModels() {
     [...grid.querySelectorAll('.model-card')].forEach(card => card.onclick = () => renderModelCard(card.dataset.id));
   }
   el('#search').addEventListener('input', renderList);
-  el('#sort').addEventListener('change', renderList);
-  const s1El = el('#fStatus1');
-  const s2El = el('#fStatus2');
-  const s3El = el('#fStatus3');
-  if (s1El) s1El.addEventListener('change', renderList);
-  if (s2El) s2El.addEventListener('change', renderList);
-  if (s3El) s3El.addEventListener('change', renderList);
   renderList();
 }
 
