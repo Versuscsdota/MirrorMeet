@@ -370,17 +370,23 @@ export async function PUT(env, request) {
 
   // Track name change to optionally sync linked slot title
   const prevName = typeof cur.name === 'string' ? cur.name : '';
+  // Track profile field changes to decide data sync to slot
+  let profileChanged = false;
   if ('name' in body) cur.name = safeTrim(body.name, typeof cur.name === 'string' ? cur.name : '');
   if ('note' in body) cur.note = safeTrim(body.note, typeof cur.note === 'string' ? cur.note : '');
   if ('fullName' in body) {
     cur.fullName = safeTrim(body.fullName, typeof cur.fullName === 'string' ? cur.fullName : '');
     cur.registration = cur.registration || {};
     cur.registration.fullName = safeTrim(body.fullName, typeof cur.registration.fullName === 'string' ? cur.registration.fullName : '');
+    profileChanged = true;
   }
   if ('webcamAccounts' in body) cur.webcamAccounts = safeTrim(body.webcamAccounts, typeof cur.webcamAccounts === 'string' ? cur.webcamAccounts : '');
   if (body.contacts !== undefined) {
     cur.contacts = cur.contacts || {};
-    if ('phone' in body.contacts) cur.contacts.phone = safeTrim(body.contacts.phone, typeof cur.contacts.phone === 'string' ? cur.contacts.phone : '');
+    if ('phone' in body.contacts) {
+      cur.contacts.phone = safeTrim(body.contacts.phone, typeof cur.contacts.phone === 'string' ? cur.contacts.phone : '');
+      profileChanged = true;
+    }
   }
   if (body.tags !== undefined) {
     cur.tags = Array.isArray(body.tags)
@@ -495,6 +501,24 @@ export async function PUT(env, request) {
     }
   }
   
+  // Sync model data_block to linked slot if data or profile changed (model is source of truth)
+  if ((dataChanged || profileChanged) && cur.registration && cur.registration.slotRef) {
+    try {
+      const slotKey = `slot:${cur.registration.slotRef.date}:${cur.registration.slotRef.id}`;
+      const slot = await env.CRM_KV.get(slotKey, { type: 'json' });
+      if (slot) {
+        const currentDB = normalizeDataBlock(slot.data_block);
+        const mergedFromModel = mergeDataBlocks(currentDB, cur.data_block, { recordEdit: true, editedBy: sess.user.id });
+        slot.data_block = mergedFromModel;
+        slot.history = slot.history || [];
+        slot.history.push({ ts: Date.now(), userId: sess.user.id, action: 'data_sync_from_model', modelId: cur.id });
+        await env.CRM_KV.put(slotKey, JSON.stringify(slot));
+      }
+    } catch (e) {
+      console.warn('Failed to sync model data to slot:', e);
+    }
+  }
+
   // If model name changed, sync linked slot title to keep schedule consistent
   try {
     const nameChanged = ('name' in body) && (safeTrim(body.name, prevName) !== prevName);
