@@ -40,7 +40,7 @@ export async function GET(env, request) {
     // Access by id: only root/admin
     const meta = await env.CRM_KV.get(`file:${id}`, { type: 'json' });
     if (!meta) return notFound('file');
-    const { error } = await requireRole(env, request, ['root','admin']);
+    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
     if (error) return error;
     const obj = await env.CRM_FILES.get(meta.objectKey);
     if (!obj) return notFound('file-object');
@@ -77,7 +77,7 @@ export async function GET(env, request) {
 
   // Listing
   if (modelId) {
-    const { error } = await requireRole(env, request, ['root','admin']);
+    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
     if (error) return error;
     // Try indexed listing first
     const idx = await env.CRM_KV.list({ prefix: `file_model:${modelId}:` });
@@ -99,7 +99,7 @@ export async function GET(env, request) {
   }
 
   if (slotId) {
-    const { error } = await requireRole(env, request, ['root','admin']);
+    const { error } = await requireRole(env, request, ['root','admin','interviewer']);
     if (error) return error;
     const idx = await env.CRM_KV.list({ prefix: `file_slot:${slotId}:` });
     let metas = [];
@@ -122,7 +122,7 @@ export async function GET(env, request) {
 }
 
 export async function POST(env, request) {
-  // Uploads: only root/admin
+  // Uploads: root/admin/interviewer
 
   if (!request.headers.get('content-type')?.includes('multipart/form-data')) return badRequest('multipart/form-data required');
   const fd = await request.formData();
@@ -139,7 +139,7 @@ export async function POST(env, request) {
   if (files.length > MAX_FILES) return forbidden(`Слишком много файлов за один раз (макс ${MAX_FILES})`);
 
   let entity = null;
-  const { sess, error: upErr } = await requireRole(env, request, ['root','admin']);
+  const { sess, error: upErr } = await requireRole(env, request, ['root','admin','interviewer']);
   if (upErr) return upErr;
   if (modelId) {
     const model = await env.CRM_KV.get(`model:${modelId}`);
@@ -195,7 +195,7 @@ export async function POST(env, request) {
 }
 
 export async function DELETE(env, request) {
-  const { sess, error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
   if (error) return error;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');

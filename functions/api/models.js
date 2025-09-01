@@ -48,7 +48,7 @@ export async function GET(env, request) {
 }
 
 export async function POST(env, request) {
-  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
 
@@ -342,7 +342,7 @@ export async function POST(env, request) {
 }
 
 export async function PUT(env, request) {
-  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
+  const { sess, error } = await requireRole(env, request, ['root','admin']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   // Action: immutable comments append

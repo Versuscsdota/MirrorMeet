@@ -108,7 +108,7 @@ export async function POST(env, request) {
 }
 
 export async function PUT(env, request) {
-  const { sess, error } = await requireRole(env, request, ['root','admin']);
+  const { sess, error } = await requireRole(env, request, ['root','admin','interviewer']);
   if (error) return error;
   let body; try { body = await request.json(); } catch { return badRequest('Expect JSON'); }
   const { id, date } = body;
