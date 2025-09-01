@@ -86,13 +86,15 @@ export async function POST(env, request) {
 
     // Merge data_block: slot + incoming
     const mergedDataBlock = mergeDataBlocks(slot.data_block, body.dataBlock, { recordEdit: true, editedBy: sess.user.id });
+    // Extract known fields from merged data_block to fill missing explicit inputs
+    const dbFields = extractModelFieldsFromDataBlock(mergedDataBlock);
 
     const model = {
       id,
       name,
       note: regComment,
-      fullName,
-      contacts: { phone },
+      fullName: fullName || dbFields.fullName || '',
+      contacts: { phone: phone || dbFields.phone || '' },
       tags: [],
       history: [],
       comments: [],

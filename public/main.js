@@ -813,29 +813,11 @@ async function renderCalendar() {
         </label>
 
         <div style="display:flex;align-items:center;gap:8px">
-          <button id="startRegBtn" type="button" class="success" style="display:none">Начать регистрацию</button>
-          <span id="startHint" style="font-size:12px;color:#9aa">Кнопка появится при: Подтвержден · Пришла · Регистрация</span>
+          <button id="registerBtn" type="button" class="success" style="display:none">Зарегистрировать</button>
+          <span id="startHint" style="font-size:12px;color:#9aa">Кнопка появится при: Подтвержден · Пришла</span>
         </div>
 
-        <div id="regSection" style="display:none;border-top:1px solid var(--border);padding-top:12px;display:grid;gap:10px">
-          <label>Дата рождения*<input id="regBirth" type="date" /></label>
-          <label>Документ* 
-            <select id="regDocType">
-              <option value="">Выберите документ</option>
-              <option value="passport">Паспорт</option>
-              <option value="driver">Водительское</option>
-              <option value="foreign">Загранпаспорт</option>
-            </select>
-          </label>
-          <label>Данные документа*<input id="regDocNumber" placeholder="Серия, номер и другие данные" /></label>
-          <label>Дата стажировки<input id="regIntern" type="date" /></label>
-          <div>
-            <label>Загрузка фото <input id="regPhoto" type="file" accept="image/*" /></label>
-          </div>
-          <div>
-            <label>Загрузка аудио <input id="regAudio" type="file" accept="audio/*" /></label>
-          </div>
-        </div>
+        
 
         <label>Заметки интервью<textarea id="iText" rows="4" placeholder="Текст интервью">${(s.interview && s.interview.text) || ''}</textarea></label>
         <div>
@@ -925,9 +907,8 @@ async function renderCalendar() {
     function updateStartVisibility() {
       const v1 = (box.querySelector('#regS1')?.value || '');
       const v2 = (box.querySelector('#regS2')?.value || '');
-      const v4 = (box.querySelector('#regS4')?.value || '');
-      const canStart = (v1 === 'confirmed' && v2 === 'arrived' && v4 === 'registration');
-      const btn = box.querySelector('#startRegBtn');
+      const canStart = (v1 === 'confirmed' && v2 === 'arrived');
+      const btn = box.querySelector('#registerBtn');
       if (btn) btn.style.display = canStart ? 'inline-flex' : 'none';
     }
     ['#regS1','#regS2','#regS4'].forEach(sel => {
@@ -936,12 +917,47 @@ async function renderCalendar() {
     });
     updateStartVisibility();
 
-    const startBtn = box.querySelector('#startRegBtn');
-    if (startBtn) startBtn.onclick = () => {
-      const sec = box.querySelector('#regSection');
-      const hint = box.querySelector('#startHint');
-      if (sec) sec.style.display = 'grid';
-      if (hint) hint.style.display = 'none';
+    const regBtn = box.querySelector('#registerBtn');
+    if (regBtn) regBtn.onclick = async () => {
+      try {
+        // Save latest slot state first (title/phone/statuses/interview/data_block)
+        const titleVal = (box.querySelector('#regName')?.value || '').trim();
+        const phoneVal = (box.querySelector('#regPhone')?.value || '').trim();
+        const s1v = (box.querySelector('#regS1')?.value || 'not_confirmed');
+        const s2v = (box.querySelector('#regS2')?.value || '');
+        const textVal = (box.querySelector('#iText')?.value || '').trim();
+        const savePayload = {
+          id: s.id,
+          date: (s.date || date),
+          title: titleVal,
+          interviewText: textVal,
+          status1: s1v,
+          status2: s2v || undefined,
+          dataBlock: {
+            model_data: [
+              { field: 'fullName', value: titleVal },
+              { field: 'phone', value: phoneVal }
+            ]
+          }
+        };
+        await api('/api/schedule', { method: 'PUT', body: JSON.stringify(savePayload) });
+
+        // Register model from slot (backend will set status4=registration and merge data_block)
+        const modelPayload = {
+          action: 'registerFromSlot',
+          date: (s.date || date),
+          slotId: s.id,
+          name: titleVal || s.title || 'Кандидат',
+          fullName: titleVal || undefined,
+          phone: phoneVal || undefined,
+          status1: s1v,
+          status2: s2v || undefined
+        };
+        const model = await api('/api/models', { method: 'POST', body: JSON.stringify(modelPayload) });
+        const backdrop = box.closest('.modal-backdrop'); if (backdrop) backdrop.remove();
+        await renderModels();
+        if (model && model.id && typeof window.renderModelCard === 'function') window.renderModelCard(model.id);
+      } catch (e) { alert(e.message || 'Не удалось выполнить регистрацию'); }
     };
 
     // initial
@@ -982,136 +998,33 @@ async function renderCalendar() {
       } catch (e) { alert(e.message); btn.disabled = false; }
     };
 
-    // ДАННЫЕ: отрисовка форм, сохранение и регистрация модели
-    (function setupDataBlock(){
-      const dataBlock = s.data_block || { model_data: [], forms: [], user_id: undefined, edit_history: [] };
-      // Если форм нет — задать дефолтный список
-      if (!Array.isArray(dataBlock.forms) || dataBlock.forms.length === 0) {
-        dataBlock.forms = [
-          { type: 'string', name: 'fullName', required: true, label: 'ФИО' },
-          { type: 'string', name: 'phone', required: true, label: 'Телефон' },
-          { type: 'date', name: 'birthDate', required: false, label: 'Дата рождения' },
-          { type: 'date', name: 'internshipDate', required: false, label: 'Дата первой стажировки' },
-          { type: 'enum', name: 'docType', required: false, label: 'Тип документа', options: ['passport','driver','foreign'] },
-          { type: 'string', name: 'docNumber', required: false, label: 'Серия и номер' },
-          { type: 'string', name: 'comment', required: false, label: 'Комментарий' }
-        ];
-      }
-      // начальные значения: из slot.title/notes
-      const kv = new Map((Array.isArray(dataBlock.model_data) ? dataBlock.model_data : []).map(x => [String(x.field), x.value]));
-      if (!kv.has('fullName') && s.title) kv.set('fullName', s.title);
-      const guessedPhone = (s.notes || '').match(/Телефон:\s*([^\n]+)/i)?.[1]?.trim();
-      if (!kv.has('phone') && guessedPhone) kv.set('phone', guessedPhone);
-
-      const listEl = box.querySelector('#modelDataList');
-      const formsWrap = box.querySelector('#formsWrap');
-      const renderForms = () => {
-        // список данных (readonly мини-таблица)
-        const rows = dataBlock.forms.map(f => {
-          const val = kv.get(f.name) ?? '';
-          return `<div style="display:flex;gap:8px;align-items:center"><div style="width:160px;color:#9aa">${f.label || f.name}${f.required ? ' *' : ''}</div><div style="flex:1;color:#ddd;word-break:break-word">${val || '<span style=\'color:#666\'>—</span>'}</div></div>`;
-        }).join('');
-        if (listEl) listEl.innerHTML = rows;
-        // формы ввода
-        const ctrls = dataBlock.forms.map(f => {
-          const val = kv.get(f.name) ?? '';
-          if (f.type === 'enum' && Array.isArray(f.options) && f.options.length) {
-            return `<label>${f.label || f.name}
-              <select data-name="${f.name}" ${f.required ? 'data-required="1"' : ''}>
-                <option value=""></option>
-                ${f.options.map(opt => `<option value="${opt}" ${String(val)===String(opt)?'selected':''}>${opt}</option>`).join('')}
-              </select>
-            </label>`;
-          }
-          const t = f.type === 'date' ? 'date' : 'text';
-          return `<label>${f.label || f.name}<input data-name="${f.name}" type="${t}" value="${String(val).replace(/\"/g,'&quot;')}" ${f.required ? 'data-required="1"' : ''} /></label>`;
-        }).join('');
-        if (formsWrap) formsWrap.innerHTML = ctrls;
-      };
-      renderForms();
-
-      // Сохранение блока данных в слот
-      const saveBtn = box.querySelector('#saveDataBlock');
-      if (saveBtn) saveBtn.onclick = async () => {
-        const errEl = box.querySelector('#dataBlockError'); if (errEl) errEl.textContent = '';
-        try {
-          // собрать значения
-          const inputs = formsWrap.querySelectorAll('[data-name]');
-          const modelData = [];
-          for (const inp of inputs) {
-            const name = inp.getAttribute('data-name');
-            const required = inp.hasAttribute('data-required');
-            const value = (inp.value || '').trim();
-            if (required && !value) { errEl.textContent = `Поле ${name} обязательно`; return; }
-            modelData.push({ field: name, value });
-            kv.set(name, value);
-          }
-          const payload = { id: s.id, date: (s.date || date), dataBlock: {
-            model_data: modelData,
-            forms: dataBlock.forms,
-            user_id: (window.currentUser && window.currentUser.id) || undefined
-          } };
-          const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
-          Object.assign(s, updated);
-          renderForms();
-        } catch (e) { const errEl2 = box.querySelector('#dataBlockError'); if (errEl2) errEl2.textContent = e.message; }
-      };
-
-      // Регистрация модели из текущих данных
-      const regBtn = box.querySelector('#registerFromData');
-      if (regBtn) regBtn.onclick = async () => {
-        const errEl = box.querySelector('#dataBlockError'); if (errEl) errEl.textContent = '';
-        try {
-          // ensure saved data first
-          if (box.querySelector('#saveDataBlock')) await box.querySelector('#saveDataBlock').click();
-          const md = Array.from(kv.entries());
-          const asObj = Object.fromEntries(md);
-          const selS1 = s.status1 || 'not_confirmed';
-          const selS2 = (box.querySelector('#s2')?.value || s.status2 || '');
-          const selS3Btn = box.querySelector('#s3Group .s3btn[data-selected="true"]');
-          const selS3 = selS3Btn ? selS3Btn.dataset.v : (s.status3 || '');
-          const modelPayload = {
-            action: 'registerFromSlot',
-            date: (s.date || date),
-            slotId: s.id,
-            name: asObj.fullName,
-            fullName: asObj.fullName,
-            phone: asObj.phone,
-            birthDate: asObj.birthDate,
-            internshipDate: asObj.internshipDate,
-            docType: asObj.docType,
-            docNumber: asObj.docNumber,
-            comment: asObj.comment,
-            status1: selS1,
-            status2: selS2 || undefined,
-            status3: selS3 || undefined
-          };
-          const model = await api('/api/models', { method: 'POST', body: JSON.stringify(modelPayload) });
-          // привязать модель к слоту и статус3
-          try {
-            await api('/api/schedule', { method: 'PUT', body: JSON.stringify({ id: s.id, date: (s.date || date), modelId: model.id, status3: 'registration' }) });
-          } catch {}
-          // закрыть модал и открыть профиль
-          const backdrop = box.closest('.modal-backdrop'); if (backdrop) backdrop.remove();
-          renderModels();
-          if (model && model.id && typeof window.renderModelCard === 'function') window.renderModelCard(model.id);
-        } catch (e) { const errEl2 = box.querySelector('#dataBlockError'); if (errEl2) errEl2.textContent = e.message || 'Ошибка регистрации'; }
-      };
-    })();
-
-    // Removed legacy status3 prompt
-
     const m = await modalPromise;
     if (!m) return;
     const { close, setError } = m;
     try {
-      // save interview text + status2
+      // Collect form values
       const text = () => (box.querySelector('#iText').value || '').trim();
-      const s2v = (box.querySelector('#regS2') && box.querySelector('#regS2').value) || '';
-      const body = { id: s.id, date: (s.date || date), interviewText: text() };
-      // Always send status2 so backend can clear it when empty
-      body.status2 = s2v || undefined;
-      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(body) });
+      const titleVal = (box.querySelector('#regName')?.value || '').trim();
+      const phoneVal = (box.querySelector('#regPhone')?.value || '').trim();
+      const s1v = (box.querySelector('#regS1')?.value || 'not_confirmed');
+      const s2v = (box.querySelector('#regS2')?.value || '');
+      const s4v = (box.querySelector('#regS4')?.value || '');
+      const payload = {
+        id: s.id,
+        date: (s.date || date),
+        title: titleVal,
+        interviewText: text(),
+        status1: s1v,
+        status2: s2v || undefined,
+        status4: s4v || undefined,
+        dataBlock: {
+          model_data: [
+            { field: 'fullName', value: titleVal },
+            { field: 'phone', value: phoneVal }
+          ]
+        }
+      };
+      const updated = await api('/api/schedule', { method: 'PUT', body: JSON.stringify(payload) });
       // refresh from server to avoid stale local state
       await load();
       close();
