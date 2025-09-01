@@ -25,6 +25,21 @@ const api = async (path, opts = {}) => {
 
 const el = (sel) => document.querySelector(sel);
 
+// Theme management
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  return savedTheme;
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const newTheme = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  return newTheme;
+}
+
 // Format date as YYYY-MM-DD in LOCAL timezone (avoid toISOString UTC shift)
 function ymdLocal(d) {
   const y = d.getFullYear();
@@ -1340,29 +1355,47 @@ function renderAppShell(me) {
   el('#app').innerHTML = `
     <header>
       <div class="logo">
-        <img src="/logo-mark.svg" alt="Mirror Studio" height="40" style="height:40px;width:auto;display:block" />
+        <svg viewBox="0 0 120 24" fill="currentColor">
+          <text x="0" y="18" font-family="system-ui" font-weight="700" font-size="16">MirrorCRM</text>
+        </svg>
       </div>
       <nav>
-        ${
-          (me.role === 'root' || me.role === 'admin') ? `
-            <button id="nav-models">Модели</button>
-            <button id="nav-calendar">Календарь</button>
-            <button id="nav-employees">Сотрудники</button>
-            <button id="nav-files">Файлы</button>
-            <button id="nav-logs">Логи</button>
-          ` : (me.role === 'interviewer') ? `
-            <button id="nav-models">Модели</button>
-            <button id="nav-calendar">Календарь</button>
-          ` : ''
-        }
+        ${me.role === 'root' || me.role === 'admin' ? `
+          <button id="navModels" class="active">Модели</button>
+          <button id="navEmployees">Сотрудники</button>
+          <button id="navSchedule">Расписание</button>
+          <button id="navFiles">Файлы</button>
+          <button id="navAudit">Аудит</button>
+        ` : me.role === 'interviewer' ? `
+          <button id="navSchedule" class="active">Расписание</button>
+        ` : ''}
+        <button id="themeToggle" class="ghost" title="Переключить тему">🌓</button>
+        <button id="logoutBtn">Выход</button>
       </nav>
-      <div class="me">${me ? me.login + ' (' + me.role + ')' : ''}
-        <button id="logout">Выход</button>
-      </div>
     </header>
-    <main id="view"></main>
+    <main id="main"></main>
   `;
-  el('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); renderLogin(); };
+  
+  // Theme toggle functionality
+  const themeBtn = el('#themeToggle');
+  if (themeBtn) {
+    themeBtn.onclick = () => {
+      const newTheme = toggleTheme();
+      themeBtn.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    };
+    // Set initial icon
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    themeBtn.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+  }
+  
+  // Logout functionality
+  const logoutBtn = el('#logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => { 
+      await api('/api/logout', { method: 'POST' }); 
+      renderLogin(); 
+    };
+  }
   if (me.role === 'root' || me.role === 'admin') {
     el('#nav-models').onclick = renderModels;
     el('#nav-calendar').onclick = renderCalendar;
@@ -2627,6 +2660,7 @@ async function renderApp() {
   const me = await fetchMe();
   if (!me) return renderLogin();
   window.currentUser = me;
+  initTheme(); // Initialize theme on app start
   renderAppShell(me);
   if (me.role === 'root' || me.role === 'admin') {
     renderModels();
