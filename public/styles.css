@@ -129,26 +129,73 @@
 
 *{box-sizing:border-box}
 body{margin:0;font-family:var(--font-family);background:var(--bg);color:var(--text);transition:all 0.3s ease;min-height:100vh;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-/* Apple-style Header */
-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:16px 24px;
-  background:var(--panel-glass);
-  backdrop-filter:var(--blur);
-  border-bottom:1px solid var(--border);
-  position:sticky;
-  top:0;
-  z-index:5;
-  box-shadow:var(--shadow-sm);
+/* App layout */
+:root {
+  --header-height: 60px;
 }
-.logo{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:700;color:var(--text)}
-.logo svg{width:120px;height:auto}
-header nav{display:flex;gap:8px}
-header nav button{margin:0;background:transparent;color:var(--muted);border:1px solid transparent;padding:10px 16px;border-radius:8px;font-weight:500;transition:all 0.2s ease}
-header nav button:hover{background:var(--panel-light);color:var(--text);border-color:var(--border)}
-header nav button.active{background:var(--accent-weak);color:var(--text);border-color:var(--accent)}
+
+body {
+  background-color: var(--bg-color-primary);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0 24px;
+  background-color: var(--panel-glass);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-item {
+  padding: 8px 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-item:hover {
+  background-color: var(--surface-hover);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background-color: var(--surface-hover);
+  color: var(--text);
+  font-weight: 600;
+}
 /* Apple-style Buttons */
 button{
   background:var(--accent);
@@ -706,7 +753,10 @@ textarea {
 .event{background:var(--panel-light);border:1px solid var(--border);border-radius:8px;padding:12px;margin:8px 0}
 .hint{opacity:.75;font-size:.9em;color:var(--muted)}
 .me{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14px}
-main{padding:16px}
+main {
+  flex: 1;
+  padding: 24px;
+}
 
 /* Timeline (horizontal) */
 .tl-scroll{overflow-x:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--panel)}
