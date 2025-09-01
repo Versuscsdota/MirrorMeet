@@ -592,8 +592,7 @@ async function renderCalendar() {
         </div>` : ''}
         <div id="dataBlock" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
           <h4>Данные</h4>
-          <div id="modelDataList" style="display:grid;gap:6px"></div>
-          <div id="formsWrap" style="display:grid;gap:8px;margin-top:8px"></div>
+          <div id="formsWrap" style="display:grid;gap:8px"></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
             <button id="saveDataBlock" type="button">Сохранить данные</button>
             ${canCreateModel ? `<button id="registerFromData" type="button">Зарегистрировать модель</button>` : ''}
