@@ -584,6 +584,7 @@ async function renderCalendar() {
             <input id="upName" placeholder="Название файла (для одиночной загрузки)" />
             <button id="uploadBtn" type="button">Загрузить</button>
           </div>
+          <div id="dropZone" class="drop-zone">Перетащите файлы сюда для загрузки</div>
         </div>
         ${Array.isArray(s.history) && s.history.length ? `<div>
           <h4>История</h4>

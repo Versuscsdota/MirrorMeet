@@ -193,6 +193,11 @@ label{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-size:14px;col
 .file-card audio{width:100%}
 .file-card .name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* Drag-and-drop zone */
+.drop-zone{margin-top:8px;border:2px dashed #1f2937;border-radius:10px;padding:14px;text-align:center;color:#9ca3af;background:#0b0b0b}
+.drop-zone.is-dragover{border-color:#2bb3b1;background:#062e2e33;color:#c7f3f1}
+.drop-zone.busy{opacity:.7;pointer-events:none}
+
 /* Schedule layout with left sidebar */
 .sched-layout { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
 .sched-left { border:1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--panel); height: calc(100vh - 170px); overflow: auto; }
