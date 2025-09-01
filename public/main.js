@@ -580,8 +580,8 @@ async function renderCalendar() {
           <h4>Вложения</h4>
           <div id="attList" style="display:grid;gap:8px"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input id="upFile" type="file" accept="image/*,audio/*" />
-            <input id="upName" placeholder="Название файла" />
+            <input id="upFile" type="file" accept="image/*,audio/*,video/*,.pdf,.txt,.csv" multiple />
+            <input id="upName" placeholder="Название файла (для одиночной загрузки)" />
             <button id="uploadBtn" type="button">Загрузить</button>
           </div>
         </div>
@@ -713,16 +713,18 @@ async function renderCalendar() {
     }
 
     box.querySelector('#uploadBtn').onclick = async () => {
-      const f = box.querySelector('#upFile').files[0];
-      const name = (box.querySelector('#upName').value || '').trim() || (f && f.name) || 'file';
-      if (!f) { alert('Выберите файл'); return; }
+      const input = box.querySelector('#upFile');
+      const files = input && input.files;
+      const nameInput = (box.querySelector('#upName').value || '').trim();
+      if (!files || files.length === 0) { alert('Выберите файл(ы)'); return; }
       const fd = new FormData();
       fd.append('slotId', s.id);
-      fd.append('file', f);
-      fd.append('name', name);
+      // If single file selected and custom name provided, use it
+      if (files.length === 1 && nameInput) fd.append('name', nameInput);
+      for (const f of files) fd.append('file', f);
       try {
         await api('/api/files', { method: 'POST', body: fd });
-        box.querySelector('#upFile').value = '';
+        input.value = '';
         box.querySelector('#upName').value = '';
         await refreshFiles();
       } catch (e) { alert(e.message); }
