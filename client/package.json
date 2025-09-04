@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-<<<<<<< HEAD
     "axios": "^1.7.7",
     "date-fns": "^4.1.0",
     "react": "^18.3.1",
@@ -24,29 +23,6 @@
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
-=======
-    "axios": "^1.6.2",
-    "date-fns": "^2.30.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-dropzone": "^14.2.3",
-    "react-hot-toast": "^2.4.1",
-    "react-router-dom": "^6.20.1",
-    "zustand": "^4.4.7"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.12",
-    "@types/node": "^20.10.5",
-    "@types/react": "^18.2.45",
-    "@types/react-dom": "^18.2.18",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "sass": "^1.69.5",
-    "tailwindcss": "^4.1.12",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.10"
->>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
   },
   "scripts": {
     "dev": "vite",

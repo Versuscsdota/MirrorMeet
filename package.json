@@ -12,11 +12,8 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
-<<<<<<< HEAD
   },
   "dependencies": {
     "exceljs": "^4.4.0"
-=======
->>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
   }
 }
