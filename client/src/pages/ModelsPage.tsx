@@ -21,6 +21,7 @@ export default function ModelsPage() {
   const [filters, setFilters] = useState<SearchFilters>({
     searchQuery: '',
     status: '',
+    selectedStatuses: {},
     dateFrom: '',
     dateTo: '',
     sortBy: 'createdAt',
@@ -46,6 +47,12 @@ export default function ModelsPage() {
   // Filter and sort models based on search criteria
   useEffect(() => {
     let result = [...models];
+
+    // Apply multi-status filter from filters.selectedStatuses
+    if (filters.selectedStatuses && Object.keys(filters.selectedStatuses).length > 0) {
+      const selectedStatusValues = Object.values(filters.selectedStatuses);
+      result = result.filter(model => selectedStatusValues.includes(model.status));
+    }
 
     // Apply search query filter
     if (filters.searchQuery.trim()) {
@@ -111,10 +118,11 @@ export default function ModelsPage() {
     setFilters(newFilters);
   };
 
-  const handleResetFilters = () => {
+  const resetFilters = () => {
     setFilters({
       searchQuery: '',
       status: '',
+      selectedStatuses: {},
       dateFrom: '',
       dateTo: '',
       sortBy: 'createdAt',
@@ -174,8 +182,9 @@ export default function ModelsPage() {
       <ModelSearch
         filters={filters}
         onFiltersChange={handleFiltersChange}
-        onReset={handleResetFilters}
+        onReset={resetFilters}
       />
+
 
       {filteredModels.length === 0 ? (
         <div className="empty-state">
@@ -218,6 +227,15 @@ export default function ModelsPage() {
           onClose={() => setProfileFor(null)}
           onEdit={() => { setSelectedModel(profileFor); setIsCreateMode(false); setProfileFor(null); }}
           onDelete={() => { if (confirm('Удалить модель?')) { modelsAPI.delete(profileFor.id).then(() => { setProfileFor(null); loadModels(); }); } }}
+          onModelUpdate={(updatedModel) => {
+            // Обновляем модель в списке без перезагрузки
+            setModels(prevModels => 
+              prevModels.map(model => 
+                model.id === updatedModel.id ? updatedModel : model
+              )
+            );
+            setProfileFor(updatedModel);
+          }}
         />
       )}
     </div>

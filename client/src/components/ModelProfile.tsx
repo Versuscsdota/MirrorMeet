@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus, StatusLabels } from '../types';
+import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus } from '../types';
 import { auditAPI, modelsAPI } from '../services/api';
 import FilePreview from './FilePreview';
 import StatusSelector from './StatusSelector';
@@ -9,14 +9,14 @@ interface ModelProfileProps {
   onClose: () => void;
   onEdit: () => void;
   onDelete?: () => void;
+  onModelUpdate?: (updatedModel: Model) => void;
 }
 
-export default function ModelProfile({ model, onClose, onEdit, onDelete }: ModelProfileProps) {
+export default function ModelProfile({ model, onClose, onEdit, onDelete, onModelUpdate }: ModelProfileProps) {
   const [data, setData] = useState<Model>(model);
   const [commentText, setCommentText] = useState<string>('');
   const [logs, setLogs] = useState<any[]>([]);
   const [previewFile, setPreviewFile] = useState<{ path: string; name: string } | null>(null);
-  const [showStatusSelector, setShowStatusSelector] = useState(false);
 
   const toUrl = (p: string) => p.startsWith('/uploads/') ? p : `/uploads/${p}`;
   const avatar = (data.files && data.files[0]) ? toUrl(data.files[0]) : undefined;
@@ -31,8 +31,8 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete }: Model
       const filtered = items.filter((l) => 
         l.entityType === 'model' && 
         l.entityId === data.id && 
-        l.action.includes('status')
-      );
+        (l.action.includes('status') || l.action.includes('Статус') || l.action.includes('изменен'))
+      ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setLogs(filtered);
     }).catch(() => {});
   }, [data.id]);
@@ -59,19 +59,25 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete }: Model
     setData(updated);
   };
 
-  const updateStatus = async (newStatus: ModelStatus) => {
-    const updated = await modelsAPI.update(data.id, { status: newStatus });
-    setData(updated);
-    setShowStatusSelector(false);
-    // Refresh logs to show new status change
-    auditAPI.getAll().then(({ items }) => {
+  const handleStatusChange = async (newStatus: ModelStatus) => {
+    try {
+      const updated = await modelsAPI.update(data.id, { status: newStatus });
+      setData(updated);
+      // Уведомляем родительский компонент об обновлении
+      if (onModelUpdate) {
+        onModelUpdate(updated);
+      }
+      // Обновляем историю статусов после изменения
+      const { items } = await auditAPI.getAll();
       const filtered = items.filter((l) => 
         l.entityType === 'model' && 
         l.entityId === data.id && 
         l.action.includes('status')
       );
       setLogs(filtered);
-    }).catch(() => {});
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
   };
 
   const handleUploadInline = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,26 +104,18 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete }: Model
             <div className="full">{data.fullName || data.name}</div>
             {data.name && data.fullName && <div className="short">{data.name}</div>}
           </div>
-          <div className="status-display">
-            <div className="current-status">
-              <span className={`status-badge status-${data.status}`}>
-                {StatusLabels[data.status]}
-              </span>
-              <button 
-                className="status-edit-btn"
-                onClick={() => setShowStatusSelector(true)}
-                title="Изменить статус"
-              >
-                ⚙️
-              </button>
-            </div>
+          <div className="status-section">
+            <StatusSelector 
+              currentStatus={data.status}
+              onStatusChange={handleStatusChange}
+              className="profile-status-selector"
+            />
           </div>
         </div>
 
         <div className="profile-columns">
           <div className="column">
             <Section title="Личная информация">
-              <InfoRow label="Статус" value={StatusLabels[data.status]} />
               <InfoRow label="Телеграмм" value={data.telegram ? `@${data.telegram}` : '—'} />
               <InfoRow label="ФИО" value={data.fullName || data.name || '—'} />
               <InfoRow label="Телефон" value={data.phone || '—'} />
@@ -191,21 +189,15 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete }: Model
           </div>
         </div>
 
-        <Section title="Рабочая история статусов">
+        <Section title="История статусов">
           <div className="status-log">
             {logs.length === 0 ? (
-              <div className="muted">Нет изменений статуса</div>
+              <div className="muted">Нет событий</div>
             ) : (
-              logs.slice().reverse().map((l) => (
+              logs.map((l) => (
                 <div key={l.id} className="log-row">
                   <div className="log-time">{new Date(l.timestamp).toLocaleString()}</div>
                   <div className="log-text">{l.action}</div>
-                  {l.details && (
-                    <div className="log-details">
-                      {l.details.oldValue && <span className="old-status">Было: {StatusLabels[l.details.oldValue as ModelStatus] || l.details.oldValue}</span>}
-                      {l.details.newValue && <span className="new-status">Стало: {StatusLabels[l.details.newValue as ModelStatus] || l.details.newValue}</span>}
-                    </div>
-                  )}
                 </div>
               ))
             )}
@@ -226,14 +218,6 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete }: Model
           fileName={previewFile.name}
           isOpen={!!previewFile}
           onClose={() => setPreviewFile(null)}
-        />
-      )}
-      
-      {showStatusSelector && (
-        <StatusSelector
-          currentStatus={data.status}
-          onStatusSelect={updateStatus}
-          onClose={() => setShowStatusSelector(false)}
         />
       )}
     </div>

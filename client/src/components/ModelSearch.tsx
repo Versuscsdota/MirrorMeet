@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { ModelStatus } from '../types';
+import StatusSelector from './StatusSelector';
 
 export interface SearchFilters {
   searchQuery: string;
   status: ModelStatus | '';
+  selectedStatuses?: {
+    initial?: ModelStatus;
+    process?: ModelStatus;
+    final?: ModelStatus;
+  };
   dateFrom: string;
   dateTo: string;
   sortBy: 'name' | 'createdAt' | 'status';
@@ -16,17 +22,7 @@ interface ModelSearchProps {
   onReset: () => void;
 }
 
-const statusLabels: Record<ModelStatus, string> = {
-  [ModelStatus.NOT_CONFIRMED]: 'Не подтверждена',
-  [ModelStatus.CONFIRMED]: 'Подтверждена',
-  [ModelStatus.DRAINED]: 'Слита',
-  [ModelStatus.CANDIDATE_REFUSED]: 'Отказ кандидата',
-  [ModelStatus.OUR_REFUSAL]: 'Наш отказ',
-  [ModelStatus.THINKING]: 'Думает',
-  [ModelStatus.REGISTERED]: 'Зарегистрирована',
-  [ModelStatus.NO_SHOW]: 'Не пришла',
-  [ModelStatus.ARRIVED]: 'Пришла'
-};
+// Удалены неиспользуемые statusLabels - используются из StatusSelector
 
 export default function ModelSearch({ filters, onFiltersChange, onReset }: ModelSearchProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -38,7 +34,7 @@ export default function ModelSearch({ filters, onFiltersChange, onReset }: Model
     });
   };
 
-  const hasActiveFilters = filters.searchQuery || filters.status || filters.dateFrom || filters.dateTo;
+  const hasActiveFilters = filters.searchQuery || filters.status || filters.dateFrom || filters.dateTo || (filters.selectedStatuses && Object.keys(filters.selectedStatuses).length > 0);
 
   return (
     <div className="model-search">
@@ -75,17 +71,17 @@ export default function ModelSearch({ filters, onFiltersChange, onReset }: Model
           <div className="filters-row">
             <div className="filter-group">
               <label>Статус</label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-              >
-                <option value="">Все статусы</option>
-                {Object.entries(statusLabels).map(([status, label]) => (
-                  <option key={status} value={status}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <StatusSelector
+                multiSelect={true}
+                selectedStatuses={filters.selectedStatuses || {}}
+                onMultiStatusChange={(statuses) => {
+                  onFiltersChange({
+                    ...filters,
+                    selectedStatuses: statuses
+                  });
+                }}
+                className="search-status-selector"
+              />
             </div>
 
             <div className="filter-group">

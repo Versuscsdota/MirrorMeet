@@ -1,4 +1,5 @@
-import { Model } from '../types';
+import { Model, StatusLabels } from '../types';
+import { statusColors } from './StatusSelector';
 
 interface ModelCardProps {
   model: Model;
@@ -27,6 +28,17 @@ export default function ModelCard({ model, onClick }: ModelCardProps) {
       <div className="model-card-line phone">
         <span className="icon">📞</span>
         <span className="value">{model.phone || '—'}</span>
+      </div>
+      <div className="model-card-status">
+        <div 
+          className="status-badge"
+          style={{ 
+            backgroundColor: statusColors[model.status],
+            color: '#fff'
+          }}
+        >
+          {StatusLabels[model.status]}
+        </div>
       </div>
     </button>
   );
