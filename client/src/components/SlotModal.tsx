@@ -130,10 +130,12 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
       newErrors.documentDetails = docDetailsValidation.error!;
     }
 
-    // Validate trial date
-    const trialDateValidation = validateTrialDate(internshipDate);
-    if (!trialDateValidation.isValid) {
-      newErrors.internshipDate = trialDateValidation.error!;
+    // Validate trial date (optional field)
+    if (internshipDate.trim()) {
+      const trialDateValidation = validateTrialDate(internshipDate);
+      if (!trialDateValidation.isValid) {
+        newErrors.internshipDate = trialDateValidation.error!;
+      }
     }
 
     // Validate files
@@ -259,6 +261,9 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
         clientName,
         clientPhone,
         status: finalStatus,
+        status1,
+        status2,
+        visitStatus,
         notes: comment || formData.notes
       });
       
@@ -508,13 +513,12 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
               </div>
 
               <div className="form-group">
-                <label>Дата стажировки *</label>
+                <label>Дата стажировки</label>
                 <input
                   type="date"
                   value={internshipDate}
                   onChange={(e) => setInternshipDate(e.target.value)}
                   className={errors.internshipDate ? 'error' : ''}
-                  required
                 />
                 {errors.internshipDate && <span className="error-message">{errors.internshipDate}</span>}
               </div>
