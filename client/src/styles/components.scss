@@ -29,7 +29,11 @@
   cursor: pointer;
   text-align: center;
   transition: transform 0.2s, box-shadow 0.2s;
-  height: 280px;
+  height: 320px;
+  min-height: 320px;
+  max-height: 320px;
+  width: 100%;
+  box-sizing: border-box;
   
   &:hover {
     transform: translateY(-2px);
@@ -39,13 +43,17 @@
   @media (max-width: 768px) {
     padding: 16px;
     gap: 10px;
-    height: 260px;
+    height: 280px;
+    min-height: 280px;
+    max-height: 280px;
   }
   
   @media (max-width: 480px) {
     padding: 12px;
     gap: 8px;
-    height: 240px;
+    height: 260px;
+    min-height: 260px;
+    max-height: 260px;
   }
 }
 
@@ -79,24 +87,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.2;
-  max-height: 3.6em;
+  line-height: 1.3;
+  height: 2.6em;
+  min-height: 2.6em;
+  max-height: 2.6em;
   width: 100%;
   word-wrap: break-word;
   hyphens: auto;
   
   @media (max-width: 768px) {
     font-size: 14px;
-    max-height: 3.4em;
+    height: 2.4em;
+    min-height: 2.4em;
+    max-height: 2.4em;
   }
   
   @media (max-width: 480px) {
     font-size: 13px;
-    line-height: 1.1;
-    max-height: 3.3em;
+    line-height: 1.2;
+    height: 2.4em;
+    min-height: 2.4em;
+    max-height: 2.4em;
   }
 }
 .model-card-line { 
@@ -105,15 +119,22 @@
   gap: 8px; 
   color: #374151; 
   font-size: 14px;
+  height: 20px;
+  min-height: 20px;
+  flex-shrink: 0;
   
   @media (max-width: 768px) {
     font-size: 13px;
     gap: 6px;
+    height: 18px;
+    min-height: 18px;
   }
   
   @media (max-width: 480px) {
     font-size: 12px;
     gap: 4px;
+    height: 16px;
+    min-height: 16px;
   }
 }
 .model-card-line .icon { opacity: .7; }
@@ -764,9 +785,12 @@
   }
 
   .btn-primary {
-    background: #3b82f6;
-    color: white;
-    border: none;
+    background: #3b82f6 !important;
+    color: white !important;
+    border: none !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 14px;
@@ -1717,9 +1741,13 @@
 
 // Model card status styles
 .model-card-status {
-  margin-top: 12px;
+  margin-top: auto;
   display: flex;
   justify-content: center;
+  height: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
+  align-items: center;
   
   .status-dot-container {
     display: flex;
@@ -2295,29 +2323,69 @@
 
 .shifts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .shift-card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
+  background: white;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  color: #1a202c;
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #cbd5e0;
   }
 }
 
 .shift-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
+}
+
+.shift-model {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+  margin-bottom: 4px;
+}
+
+.shift-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  min-width: 70px;
+  text-align: center;
+  
+  &.status-pending {
+    background: #f59e0b;
+    color: white;
+  }
+  
+  &.status-active {
+    background: #10b981;
+    color: white;
+  }
+  
+  &.status-completed {
+    background: #3b82f6;
+    color: white;
+  }
+  
+  &.status-inactive {
+    background: #6b7280;
+    color: white;
+  }
 }
 
 .shift-title-section {
@@ -2354,7 +2422,380 @@
 
 .shift-actions {
   display: flex;
-  gap: 12px;
+  gap: 6px;
+  flex-wrap: wrap;
+  
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+    
+    .material-icons {
+      font-size: 14px;
+    }
+    
+    &.btn-secondary {
+      background: #4a5568 !important;
+      color: white !important;
+      border-color: #4a5568 !important;
+      
+      &:hover {
+        background: #2d3748 !important;
+        border-color: #2d3748 !important;
+      }
+    }
+    
+    &.btn-outline {
+      background: white !important;
+      color: #4a5568 !important;
+      border-color: #cbd5e0 !important;
+      
+      &:hover {
+        background: #f7fafc !important;
+        border-color: #cbd5e0 !important;
+      }
+    }
+    
+    &.btn-danger {
+      background: #fc8181 !important;
+      color: white !important;
+      
+      &:hover {
+        background: #f56565 !important;
+      }
+    }
+    
+    &.btn-success {
+      background: #48bb78 !important;
+      color: white !important;
+      
+      &:hover {
+        background: #38a169 !important;
+      }
+    }
+  }
+}
+
+// Дополнительные стили для кнопок в карточках смен
+.shift-card .btn {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  
+  .material-icons {
+    font-size: 14px !important;
+  }
+  
+  &.btn-secondary {
+    background: #4a5568 !important;
+    color: white !important;
+    border-color: #4a5568 !important;
+    
+    &:hover {
+      background: #2d3748 !important;
+      border-color: #2d3748 !important;
+    }
+  }
+  
+  &.btn-outline {
+    background: white !important;
+    color: #4a5568 !important;
+    border-color: #cbd5e0 !important;
+    
+    &:hover {
+      background: #f7fafc !important;
+      border-color: #cbd5e0 !important;
+    }
+  }
+  
+  &.btn-danger {
+    background: #fc8181 !important;
+    color: white !important;
+    
+    &:hover {
+      background: #f56565 !important;
+    }
+  }
+  
+  &.btn-success {
+    background: #48bb78 !important;
+    color: white !important;
+    
+    &:hover {
+      background: #38a169 !important;
+    }
+  }
+}
+
+// Стили для модального окна таймера смены
+.shift-timer-modal {
+  max-width: 500px;
+  
+  .shift-info-summary {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    
+    .shift-address {
+      margin: 4px 0;
+      color: #4a5568;
+      font-size: 14px;
+    }
+    
+    .shift-producer {
+      margin: 4px 0;
+      color: #718096;
+      font-size: 13px;
+    }
+  }
+  
+  .timer-display {
+    text-align: center;
+    margin-bottom: 32px;
+    
+    .timer-time {
+      font-size: 48px;
+      font-weight: 700;
+      color: #2d3748;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 8px;
+    }
+    
+    .timer-status {
+      .status-active {
+        color: #38a169;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      
+      .status-inactive {
+        color: #718096;
+        font-weight: 500;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .timer-controls {
+    text-align: center;
+    margin-bottom: 24px;
+    
+    .btn-large {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      min-width: 180px;
+      
+      .material-icons {
+        font-size: 20px;
+        margin-right: 8px;
+      }
+    }
+    
+    .active-controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      
+      .btn-outline {
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .shift-timestamps {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    
+    .timestamp-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      .timestamp-label {
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 14px;
+      }
+      
+      .timestamp-value {
+        color: #2d3748;
+        font-size: 14px;
+        font-family: 'Courier New', monospace;
+      }
+    }
+  }
+  
+  .model-accounts-section {
+    margin-bottom: 24px;
+    
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    
+    .loading-accounts {
+      text-align: center;
+      color: #718096;
+      font-size: 14px;
+      padding: 16px;
+    }
+    
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      
+      .account-card {
+        background: #f8f9fa;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 12px;
+        
+        .account-site {
+          font-weight: 600;
+          color: #2d3748;
+          font-size: 13px;
+          margin-bottom: 4px;
+        }
+        
+        .account-login {
+          color: #4a5568;
+          font-size: 12px;
+          font-family: 'Courier New', monospace;
+          margin-bottom: 4px;
+        }
+        
+        .account-password {
+          color: #4a5568;
+          font-size: 12px;
+          font-family: 'Courier New', monospace;
+          margin-bottom: 8px;
+        }
+        
+        .account-earnings {
+          margin-top: 8px;
+          
+          label {
+            display: block;
+            font-size: 11px;
+            color: #4a5568;
+            margin-bottom: 4px;
+            font-weight: 500;
+          }
+          
+          .earnings-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            background-color: #ffffff;
+            
+            &:focus {
+              outline: none;
+              border-color: #3b82f6;
+              box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+            }
+            
+            &::placeholder {
+              color: #9ca3af;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  .total-earnings-display {
+    text-align: center;
+    margin: 16px 0;
+    padding: 12px;
+    background-color: #f0f9ff;
+    border: 1px solid #0ea5e9;
+    border-radius: 8px;
+    
+    h4 {
+      margin: 0;
+      color: #0c4a6e;
+      font-size: 16px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Tabs Navigation
+.tabs-navigation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  
+  .tab-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    .material-icons {
+      font-size: 20px;
+    }
+    
+    &:hover {
+      color: #3b82f6;
+      background-color: #f8fafc;
+    }
+    
+    &.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+      background-color: #f8fafc;
+    }
+  }
 }
 
 .action-icon {
@@ -2369,10 +2810,91 @@
 }
 
 .shift-details {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  
+  .detail-label {
+    font-size: 10px;
+    color: #718096;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  
+  .detail-value {
+    font-size: 12px;
+    color: #2d3748;
+    font-weight: 500;
+  }
+  
+  &.earnings .detail-value {
+    color: #38a169;
+    font-weight: 600;
+  }
+}
+
+.shift-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shift-type-badge {
+  font-size: 10px;
+  color: #718096;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.shift-timing {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #e2e8f0;
+  
+  .timing-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    
+    .timing-label {
+      font-size: 10px;
+      color: #718096;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    
+    .timing-value {
+      font-size: 11px;
+      color: #2d3748;
+      font-weight: 500;
+    }
+  }
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a0aec0;
+  font-size: 12px;
+  
+  .material-icons {
+    font-size: 14px;
+    color: #718096;
+  }
+  
+  span {
+    color: #e2e8f0;
+  }
 }
 
 .detail-item {
@@ -2924,8 +3446,8 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  opacity: 0;
-  visibility: hidden;
+  opacity: 1;
+  visibility: visible;
   transition: all 0.3s ease;
   padding: 20px;
 
@@ -2939,37 +3461,34 @@
     border-radius: 12px;
     width: 100%;
     max-width: 520px;
-    max-height: calc(100vh - 40px);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 
     &.active {
       transform: scale(1);
     }
 
     .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border-color);
+      padding: 16px 20px 0;
+      border-bottom: none;
 
       .modal-title {
-        font-size: 1.5rem;
+        font-size: 1.1rem;
         font-weight: 600;
         color: var(--text-primary);
         margin: 0;
       }
 
       .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
         background: none;
         border: none;
-        font-size: 24px;
-        color: var(--text-secondary);
+        font-size: 1.3rem;
         cursor: pointer;
+        color: var(--text-secondary);
         padding: 4px;
         border-radius: 4px;
         transition: all 0.2s ease;
@@ -2988,18 +3507,19 @@
 
       .shift-type-selector {
         display: flex;
-        gap: 12px;
-        margin-bottom: 24px;
+        gap: 8px;
+        margin-bottom: 16px;
 
         .type-selector {
           flex: 1;
-          padding: 12px 20px;
-          border: 2px solid var(--border-color);
-          border-radius: 8px;
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
           text-align: center;
           cursor: pointer;
           transition: all 0.2s ease;
           font-weight: 500;
+          font-size: 0.85rem;
           color: var(--text-secondary);
 
           &:hover {
@@ -3008,15 +3528,21 @@
           }
 
           &.active {
+            border-color: var(--primary-color);
             background: var(--primary-color);
             color: white;
-            border-color: var(--primary-color);
+
+            &:hover {
+              background: var(--primary-hover);
+              transform: translateY(-1px);
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            }
           }
         }
       }
 
       .form-group {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
 
         &:last-child {
           margin-bottom: 0;
@@ -3025,25 +3551,25 @@
         .form-label {
           display: block;
           font-weight: 600;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
           color: var(--text-primary);
-          font-size: 0.85rem;
+          font-size: 0.8rem;
         }
 
         .form-input,
         .form-select {
           width: 100%;
-          padding: 10px 14px;
-          border: 2px solid var(--border-color);
-          border-radius: 6px;
-          font-size: 0.9rem;
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          font-size: 0.85rem;
           transition: all 0.2s ease;
           background: white;
 
           &:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
           }
 
           &:disabled {
@@ -3055,11 +3581,11 @@
 
         .comment-textarea {
           width: 100%;
-          padding: 10px 14px;
-          border: 2px solid var(--border-color);
-          border-radius: 6px;
-          font-size: 0.9rem;
-          min-height: 80px;
+          padding: 8px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          font-size: 0.85rem;
+          min-height: 60px;
           resize: vertical;
           font-family: inherit;
           transition: all 0.2s ease;
@@ -3067,7 +3593,7 @@
           &:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
           }
         }
 
@@ -3080,12 +3606,12 @@
             left: 0;
             right: 0;
             background: white;
-            border: 2px solid var(--border-color);
-            border-top: none;
-            border-radius: 0 0 6px 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             max-height: 200px;
             overflow-y: auto;
-            z-index: 10;
+            z-index: 1000;
             display: none;
 
             &.active {
@@ -3093,18 +3619,36 @@
             }
 
             .option {
-              padding: 10px 14px;
+              padding: 8px 12px;
               cursor: pointer;
-              transition: background 0.2s ease;
-              color: var(--text-primary);
-              font-size: 0.9rem;
+              transition: background-color 0.2s ease;
+              border-bottom: 1px solid var(--border-color);
 
               &:hover {
                 background: var(--background-secondary);
               }
 
               &:last-child {
-                border-radius: 0 0 6px 6px;
+                border-bottom: none;
+              }
+
+              &.disabled {
+                cursor: not-allowed;
+                color: var(--text-secondary);
+                background: var(--background-secondary);
+                font-style: italic;
+              }
+
+              .option-name {
+                font-weight: 500;
+                color: var(--text-primary);
+                font-size: 0.85rem;
+              }
+
+              .option-status {
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                margin-top: 2px;
               }
             }
           }
@@ -3143,31 +3687,27 @@
     }
 
     .modal-footer {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: flex-end;
-      gap: 12px;
-      padding: 16px 24px;
-      border-top: 1px solid var(--border-color);
-      background: var(--background-secondary);
-      flex-shrink: 0;
+      gap: 8px;
 
       .btn {
-        padding: 10px 20px;
+        padding: 8px 16px;
         border: none;
-        border-radius: 6px;
-        font-size: 0.9rem;
+        border-radius: 4px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        min-width: 100px;
+        font-size: 0.85rem;
 
-        &.btn-cancel {
-          background: var(--background-primary);
+        &.btn-secondary {
+          background: var(--background-secondary);
           color: var(--text-secondary);
-          border: 2px solid var(--border-color);
 
           &:hover {
-            background: var(--background-secondary);
+            background: var(--border-color);
             color: var(--text-primary);
           }
         }
@@ -3181,39 +3721,215 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
           }
+
+          &:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+          }
         }
       }
     }
-  }
 
 // Mobile responsive styles for modal
 @media (max-width: 768px) {
   .modal-overlay {
-    padding: 10px;
+    padding: 8px;
 
     .modal {
-      max-height: 95vh;
+      max-height: 98vh;
+
+      .modal-header {
+        padding: 12px 16px 0;
+
+        .modal-title {
+          font-size: 1rem;
+        }
+      }
 
       .modal-body {
-        padding: 16px;
-        max-height: calc(95vh - 120px);
+        padding: 12px 16px;
+        max-height: calc(98vh - 100px);
 
         .shift-type-selector {
-          flex-direction: column;
+          margin-bottom: 12px;
+          
+          .type-selector {
+            padding: 6px 8px;
+            font-size: 0.8rem;
+          }
+        }
+
+        .form-group {
+          margin-bottom: 10px;
+
+          .form-label {
+            font-size: 0.75rem;
+            margin-bottom: 3px;
+          }
+
+          .form-input,
+          .form-select {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+          }
+
+          .comment-textarea {
+            min-height: 50px;
+          }
         }
       }
 
       .modal-footer {
-        padding: 16px;
-        flex-direction: column;
+        padding: 8px 16px 12px;
 
         .btn {
-          width: 100%;
+          flex: 1;
+          min-width: 0;
+          padding: 6px 12px;
+          font-size: 0.8rem;
         }
       }
     }
   }
 }
+
+// Apartments Page Styles
+.apartments-page {
+  .addresses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  .address-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+  }
+
+  .address-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+
+    .address-info {
+      flex: 1;
+
+      .address-title {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .material-icons {
+          font-size: 20px;
+        }
+      }
+
+      .rooms-count {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+    }
+
+    .address-actions {
+      .btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+      }
+    }
+  }
+
+  .rooms-list {
+    padding: 0;
+  }
+
+  .room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f3f4f6;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .room-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .material-icons {
+        color: #6b7280;
+        font-size: 20px;
+      }
+
+      .room-name {
+        font-weight: 500;
+        color: #374151;
+      }
+    }
+
+    .room-actions {
+      display: flex;
+      gap: 8px;
+
+      .btn {
+        padding: 6px 8px;
+        min-width: auto;
+
+        .material-icons {
+          font-size: 18px;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+
+    .material-icons {
+      font-size: 64px;
+      color: #d1d5db;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      margin: 0 0 8px 0;
+      color: #374151;
+    }
+
+    p {
+      margin: 0 0 24px 0;
+    }
+  }
+}
+
+
 
 // Additional ShiftHistory component styles
 .shift-history {
@@ -4237,52 +4953,129 @@
   }
 
   .modal-footer {
-    display: flex;
-    justify-content: center;
-    gap: 0.8rem;
-    padding: 1.5rem 2rem;
-    background: transparent;
-    border-top: none;
-    margin: 0;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    padding: 20px 24px !important;
+    background: #f9fafb !important;
+    border-top: 1px solid #e5e7eb !important;
+    margin: 0 !important;
 
-    .btn-cancel {
-      padding: 0.7rem 1.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      background: transparent;
-      color: rgba(255, 255, 255, 0.8);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-weight: 500;
-      font-size: 0.85rem;
+    .btn, .btn-secondary {
+      padding: 10px 20px !important;
+      border: 1px solid #d1d5db !important;
+      border-radius: 8px !important;
+      background: white !important;
+      color: #374151 !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      font-weight: 500 !important;
+      font-size: 14px !important;
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
 
       &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-        transform: translateY(-1px);
+        background: #f9fafb !important;
+        border-color: #9ca3af !important;
       }
     }
 
     .btn-primary {
-      padding: 0.7rem 1.5rem;
-      border: none;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-      color: white;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-      font-size: 0.85rem;
+      padding: 10px 20px !important;
+      border: none !important;
+      border-radius: 8px !important;
+      background: #3b82f6 !important;
+      color: white !important;
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      cursor: pointer !important;
+      font-weight: 500 !important;
+      font-size: 14px !important;
+      transition: all 0.2s ease !important;
+      box-shadow: none !important;
 
       &:hover {
-        background: linear-gradient(135deg, #2563eb, #1e40af);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        background: #2563eb !important;
       }
+    }
+  }
+}
 
-      &:active {
-        transform: translateY(-1px);
+// Employee action button styles
+.employee-action-btn {
+  cursor: pointer !important;
+  border: 1px solid #d1d5db !important;
+  background: white !important;
+  font-size: 18px !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  color: #374151 !important;
+  transition: all 0.2s ease !important;
+  pointer-events: auto !important;
+  z-index: 999 !important;
+  position: relative !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  &:hover {
+    background: #f3f4f6 !important;
+    border-color: #9ca3af !important;
+    color: #111827 !important;
+    transform: scale(1.05) !important;
+  }
+  
+  &:active {
+    background: #e5e7eb !important;
+    transform: scale(0.95) !important;
+  }
+}
+
+// Address Modal specific styles
+.address-modal {
+  .modal-footer {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    padding: 20px 24px !important;
+    background: #f9fafb !important;
+    border-top: 1px solid #e5e7eb !important;
+    
+    .btn {
+      padding: 10px 20px !important;
+      border-radius: 8px !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      cursor: pointer !important;
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      min-width: 80px !important;
+      text-align: center !important;
+      
+      &.btn-secondary {
+        background: white !important;
+        color: #374151 !important;
+        border: 1px solid #d1d5db !important;
+        
+        &:hover {
+          background: #f9fafb !important;
+          border-color: #9ca3af !important;
+        }
+      }
+      
+      &.btn-primary {
+        background: #3b82f6 !important;
+        color: white !important;
+        border: none !important;
+        
+        &:hover {
+          background: #2563eb !important;
+        }
       }
     }
   }
@@ -4365,4 +5158,5 @@
       text-decoration: none;
     }
   }
+}
 }

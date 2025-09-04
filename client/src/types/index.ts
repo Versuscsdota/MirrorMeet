@@ -121,34 +121,25 @@ export interface User {
 export interface Shift {
   id: string;
   model: string;
-  modelName: string;
-  modelId?: string;
-  producer: string;
+  responsible?: string;
+  producer?: string;
   executor?: string;
-  date: string;
-  time: string;
-  start: string;
-  end: string;
-  startDateTime: string;
-  endDateTime: string;
-  status: 'inactive' | 'pending' | 'active' | 'completed' | 'upcoming';
-  totalEarnings?: number;
   address: string;
   room: string;
+  date: string;
+  time: string;
+  start?: string;
+  end?: string;
   type: 'regular' | 'training';
-  accounts: Array<{
-    platform: string;
-    login: string;
-    password: string;
-  }>;
-  sites: Array<{
-    name: string;
-    login: string;
-    password: string;
-    earnings: number;
-  }>;
-  screenshots: string[];
-  comment: string;
+  status: 'inactive' | 'pending' | 'active' | 'completed' | 'upcoming';
+  comment?: string;
+  screenshots?: string[];
+  accounts?: any[];
+  sites?: string[];
+  totalEarnings?: number;
+  actualStartTime?: string;
+  actualEndTime?: string;
+  actualDuration?: number;
   createdAt: string;
   updatedAt: string;
 }

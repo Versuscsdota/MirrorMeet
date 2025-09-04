@@ -148,12 +148,12 @@ export class StatusManager {
   ): { allowed: boolean; reason?: string } {
     // Правила для стажировочных смен
     if (shiftType === 'training') {
-      if ([ModelStatus.REGISTERED, ModelStatus.TRAINING].includes(modelStatus)) {
+      if ([ModelStatus.REGISTERED, ModelStatus.ACCOUNT_REGISTERED, ModelStatus.TRAINING].includes(modelStatus)) {
         return { allowed: true };
       }
       return { 
         allowed: false, 
-        reason: 'Стажировочные смены доступны только для моделей со статусом "Зарегистрирована" или "Стажировка"' 
+        reason: 'Стажировочные смены доступны только для моделей со статусом "Регистрация", "Зарегистрирована" или "Стажировка"' 
       };
     }
 
@@ -169,5 +169,12 @@ export class StatusManager {
     }
 
     return { allowed: false, reason: 'Неизвестный тип смены' };
+  }
+
+  /**
+   * Получает локализованное название статуса
+   */
+  static getStatusLabel(status: ModelStatus): string {
+    return StatusLabels[status] || status;
   }
 }

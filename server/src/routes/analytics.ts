@@ -7,9 +7,7 @@ const router = Router();
 // Get dashboard statistics
 router.get('/dashboard', async (req, res) => {
   try {
-    console.log('Dashboard API called');
     const stats = AnalyticsService.getDashboardStats();
-    console.log('Dashboard stats generated:', stats);
     res.json(stats);
   } catch (error) {
     console.error('Dashboard stats error:', error);

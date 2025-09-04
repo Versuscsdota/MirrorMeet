@@ -66,6 +66,7 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              autoComplete="name"
               required
             />
           </div>
@@ -76,6 +77,7 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
               type="tel"
               value={formData.phone || ''}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              autoComplete="tel"
             />
           </div>
           
@@ -85,6 +87,7 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
               type="email"
               value={formData.email || ''}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              autoComplete="email"
             />
           </div>
           

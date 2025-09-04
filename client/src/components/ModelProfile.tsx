@@ -44,7 +44,7 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
   };
 
   useEffect(() => {
-    setProfileState(prev => ({ ...prev, modelData: model }));
+    setProfileState(prev => ({ ...prev, modelData: model, selectedStatuses: [model.status] }));
   }, [model]);
 
   const loadModelAuditLogs = async (modelId: string): Promise<void> => {
@@ -75,6 +75,27 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
   useEffect(() => {
     loadModelAuditLogs(profileState.modelData.id);
   }, [profileState.modelData.id]);
+
+  // Периодически обновляем данные модели для синхронизации статуса
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const updatedModel = await modelsAPI.getById(profileState.modelData.id);
+        if (updatedModel && updatedModel.status !== profileState.modelData.status) {
+          setProfileState(prev => ({ 
+            ...prev, 
+            modelData: updatedModel, 
+            selectedStatuses: [updatedModel.status] 
+          }));
+          onModelUpdate?.(updatedModel);
+        }
+      } catch (error) {
+        console.error('Failed to refresh model data:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [profileState.modelData.id, profileState.modelData.status]);
 
   const addCommentToModel = async (): Promise<void> => {
     const trimmedComment = profileState.commentText.trim();
@@ -284,7 +305,7 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
 
             <Section title="История смен">
               <ShiftHistory 
-                modelId={profileState.modelData.id} 
+                modelId={profileState.modelData.name || profileState.modelData.id} 
                 title="Смены модели"
               />
             </Section>

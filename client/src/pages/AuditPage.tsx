@@ -3,6 +3,7 @@ import { auditAPI } from '../services/api';
 import { AuditLog } from '../types';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { ProtectedRoute } from '../components/ProtectedRoute';
 
 export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -38,6 +39,7 @@ export default function AuditPage() {
   const getActionLabel = (action: string): string => {
     const labels: Record<string, string> = {
       'user_login': 'Вход в систему',
+      'user_register': 'Регистрация пользователя',
       'model_create': 'Создание модели',
       'model_update': 'Обновление модели',
       'model_delete': 'Удаление модели',
@@ -47,7 +49,17 @@ export default function AuditPage() {
       'slot_update': 'Обновление слота',
       'slot_delete': 'Удаление слота',
       'slot_files_upload': 'Загрузка файлов слота',
-      'slot_register_model': 'Регистрация модели из слота'
+      'slot_register_model': 'Регистрация модели из слота',
+      'shift_create': 'Создание смены',
+      'shift_update': 'Обновление смены',
+      'shift_delete': 'Удаление смены',
+      'shift_start': 'Запуск смены',
+      'shift_complete': 'Завершение смены',
+      'shift_reset': 'Сброс смены',
+      'address_create': 'Создание адреса',
+      'address_update': 'Обновление адреса',
+      'address_delete': 'Удаление адреса',
+      'role_update': 'Обновление роли'
     };
     return labels[action] || action;
   };
@@ -56,7 +68,10 @@ export default function AuditPage() {
     const labels: Record<string, string> = {
       'model': 'Модель',
       'slot': 'Слот',
-      'user': 'Пользователь'
+      'user': 'Пользователь',
+      'shift': 'Смена',
+      'address': 'Адрес',
+      'role': 'Роль'
     };
     return labels[type] || type;
   };
@@ -70,10 +85,11 @@ export default function AuditPage() {
   }
 
   return (
-    <div className="audit-page">
-      <div className="page-header">
-        <h2>Журнал аудита</h2>
-      </div>
+    <ProtectedRoute module="audit" permission="view">
+      <div className="audit-page">
+        <div className="page-header">
+          <h2>Журнал аудита</h2>
+        </div>
 
       <form onSubmit={handleFilter} className="card audit-filters">
         <div className="filters-grid">
@@ -157,6 +173,7 @@ export default function AuditPage() {
           </table>
         </div>
       )}
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

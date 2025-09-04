@@ -182,6 +182,60 @@ export const shiftsAPI = {
   }
 };
 
+export const usersAPI = {
+  async getAll() {
+    const response = await api.get('/users');
+    return response.data;
+  },
+
+  async getById(id: string) {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
+  async create(userData: any) {
+    const response = await api.post('/users', userData);
+    return response.data;
+  },
+
+  async update(id: string, userData: any) {
+    const response = await api.put(`/users/${id}`, userData);
+    return response.data;
+  },
+
+  async delete(id: string) {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  }
+};
+
+export const addressesAPI = {
+  async getAll() {
+    const response = await api.get('/addresses');
+    return response.data;
+  },
+
+  async getById(id: string) {
+    const response = await api.get(`/addresses/${id}`);
+    return response.data;
+  },
+
+  async create(addressData: { address: string; room: string; comment?: string }) {
+    const response = await api.post('/addresses', addressData);
+    return response.data;
+  },
+
+  async update(id: string, addressData: { address: string; room: string; comment?: string }) {
+    const response = await api.put(`/addresses/${id}`, addressData);
+    return response.data;
+  },
+
+  async delete(id: string) {
+    const response = await api.delete(`/addresses/${id}`);
+    return response.data;
+  }
+};
+
 export const auditAPI = {
   getAll: async (filters?: {
     from?: string;

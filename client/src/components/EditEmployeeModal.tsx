@@ -34,6 +34,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
   onClose,
   onSave
 }) => {
+  console.log('EditEmployeeModal render - isOpen:', isOpen, 'employee:', employee);
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
@@ -91,7 +92,10 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
     }));
   };
 
-  if (!isOpen || !employee) return null;
+  if (!isOpen || !employee) {
+    console.log('EditEmployeeModal not rendering - isOpen:', isOpen, 'employee:', employee);
+    return null;
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -110,6 +114,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                 id="fullName"
                 name="fullName"
                 value={formData.fullName}
+                autoComplete="name"
                 onChange={handleChange}
                 required
               />
@@ -122,6 +127,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                 id="username"
                 name="username"
                 value={formData.username}
+                autoComplete="username"
                 onChange={handleChange}
                 required
                 disabled
@@ -137,6 +143,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                 id="email"
                 name="email"
                 value={formData.email}
+                autoComplete="email"
                 onChange={handleChange}
               />
             </div>
@@ -148,6 +155,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                 id="phone"
                 name="phone"
                 value={formData.phone}
+                autoComplete="tel"
                 onChange={handleChange}
               />
             </div>
@@ -207,6 +215,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="current-password"
                   placeholder="Оставьте пустым, чтобы не менять"
                 />
                 <button

@@ -153,9 +153,12 @@ const Employees: React.FC = () => {
   };
 
   const handleAction = (action: string, employee: Employee) => {
+    console.log('handleAction called with:', action, employee);
+    console.log('Current isEditModalOpen:', isEditModalOpen);
     if (action === 'edit' || action === 'menu') {
       setSelectedEmployee(employee);
       setIsEditModalOpen(true);
+      console.log('Set isEditModalOpen to true');
     }
   };
 
@@ -246,8 +249,16 @@ const Employees: React.FC = () => {
                         <td>
                           <div className="employee-actions">
                             <button 
-                              className="action-btn"
-                              onClick={() => handleAction('menu', employee)}
+                              className="action-btn employee-action-btn"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Button clicked, employee:', employee);
+                                handleAction('menu', employee);
+                              }}
+                              onMouseDown={() => {
+                                console.log('Mouse down on button');
+                              }}
                             >
                               ⋯
                             </button>
@@ -273,6 +284,7 @@ const Employees: React.FC = () => {
         isOpen={isEditModalOpen}
         employee={selectedEmployee}
         onClose={() => {
+          console.log('EditEmployeeModal onClose called');
           setIsEditModalOpen(false);
           setSelectedEmployee(null);
         }}

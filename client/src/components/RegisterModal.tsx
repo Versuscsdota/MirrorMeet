@@ -131,6 +131,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
               name="fullName"
               className="form-input"
               placeholder="Введите полное имя"
+              autoComplete="name"
               value={formData.fullName}
               onChange={handleInputChange}
               required
@@ -144,6 +145,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
               name="phone"
               className="form-input"
               placeholder="+7 (999) 123-45-67"
+              autoComplete="tel"
               value={formData.phone}
               onChange={handleInputChange}
               required
@@ -168,6 +170,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
               name="username"
               className="form-input"
               placeholder="Автоматически генерируется"
+              autoComplete="username"
               value={formData.username}
               onChange={handleInputChange}
               required

@@ -12,6 +12,7 @@ import analyticsRouter from './routes/analytics';
 import auditRouter from './routes/audit';
 import usersRouter from './routes/users';
 import rolesRouter from './routes/roles';
+import addressesRouter from './routes/addresses';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/roles', rolesRouter);
+app.use('/api/addresses', addressesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

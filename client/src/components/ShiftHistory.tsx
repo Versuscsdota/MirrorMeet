@@ -20,74 +20,67 @@ const ShiftHistoryComponent: React.FC<ShiftHistoryProps> = ({
     loadShiftHistory();
   }, [modelId, employeeId]);
 
+  // Перезагружаем историю каждые 5 секунд для обновления данных
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadShiftHistory();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [modelId, employeeId]);
+
   const loadShiftHistory = async () => {
     setLoading(true);
     try {
-      // Mock data for demonstration
-      const mockHistory: ShiftHistory[] = [
-        {
-          id: '1',
-          shiftId: 'shift-1',
-          modelId: modelId,
-          employeeId: employeeId,
-          shiftType: 'training',
-          date: '2024-01-15',
-          duration: 240,
-          earnings: 0,
-          status: 'completed',
-          producer: 'Анна Иванова',
-          executor: 'Петр Сидоров',
-          address: 'ул. Пушкина, 10',
-          room: 'Комната 1',
-          comment: 'Первая тренировочная смена',
-          createdAt: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2',
-          shiftId: 'shift-2',
-          modelId: modelId,
-          employeeId: employeeId,
-          shiftType: 'training',
-          date: '2024-01-20',
-          duration: 300,
-          earnings: 0,
-          status: 'completed',
-          producer: 'Анна Иванова',
-          executor: 'Петр Сидоров',
-          address: 'ул. Пушкина, 10',
-          room: 'Комната 2',
-          comment: 'Вторая тренировочная смена',
-          createdAt: '2024-01-20T14:00:00Z'
-        },
-        {
-          id: '3',
-          shiftId: 'shift-3',
-          modelId: modelId,
-          employeeId: employeeId,
-          shiftType: 'regular',
-          date: '2024-01-25',
-          duration: 480,
-          earnings: 15000,
-          status: 'completed',
-          producer: 'Мария Петрова',
-          executor: 'Иван Козлов',
-          address: 'ул. Ленина, 5',
-          room: 'Студия А',
-          comment: 'Первая рабочая смена',
-          createdAt: '2024-01-25T12:00:00Z'
+      // Загружаем реальные данные из API
+      const response = await fetch('http://localhost:3001/api/shifts', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
         }
-      ];
-
-      // Filter by modelId or employeeId
-      const filteredHistory = mockHistory.filter(item => {
-        if (modelId) return item.modelId === modelId;
-        if (employeeId) return item.employeeId === employeeId;
-        return true;
       });
 
-      setHistory(filteredHistory);
+      if (response.ok) {
+        const { items: shifts } = await response.json();
+        
+        // Фильтруем завершенные смены и преобразуем в формат истории
+        const completedShifts = shifts
+          .filter((shift: any) => shift.status === 'completed')
+          .filter((shift: any) => {
+            if (modelId) {
+              // Проверяем и по полю model (имя), и по modelId
+              return shift.model === modelId || shift.modelId === modelId || 
+                     (typeof shift.model === 'string' && shift.model.toLowerCase().includes(modelId.toLowerCase()));
+            }
+            if (employeeId) return shift.executor === employeeId || shift.responsible === employeeId;
+            return true;
+          })
+          .map((shift: any) => ({
+            id: shift.id,
+            shiftId: shift.id,
+            modelId: shift.modelId || shift.model,
+            employeeId: shift.executor || shift.responsible,
+            shiftType: shift.type || 'regular',
+            date: shift.date,
+            duration: shift.actualDuration ? Math.floor(shift.actualDuration / 60) : 0,
+            earnings: shift.totalEarnings || 0,
+            status: shift.status,
+            producer: shift.responsible || shift.producer,
+            executor: shift.executor,
+            address: shift.address,
+            room: shift.room,
+            comment: shift.comment,
+            createdAt: shift.createdAt
+          }));
+
+        setHistory(completedShifts);
+      } else {
+        console.error('Failed to load shifts');
+        setHistory([]);
+      }
     } catch (error) {
       console.error('Error loading shift history:', error);
+      setHistory([]);
     } finally {
       setLoading(false);
     }

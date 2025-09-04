@@ -28,6 +28,11 @@ export default function Layout() {
                   Смены
                 </NavLink>
               )}
+              {canAccessModule('shifts') && (
+                <NavLink to="/apartments" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                  Квартиры
+                </NavLink>
+              )}
               {hasPermission('users', 'view') && (
                 <NavLink to="/employees" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                   Сотрудники

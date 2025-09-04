@@ -1,8 +1,10 @@
-import express from 'express';
-import { shiftDb, auditDb } from '../db/database';
-import { authenticateToken } from '../middleware/auth';
+import { Router } from 'express';
+import { shiftDb, auditDb, modelDb } from '../db/database';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { ModelStatus, Model, Shift } from '../types';
+import { logger, logModelStatusChange, logShiftCompletion, logError } from '../utils/logger';
 
-const router = express.Router();
+const router = Router();
 
 // Get all shifts
 router.get('/', authenticateToken, async (req, res) => {
@@ -40,7 +42,7 @@ router.post('/', authenticateToken, async (req, res) => {
       action: 'Создана смена',
       entityType: 'shift',
       entityId: shift.id,
-      userId: (req as any).user.id,
+      userId: (req as AuthRequest).user?.id || '',
       details: { model: shift.model, type: shift.type, status: shift.status },
       ip: req.ip,
       userAgent: req.get('User-Agent')
@@ -69,9 +71,98 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Shift not found' });
     }
     
+    // Автоматическое изменение статуса модели после завершения смен
+    if (updates.status === 'completed') {
+      try {
+        // Ищем модель по имени или ID
+        let model = null;
+        if (originalShift.modelId) {
+          model = modelDb.getById(originalShift.modelId);
+        }
+        
+        // Если не найдена по ID, ищем по имени
+        if (!model && originalShift.model) {
+          const allModels = modelDb.getAll();
+          model = allModels.find((m: Model) => m.name === originalShift.model);
+        }
+        
+        if (model) {
+          const userId = (req as AuthRequest).user?.id || '';
+          
+          if (originalShift.type === 'training') {
+            // Логика для стажировочных смен
+            if (model.status === ModelStatus.REGISTERED || model.status === ModelStatus.ACCOUNT_REGISTERED) {
+              const oldStatus = model.status;
+              modelDb.update(model.id, { status: ModelStatus.TRAINING });
+              
+              logModelStatusChange(model.id, oldStatus, ModelStatus.TRAINING, 'first_training_completed', userId);
+              logShiftCompletion(shiftId, model.id, 'training', userId);
+              
+              auditDb.create({
+                action: 'Статус модели изменен на "Стажировка" после завершения первой стажировочной смены',
+                entityType: 'model',
+                entityId: model.id,
+                userId,
+                details: { oldStatus, newStatus: ModelStatus.TRAINING, reason: 'first_training_completed' },
+                ip: req.ip,
+                userAgent: req.get('User-Agent')
+              });
+            } else if (model.status === ModelStatus.TRAINING) {
+              // Проверяем количество завершенных стажировочных смен
+              const allShifts = shiftDb.getAll();
+              const completedTrainingShifts = allShifts.filter(
+                shift => 
+                (shift.modelId === model.id || shift.model === model.name) &&
+                shift.type === 'training' &&
+                shift.status === 'completed'
+              );
+              
+              if (completedTrainingShifts.length >= 2) {
+                const oldStatus = model.status;
+                modelDb.update(model.id, { status: ModelStatus.READY_TO_WORK });
+                
+                logModelStatusChange(model.id, oldStatus, ModelStatus.READY_TO_WORK, 'second_training_completed', userId);
+                
+                auditDb.create({
+                  action: 'Статус модели изменен на "Готова к работе" после завершения второй стажировочной смены',
+                  entityType: 'model',
+                  entityId: model.id,
+                  userId,
+                  details: { oldStatus, newStatus: ModelStatus.READY_TO_WORK, reason: 'second_training_completed' },
+                  ip: req.ip,
+                  userAgent: req.get('User-Agent')
+                });
+              }
+            }
+          } else if (originalShift.type === 'regular') {
+            // Логика для обычных смен
+            if (model.status === ModelStatus.READY_TO_WORK) {
+              const oldStatus = model.status;
+              modelDb.update(model.id, { status: ModelStatus.MODEL });
+              
+              logModelStatusChange(model.id, oldStatus, ModelStatus.MODEL, 'first_regular_shift_completed', userId);
+              logShiftCompletion(shiftId, model.id, 'regular', userId);
+              
+              auditDb.create({
+                action: 'Статус модели изменен на "Модель" после завершения первой рабочей смены',
+                entityType: 'model',
+                entityId: model.id,
+                userId,
+                details: { oldStatus, newStatus: ModelStatus.MODEL, reason: 'first_regular_shift_completed' },
+                ip: req.ip,
+                userAgent: req.get('User-Agent')
+              });
+            }
+          }
+        }
+      } catch (modelUpdateError) {
+        logError(modelUpdateError as Error, 'model_status_update', (req as AuthRequest).user?.id);
+      }
+    }
+    
     // Log the update
     const changes = Object.keys(updates).map(key => {
-      const oldValue = (originalShift as any)[key];
+      const oldValue = (originalShift as unknown as Record<string, unknown>)[key];
       const newValue = updates[key];
       return `${key}: ${oldValue} → ${newValue}`;
     }).join(', ');
@@ -80,7 +171,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       action: `Обновлена смена: ${changes}`,
       entityType: 'shift',
       entityId: shiftId,
-      userId: (req as any).user.id,
+      userId: (req as AuthRequest).user?.id || '',
       details: { changes: updates },
       ip: req.ip,
       userAgent: req.get('User-Agent')
@@ -113,7 +204,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       action: 'Удалена смена',
       entityType: 'shift',
       entityId: shiftId,
-      userId: (req as any).user.id,
+      userId: (req as AuthRequest).user?.id || '',
       details: { model: shift.model, type: shift.type },
       ip: req.ip,
       userAgent: req.get('User-Agent')

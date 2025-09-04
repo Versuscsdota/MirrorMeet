@@ -6,15 +6,21 @@ export enum ModelStatus {
   DRAINED = 'drained',                    // слив
   REGISTERED = 'registered',              // регистрация
   ACCOUNT_REGISTERED = 'account_registered', // зарегистрирована
+  TRAINING = 'training',                  // стажировка
+  READY_TO_WORK = 'ready_to_work',       // готова к работе
+  MODEL = 'model',                        // модель
   CANDIDATE_REFUSED = 'candidate_refused', // отказ со стороны кандидата
   OUR_REFUSAL = 'our_refusal',           // отказ с нашей стороны
-  THINKING = 'thinking'                   // ушла на подумать
+  THINKING = 'thinking',                  // ушла на подумать
+  CLOSED_TO_TEAM = 'closed_to_team',     // закрыта к команде
+  INACTIVE = 'inactive'                   // неактивна
 }
 
 export enum DocumentType {
-  PASSPORT = 'passport',
-  LICENSE = 'license',
-  INTERNATIONAL = 'international'
+  NOT_SPECIFIED = 'not_specified',
+  RUS_PASSPORT = 'rus_passport',
+  DRIVER_LICENSE = 'driver_license',
+  INTERNATIONAL_PASSPORT = 'international_passport'
 }
 
 export interface Comment {
@@ -91,9 +97,19 @@ export interface Role {
   name: string;
   displayName: string;
   permissions: string[];
-  modules?: Record<string, any>;
+  modules?: Record<string, ModulePermissions>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ModulePermissions {
+  view?: boolean;
+  create?: boolean;
+  edit?: boolean;
+  delete?: boolean;
+  export?: boolean;
+  manage?: boolean;
+  manage_roles?: boolean;
 }
 
 export interface Shift {
@@ -131,11 +147,24 @@ export interface Shift {
 export interface AuditLog {
   id: string;
   action: string;
-  entityType: 'model' | 'slot' | 'user' | 'shift';
+  entityType: 'model' | 'slot' | 'user' | 'shift' | 'role';
   entityId: string;
   userId: string;
-  details: any;
+  details: AuditDetails;
   ip?: string;
   userAgent?: string;
   timestamp: string;
+}
+
+export interface AuditDetails {
+  oldStatus?: string;
+  newStatus?: string;
+  reason?: string;
+  changes?: Record<string, unknown>;
+  newRole?: string;
+  previousRole?: string;
+  changedBy?: string;
+  deletedUser?: string;
+  deletedRole?: string;
+  [key: string]: unknown;
 }

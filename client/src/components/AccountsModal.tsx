@@ -89,6 +89,7 @@ export default function AccountsModal({ accounts, isOpen, onClose, onSave }: Acc
                       value={account.password}
                       onChange={(e) => updateAccount(account.id, 'password', e.target.value)}
                       placeholder="Пароль"
+                      autoComplete="new-password"
                     />
                   </div>
                   <div className="form-group">

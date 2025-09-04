@@ -12,18 +12,23 @@ const statusGroups = {
   initial: [
     ModelStatus.NOT_CONFIRMED,
     ModelStatus.CONFIRMED,
+    ModelStatus.ARRIVED,
+    ModelStatus.NO_SHOW,
     ModelStatus.DRAINED
   ],
   process: [
-    ModelStatus.ARRIVED,
-    ModelStatus.NO_SHOW,
-    ModelStatus.REGISTERED
+    ModelStatus.REGISTERED,
+    ModelStatus.ACCOUNT_REGISTERED,
+    ModelStatus.TRAINING,
+    ModelStatus.READY_TO_WORK,
+    ModelStatus.MODEL
   ],
   final: [
     ModelStatus.THINKING,
     ModelStatus.CANDIDATE_REFUSED,
     ModelStatus.OUR_REFUSAL,
-    ModelStatus.ACCOUNT_REGISTERED
+    ModelStatus.CLOSED_TO_TEAM,
+    ModelStatus.INACTIVE
   ]
 };
 
@@ -38,7 +43,12 @@ export const statusColors: Record<ModelStatus, string> = {
   [ModelStatus.ACCOUNT_REGISTERED]: '#00cc66',
   [ModelStatus.CANDIDATE_REFUSED]: '#cc6600',
   [ModelStatus.OUR_REFUSAL]: '#990000',
-  [ModelStatus.THINKING]: '#998800'
+  [ModelStatus.THINKING]: '#998800',
+  [ModelStatus.TRAINING]: '#8b5cf6',
+  [ModelStatus.CLOSED_TO_TEAM]: '#6b7280',
+  [ModelStatus.READY_TO_WORK]: '#10b981',
+  [ModelStatus.MODEL]: '#059669',
+  [ModelStatus.INACTIVE]: '#9ca3af'
 };
 
 export default function StatusSelector({ 
@@ -138,7 +148,7 @@ export default function StatusSelector({
           <div className="status-selector-dropdown">
             <div className="status-columns">
               <div className="status-column">
-                <h4>Начальные</h4>
+                <h4>Первичные</h4>
                 {statusGroups.initial.map(status => (
                   <div
                     key={status}
@@ -159,7 +169,7 @@ export default function StatusSelector({
               </div>
 
               <div className="status-column">
-                <h4>Процесс</h4>
+                <h4>Рабочий цикл</h4>
                 {statusGroups.process.map(status => (
                   <div
                     key={status}

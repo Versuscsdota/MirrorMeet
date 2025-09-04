@@ -145,6 +145,25 @@ export function initDatabase() {
     // Column already exists
   }
 
+  // Add new columns to shifts table if they don't exist
+  try {
+    db.prepare('ALTER TABLE shifts ADD COLUMN actualStartTime TEXT').run();
+  } catch (e) {
+    // Column already exists
+  }
+  
+  try {
+    db.prepare('ALTER TABLE shifts ADD COLUMN actualEndTime TEXT').run();
+  } catch (e) {
+    // Column already exists
+  }
+  
+  try {
+    db.prepare('ALTER TABLE shifts ADD COLUMN actualDuration INTEGER').run();
+  } catch (e) {
+    // Column already exists
+  }
+
   // Shifts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS shifts (
@@ -166,6 +185,9 @@ export function initDatabase() {
       sites TEXT,
       screenshots TEXT,
       comment TEXT,
+      actualStartTime TEXT,
+      actualEndTime TEXT,
+      actualDuration INTEGER,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     )
@@ -195,6 +217,26 @@ export function initDatabase() {
   // Add missing updatedAt column to users table if it doesn't exist
   try {
     db.prepare('ALTER TABLE users ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP').run();
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Create addresses table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS addresses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      address TEXT NOT NULL,
+      room TEXT NOT NULL,
+      comment TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(address, room)
+    )
+  `);
+  
+  // Add comment column to existing addresses table if it doesn't exist
+  try {
+    db.exec(`ALTER TABLE addresses ADD COLUMN comment TEXT`);
   } catch (e) {
     // Column already exists
   }
@@ -836,13 +878,18 @@ export const shiftDb = {
     const screenshots = updatedShift.screenshots ? JSON.stringify(updatedShift.screenshots) : '[]';
     
     db.prepare(`
-      UPDATE shifts SET model = ?, modelId = ?, responsible = ?, executor = ?, date = ?, time = ?, start = ?, end = ?, status = ?, totalEarnings = ?, address = ?, room = ?, type = ?, accounts = ?, sites = ?, screenshots = ?, comment = ?, updatedAt = ?
+      UPDATE shifts SET 
+        model = ?, modelId = ?, responsible = ?, executor = ?, date = ?, time = ?, start = ?, end = ?, 
+        status = ?, totalEarnings = ?, address = ?, room = ?, type = ?, accounts = ?, sites = ?, 
+        screenshots = ?, comment = ?, actualStartTime = ?, actualEndTime = ?, actualDuration = ?, updatedAt = ?
       WHERE id = ?
     `).run(
       updatedShift.model, updatedShift.modelId, updatedShift.responsible, updatedShift.executor,
       updatedShift.date, updatedShift.time, updatedShift.start, updatedShift.end, updatedShift.status,
       updatedShift.totalEarnings, updatedShift.address, updatedShift.room, updatedShift.type,
-      accounts, sites, screenshots, updatedShift.comment, updatedShift.updatedAt, id
+      accounts, sites, screenshots, updatedShift.comment, 
+      (updatedShift as any).actualStartTime || null, (updatedShift as any).actualEndTime || null, (updatedShift as any).actualDuration || null,
+      updatedShift.updatedAt, id
     );
     
     return this.getById(id);

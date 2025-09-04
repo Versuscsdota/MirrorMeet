@@ -1,0 +1,314 @@
+// Fix Material Icons display
+.material-icons {
+  font-family: 'Material Icons' !important;
+  font-weight: normal !important;
+  font-style: normal !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  word-wrap: normal !important;
+  direction: ltr !important;
+  -webkit-font-feature-settings: 'liga' !important;
+  font-feature-settings: 'liga' !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+// Apartments page styles
+.apartments-page {
+  padding: 24px !important;
+  background-color: #f8fafc !important;
+  min-height: 100vh !important;
+
+  .page-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-bottom: 24px !important;
+    padding: 24px !important;
+    background: white !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+
+    .header-left {
+      .page-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        margin: 0 0 12px 0 !important;
+        font-size: 28px !important;
+        font-weight: 600 !important;
+        color: #1f2937 !important;
+
+        .material-icons {
+          font-size: 32px !important;
+          color: #3b82f6 !important;
+        }
+      }
+
+      .header-stats {
+        display: flex !important;
+        gap: 24px !important;
+
+        .stat {
+          color: #6b7280 !important;
+          font-size: 14px !important;
+
+          strong {
+            color: #1f2937 !important;
+            font-weight: 600 !important;
+          }
+        }
+      }
+    }
+
+    .header-right {
+      .btn {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+    }
+  }
+
+  .filters-section {
+    margin-bottom: 24px !important;
+    padding: 20px 24px !important;
+    background: white !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+
+    .search-container {
+      position: relative !important;
+      max-width: 400px !important;
+
+      .material-icons {
+        position: absolute !important;
+        left: 12px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        color: #9ca3af !important;
+        font-size: 20px !important;
+      }
+
+      .search-input {
+        width: 100% !important;
+        padding: 12px 12px 12px 44px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-size: 14px !important;
+        background: white !important;
+
+        &:focus {
+          outline: none !important;
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        &::placeholder {
+          color: #9ca3af !important;
+        }
+      }
+    }
+  }
+
+  .content-section {
+    .empty-state {
+      text-align: center !important;
+      padding: 60px 24px !important;
+      background: white !important;
+      border-radius: 12px !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+
+      .material-icons {
+        font-size: 64px !important;
+        color: #d1d5db !important;
+        margin-bottom: 16px !important;
+      }
+
+      h3 {
+        margin: 0 0 8px 0 !important;
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        color: #1f2937 !important;
+      }
+
+      p {
+        margin: 0 0 24px 0 !important;
+        color: #6b7280 !important;
+        font-size: 16px !important;
+      }
+
+      .btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+      }
+    }
+
+    .addresses-grid {
+      display: grid !important;
+      gap: 24px !important;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)) !important;
+
+      .address-card {
+        background: white !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+        overflow: hidden !important;
+        transition: box-shadow 0.2s ease !important;
+
+        &:hover {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .address-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: flex-start !important;
+          padding: 20px 24px 16px 24px !important;
+          border-bottom: 1px solid #f3f4f6 !important;
+
+          .address-info {
+            .address-title {
+              display: flex !important;
+              align-items: center !important;
+              gap: 12px !important;
+              margin: 0 0 8px 0 !important;
+              font-size: 18px !important;
+              font-weight: 600 !important;
+              color: #1f2937 !important;
+
+              .material-icons {
+                font-size: 20px !important;
+                color: #ef4444 !important;
+              }
+            }
+
+            .address-comment {
+              font-size: 14px !important;
+              color: #6b7280 !important;
+              font-style: italic !important;
+              margin-top: 4px !important;
+              display: block !important;
+            }
+          }
+
+          .address-actions {
+            .btn {
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              width: 32px !important;
+              height: 32px !important;
+              padding: 0 !important;
+              border-radius: 6px !important;
+
+              .material-icons {
+                font-size: 16px !important;
+              }
+            }
+          }
+        }
+
+        .rooms-list {
+          padding: 0 !important;
+
+          .room-item {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 16px 24px !important;
+            border-bottom: 1px solid #f3f4f6 !important;
+            transition: background-color 0.2s ease !important;
+
+            &:last-child {
+              border-bottom: none !important;
+            }
+
+            &:hover {
+              background-color: #f9fafb !important;
+            }
+
+            .room-info {
+              display: flex !important;
+              align-items: center !important;
+              gap: 12px !important;
+
+              .material-icons {
+                font-size: 20px !important;
+                color: #8b5cf6 !important;
+              }
+
+              .room-name {
+                font-weight: 500 !important;
+                color: #1f2937 !important;
+              }
+            }
+
+            .room-comment {
+              display: block !important;
+              font-size: 12px !important;
+              color: #6b7280 !important;
+              font-style: italic !important;
+              margin-top: 4px !important;
+              line-height: 1.3 !important;
+            }
+
+            .room-actions {
+              display: flex !important;
+              gap: 8px !important;
+              pointer-events: auto !important;
+              z-index: 5 !important;
+              position: relative !important;
+
+              .btn {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 32px !important;
+                height: 32px !important;
+                padding: 0 !important;
+                border-radius: 6px !important;
+                cursor: pointer !important;
+                pointer-events: auto !important;
+                z-index: 10 !important;
+                position: relative !important;
+
+                .material-icons {
+                  font-size: 16px !important;
+                }
+
+                &.btn-secondary {
+                  background-color: #f3f4f6 !important;
+                  border-color: #f3f4f6 !important;
+                  color: #6b7280 !important;
+
+                  &:hover {
+                    background-color: #e5e7eb !important;
+                    border-color: #e5e7eb !important;
+                    color: #374151 !important;
+                  }
+                }
+
+                &.btn-danger {
+                  background-color: #fef2f2 !important;
+                  border-color: #fef2f2 !important;
+                  color: #dc2626 !important;
+
+                  &:hover {
+                    background-color: #fee2e2 !important;
+                    border-color: #fee2e2 !important;
+                    color: #b91c1c !important;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

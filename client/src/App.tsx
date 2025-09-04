@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import ModelsPage from './pages/ModelsPage';
 import SlotsPage from './pages/SlotsPage';
 import ShiftsPage from './pages/ShiftsPage';
+import ApartmentsPage from './pages/ApartmentsPage';
 import EmployeesPage from './pages/EmployeesPage';
 import AuditPage from './pages/AuditPage';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -52,6 +53,11 @@ function App() {
           <Route path="shifts" element={
             <ProtectedRoute module="shifts">
               <ShiftsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="apartments" element={
+            <ProtectedRoute module="shifts">
+              <ApartmentsPage />
             </ProtectedRoute>
           } />
           <Route path="employees" element={

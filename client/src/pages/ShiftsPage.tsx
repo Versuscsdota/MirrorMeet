@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Shift } from '../types';
+import { toast } from 'react-hot-toast';
 import { shiftsAPI } from '../services/api';
 import { usePermissions } from '../hooks/usePermissions';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import ShiftModal from '../components/ShiftModal';
-import toast from 'react-hot-toast';
+import ShiftTimerModal from '../components/ShiftTimerModal';
+import { Shift } from '../types';
 
 const SHIFT_STATUSES = [
   { value: '', label: 'Все статусы' },
@@ -23,13 +24,15 @@ const SHIFT_TYPES = [
 const ShiftsPage: React.FC = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [filteredShifts, setFilteredShifts] = useState<Shift[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   
   const { hasPermission } = usePermissions();
 
@@ -39,7 +42,7 @@ const ShiftsPage: React.FC = () => {
 
   useEffect(() => {
     filterShifts();
-  }, [shifts, searchTerm, statusFilter, typeFilter]);
+  }, [shifts, searchTerm, statusFilter, typeFilter, activeTab]);
 
   const loadShifts = async () => {
     try {
@@ -56,6 +59,15 @@ const ShiftsPage: React.FC = () => {
 
   const filterShifts = () => {
     let filtered = [...shifts];
+
+    // Tab filter - разделяем на текущие и историю
+    if (activeTab === 'current') {
+      filtered = filtered.filter(shift => 
+        shift.status === 'pending' || shift.status === 'active' || shift.status === 'inactive'
+      );
+    } else if (activeTab === 'history') {
+      filtered = filtered.filter(shift => shift.status === 'completed');
+    }
 
     // Search filter
     if (searchTerm) {
@@ -98,6 +110,11 @@ const ShiftsPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleStartShift = (shift: Shift) => {
+    setSelectedShift(shift);
+    setIsTimerModalOpen(true);
+  };
+
   const handleSaveShift = async (shiftData: any) => {
     try {
       if (modalMode === 'create') {
@@ -115,6 +132,7 @@ const ShiftsPage: React.FC = () => {
       toast.error('Не удалось сохранить смену');
     }
   };
+
 
 
   const handleDeleteShift = async (shiftId: string) => {
@@ -164,6 +182,9 @@ const ShiftsPage: React.FC = () => {
               <span className="stat">
                 Активных: <strong>{shifts.filter(s => s.status === 'active').length}</strong>
               </span>
+              <span className="stat">
+                Завершенных: <strong>{shifts.filter(s => s.status === 'completed').length}</strong>
+              </span>
             </div>
           </div>
           <div className="header-right">
@@ -177,6 +198,24 @@ const ShiftsPage: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Tabs Navigation */}
+        <div className="tabs-navigation">
+          <button 
+            className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
+            onClick={() => setActiveTab('current')}
+          >
+            <i className="material-icons">schedule</i>
+            Текущие смены
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <i className="material-icons">history</i>
+            История смен
+          </button>
         </div>
 
         <div className="filters-section">
@@ -234,44 +273,46 @@ const ShiftsPage: React.FC = () => {
               {filteredShifts.map(shift => (
                 <div key={shift.id} className="shift-card">
                   <div className="shift-header">
-                    <h3 className="shift-model">{shift.model}</h3>
+                    <div className="shift-info">
+                      <h3 className="shift-model">{shift.model}</h3>
+                      <div className="shift-type-badge">{getTypeLabel(shift.type)}</div>
+                    </div>
                     <span className={`shift-status status-${shift.status}`}>
                       {getStatusLabel(shift.status)}
                     </span>
                   </div>
                   
                   <div className="shift-details">
-                    <div className="detail-row">
-                      <i className="material-icons">person</i>
-                      <span>Продюсер: {shift.producer}</span>
+                    <div className="detail-section">
+                      <div className="detail-label">Куратор</div>
+                      <div className="detail-value">{shift.responsible || shift.producer}</div>
                     </div>
                     {shift.executor && (
-                      <div className="detail-row">
-                        <i className="material-icons">person_outline</i>
-                        <span>Исполнитель: {shift.executor}</span>
+                      <div className="detail-section">
+                        <div className="detail-label">Исполнитель</div>
+                        <div className="detail-value">{shift.executor}</div>
                       </div>
                     )}
-                    <div className="detail-row">
-                      <i className="material-icons">event</i>
-                      <span>Дата: {shift.date}</span>
+                    <div className="detail-section">
+                      <div className="detail-label">Адрес</div>
+                      <div className="detail-value">{shift.address}, Комната {shift.room}</div>
                     </div>
-                    <div className="detail-row">
-                      <i className="material-icons">schedule</i>
-                      <span>Время: {shift.time}</span>
-                    </div>
-                    <div className="detail-row">
-                      <i className="material-icons">location_on</i>
-                      <span>Адрес: {shift.address}</span>
-                    </div>
-                    {shift.totalEarnings && (
-                      <div className="detail-row">
-                        <i className="material-icons">attach_money</i>
-                        <span>Заработок: ${shift.totalEarnings}</span>
+                    {shift.totalEarnings && shift.totalEarnings > 0 && (
+                      <div className="detail-section earnings">
+                        <div className="detail-label">Заработок</div>
+                        <div className="detail-value">${shift.totalEarnings}</div>
                       </div>
                     )}
-                    <div className="detail-row">
-                      <i className="material-icons">category</i>
-                      <span>Тип: {getTypeLabel(shift.type)}</span>
+                  </div>
+
+                  <div className="shift-timing">
+                    <div className="timing-section">
+                      <div className="timing-label">Начало</div>
+                      <div className="timing-value">{shift.date} {shift.time}</div>
+                    </div>
+                    <div className="timing-section">
+                      <div className="timing-label">Окончание</div>
+                      <div className="timing-value">{shift.end?.split('T')[0]} {shift.end?.split('T')[1]?.substring(0,5)}</div>
                     </div>
                   </div>
 
@@ -281,15 +322,21 @@ const ShiftsPage: React.FC = () => {
                       onClick={() => handleViewShift(shift)}
                     >
                       <i className="material-icons">visibility</i>
-                      Просмотр
                     </button>
-                    {hasPermission('shifts', 'edit') && (
+                    {hasPermission('shifts', 'edit') && activeTab === 'current' && (
                       <button 
                         className="btn btn-outline"
                         onClick={() => handleEditShift(shift)}
                       >
                         <i className="material-icons">edit</i>
-                        Редактировать
+                      </button>
+                    )}
+                    {activeTab === 'current' && (
+                      <button 
+                        className="btn btn-success"
+                        onClick={() => handleStartShift(shift)}
+                      >
+                        <i className="material-icons">play_arrow</i>
                       </button>
                     )}
                     {hasPermission('shifts', 'delete') && (
@@ -298,7 +345,6 @@ const ShiftsPage: React.FC = () => {
                         onClick={() => handleDeleteShift(shift.id)}
                       >
                         <i className="material-icons">delete</i>
-                        Удалить
                       </button>
                     )}
                   </div>
@@ -308,7 +354,7 @@ const ShiftsPage: React.FC = () => {
           )}
         </div>
 
-        {/* Simple modal placeholder - will be replaced with proper ShiftModal component */}
+        {/* Shift Modal */}
         {isModalOpen && (
           <ShiftModal
             isOpen={isModalOpen}
@@ -318,6 +364,20 @@ const ShiftsPage: React.FC = () => {
             mode={modalMode}
           />
         )}
+
+        {/* Shift Timer Modal */}
+        {isTimerModalOpen && selectedShift && (
+          <ShiftTimerModal
+            isOpen={isTimerModalOpen}
+            onClose={() => {
+              setIsTimerModalOpen(false);
+              loadShifts(); // Обновляем список смен для получения актуального статуса
+              setSelectedShift(null);
+            }}
+            shift={selectedShift}
+          />
+        )}
+
       </div>
     </ProtectedRoute>
   );

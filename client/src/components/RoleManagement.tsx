@@ -51,6 +51,11 @@ const MODULES: Module[] = [
     name: 'settings',
     displayName: 'Настройки',
     permissions: ['view', 'edit']
+  },
+  {
+    name: 'addresses',
+    displayName: 'Адреса',
+    permissions: ['view', 'create', 'edit', 'delete']
   }
 ];
 

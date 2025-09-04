@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { StatusManager } from '../utils/statusManager';
 import { ModelStatus } from '../types';
+import { modelsAPI, usersAPI, addressesAPI } from '../services/api';
 
 interface Account {
   site: string;
@@ -67,7 +68,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
     startDateTime: '',
     endDateTime: '',
     type: 'regular',
-    status: 'upcoming',
+    status: 'pending',
     comment: ''
   });
 
@@ -78,91 +79,77 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
   const [modelSearch, setModelSearch] = useState('');
   const [producerSearch, setProducerSearch] = useState('');
   const [executorSearch, setExecutorSearch] = useState('');
+  const [models, setModels] = useState<Model[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [addresses, setAddresses] = useState<Array<{id: string, address: string, room: string}>>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Mock data
-  const mockModels: Model[] = [
-    { 
-      id: '1', 
-      name: 'Иванова Анна С.', 
-      status: ModelStatus.REGISTERED, 
-      shiftsCount: 0, 
-      trainingShiftsCount: 0, 
-      accounts: [
-        { site: 'Instagram', login: '@ivanova_anna', password: '***' },
-        { site: 'TikTok', login: '@anna_ivanova_model', password: '***' }
-      ]
-    },
-    { 
-      id: '2', 
-      name: 'Мария Сидорова', 
-      status: ModelStatus.TRAINING, 
-      shiftsCount: 0, 
-      trainingShiftsCount: 1, 
-      accounts: [
-        { site: 'Instagram', login: '@maria_sidorova', password: '***' }
-      ]
-    },
-    { 
-      id: '3', 
-      name: 'Елена Козлова', 
-      status: ModelStatus.CLOSED_TO_TEAM, 
-      shiftsCount: 0, 
-      trainingShiftsCount: 2, 
-      accounts: [
-        { site: 'Instagram', login: '@elena_kozlova', password: '***' },
-        { site: 'OnlyFans', login: '@elena_model', password: '***' }
-      ]
-    },
-    { 
-      id: '4', 
-      name: 'Ольга Иванова', 
-      status: ModelStatus.READY_TO_WORK, 
-      shiftsCount: 1, 
-      trainingShiftsCount: 2, 
-      accounts: [
-        { site: 'Instagram', login: '@olga_ivanova', password: '***' }
-      ]
-    },
-    { 
-      id: '5', 
-      name: 'Татьяна Смирнова', 
-      status: ModelStatus.MODEL, 
-      shiftsCount: 5, 
-      trainingShiftsCount: 2, 
-      accounts: [
-        { site: 'Instagram', login: '@tatiana_smirnova', password: '***' },
-        { site: 'OnlyFans', login: '@tatiana_model', password: '***' },
-        { site: 'TikTok', login: '@tanya_model', password: '***' }
-      ]
-    }
-  ];
+  // Load data from API
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isOpen) return;
+      
+      setLoading(true);
+      try {
+        const [modelsData, usersData, addressesData] = await Promise.all([
+          modelsAPI.getAll(),
+          usersAPI.getAll(),
+          addressesAPI.getAll()
+        ]);
+        
+        
+        setModels(modelsData.map((model: any) => ({
+          ...model,
+          accounts: model.accounts || []
+        })));
+        setEmployees(usersData.map((user: any) => ({
+          id: user.id,
+          name: user.fullName,
+          role: user.role
+        })));
+        
+        console.log('Loaded addresses:', addressesData);
+        setAddresses(addressesData.items || addressesData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Ошибка загрузки данных');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const mockEmployees: Employee[] = [
-    { id: '1', name: 'Петров П.', role: 'curator' },
-    { id: '2', name: 'Кузнецов И.', role: 'producer' },
-    { id: '3', name: 'Никитин С.', role: 'producer' },
-    { id: '4', name: 'Сидоров А.', role: 'operator' },
-    { id: '5', name: 'Фролов Д.', role: 'operator' },
-    { id: '6', name: 'Орлов В.', role: 'operator' }
-  ];
-  
-  const addresses = [
-    { value: 'ул. Примерная, д. 1', rooms: ['Комната 101', 'Комната 102', 'Комната 103'] },
-    { value: 'ул. Образцовая, д. 25', rooms: ['Комната 201', 'Комната 202', 'Комната 203'] },
-    { value: 'пр. Тестовый, д. 15', rooms: ['Комната 301', 'Комната 302'] }
-  ];
+    loadData();
+  }, [isOpen]);
 
   useEffect(() => {
     if (shift && mode !== 'create') {
-      setFormData(shift);
-      setModelSearch(shift.modelName || '');
-      setProducerSearch(shift.producer || '');
-      setExecutorSearch(shift.executor || '');
+      console.log('Loading shift data:', shift);
+      
+      // Map shift data to form fields
+      const mappedFormData = {
+        modelName: shift.model || shift.modelName || '',
+        producer: shift.responsible || shift.producer || '',
+        executor: shift.executor || '',
+        address: shift.address || '',
+        room: shift.room || '',
+        startDateTime: shift.start || shift.startDateTime || '',
+        endDateTime: shift.end || shift.endDateTime || '',
+        type: shift.type || 'regular',
+        status: shift.status || 'pending',
+        comment: shift.comment || ''
+      };
+      
+      console.log('Mapped form data:', mappedFormData);
+      
+      setFormData(mappedFormData);
+      setModelSearch(mappedFormData.modelName);
+      setProducerSearch(mappedFormData.producer);
+      setExecutorSearch(mappedFormData.executor);
       
       // Load model accounts
-      const model = mockModels.find(m => m.name === shift.modelName);
+      const model = models.find((m: any) => m.name === mappedFormData.modelName);
       if (model) {
-        setModelAccounts(model.accounts);
+        setModelAccounts(model.accounts || []);
       }
     } else {
       setFormData({
@@ -174,7 +161,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
         startDateTime: '',
         endDateTime: '',
         type: 'regular',
-        status: 'upcoming',
+        status: 'pending',
         comment: ''
       });
       setModelAccounts([]);
@@ -182,10 +169,23 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
       setProducerSearch('');
       setExecutorSearch('');
     }
-  }, [shift, mode, isOpen]);
+  }, [shift, mode, isOpen, models]);
 
   const handleInputChange = (field: keyof Shift, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear selections when shift type changes
+    if (field === 'type') {
+      setModelSearch('');
+      setProducerSearch('');
+      setFormData(prev => ({ 
+        ...prev, 
+        [field]: value,
+        modelName: '',
+        producer: ''
+      }));
+      setModelAccounts([]);
+    }
   };
 
   const handleModelSelect = (modelName: string) => {
@@ -194,9 +194,9 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
     setShowModelDropdown(false);
     
     // Load model accounts
-    const model = mockModels.find(m => m.name === modelName);
+    const model = models.find((m: any) => m.name === modelName);
     if (model) {
-      setModelAccounts(model.accounts);
+      setModelAccounts(model.accounts || []);
     }
   };
 
@@ -212,14 +212,25 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
     setShowExecutorDropdown(false);
   };
 
-  const handleAddressChange = (address: string) => {
-    setFormData(prev => ({ ...prev, address, room: '' }));
+  const handleAddressChange = (addressId: string) => {
+    console.log('Address change:', addressId, addresses);
+    const selectedAddress = addresses.find(addr => addr.id.toString() === addressId);
+    console.log('Selected address:', selectedAddress);
+    if (selectedAddress) {
+      setFormData(prev => ({ 
+        ...prev, 
+        address: selectedAddress.address,
+        room: selectedAddress.room 
+      }));
+    } else if (addressId === "") {
+      setFormData(prev => ({ 
+        ...prev, 
+        address: "",
+        room: "" 
+      }));
+    }
   };
 
-  const getAvailableRooms = () => {
-    const selectedAddress = addresses.find(addr => addr.value === formData.address);
-    return selectedAddress ? selectedAddress.rooms : [];
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +243,13 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
 
     const shiftData = {
       ...formData,
+      model: formData.modelName, // Map modelName to model field
+      responsible: formData.producer, // Map producer to responsible field
+      date: formData.startDateTime?.split('T')[0] || '', // Extract date
+      time: formData.startDateTime?.split('T')[1] || '', // Extract time
+      start: formData.startDateTime,
+      end: formData.endDateTime,
+      status: 'pending', // Set valid status instead of 'upcoming'
       accounts: modelAccounts,
       updatedAt: new Date().toISOString(),
       ...(mode === 'create' && { 
@@ -256,10 +274,24 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
 
   // Filter models based on shift type
   const getAvailableModels = () => {
-    return mockModels.filter(model => {
+    return models.filter((model: any) => {
       const nameMatch = model.name.toLowerCase().includes(modelSearch.toLowerCase());
       const shiftType = formData.type || 'regular';
-      const validation = StatusManager.canCreateShift(model.status, shiftType);
+      
+      // Convert status to ModelStatus enum if needed
+      let modelStatus = model.status;
+      if (typeof modelStatus === 'string') {
+        // Try to match string status to enum
+        const statusKey = Object.keys(ModelStatus).find(key => 
+          ModelStatus[key as keyof typeof ModelStatus] === modelStatus ||
+          key.toLowerCase() === modelStatus.toLowerCase()
+        );
+        if (statusKey) {
+          modelStatus = ModelStatus[statusKey as keyof typeof ModelStatus];
+        }
+      }
+      
+      const validation = StatusManager.canCreateShift(modelStatus, shiftType);
       return nameMatch && validation.allowed;
     });
   };
@@ -268,13 +300,13 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
   const getAvailableProducers = () => {
     if (formData.type === 'training') {
       // For training shifts: only curators
-      return mockEmployees.filter(emp => 
+      return employees.filter((emp: any) => 
         emp.role === 'curator' &&
         emp.name.toLowerCase().includes(producerSearch.toLowerCase())
       );
     } else {
       // For regular shifts: only producers
-      return mockEmployees.filter(emp => 
+      return employees.filter((emp: any) => 
         emp.role === 'producer' &&
         emp.name.toLowerCase().includes(producerSearch.toLowerCase())
       );
@@ -282,7 +314,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
   };
 
   const getAvailableOperators = () => {
-    return mockEmployees.filter(emp => 
+    return employees.filter((emp: any) => 
       emp.role === 'operator' &&
       emp.name.toLowerCase().includes(executorSearch.toLowerCase())
     );
@@ -329,22 +361,37 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
                     onChange={(e) => {
                       setModelSearch(e.target.value);
                       setShowModelDropdown(true);
+                      // Clear selection if search doesn't match
+                      if (formData.modelName && !formData.modelName.toLowerCase().includes(e.target.value.toLowerCase())) {
+                        setFormData(prev => ({ ...prev, modelName: '' }));
+                        setModelAccounts([]);
+                      }
                     }}
                     onFocus={() => setShowModelDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowModelDropdown(false), 150)}
                     placeholder="Поиск модели..."
                     className="form-input"
                   />
                   {showModelDropdown && (
                     <div className="dropdown-options active">
-                      {getAvailableModels().map((model) => (
-                        <div
-                          key={model.id}
-                          className="option"
-                          onClick={() => handleModelSelect(model.name)}
-                        >
-                          {model.name}
+                      {loading ? (
+                        <div className="option disabled">Загрузка...</div>
+                      ) : getAvailableModels().length > 0 ? (
+                        getAvailableModels().map((model: any) => (
+                          <div
+                            key={model.id}
+                            className="option"
+                            onClick={() => handleModelSelect(model.name)}
+                          >
+                            <div className="option-name">{model.name}</div>
+                            <div className="option-status">{StatusManager.getStatusLabel(model.status)}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="option disabled">
+                          {modelSearch ? 'Модели не найдены' : 'Нет доступных моделей для данного типа смены'}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -384,15 +431,23 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
                     />
                     {showExecutorDropdown && (
                       <div className="dropdown-options active">
-                        {getAvailableOperators().map((operator) => (
-                          <div
-                            key={operator.id}
-                            className="option"
-                            onClick={() => handleExecutorSelect(operator.name)}
-                          >
-                            {operator.name}
+                        {loading ? (
+                          <div className="option disabled">Загрузка...</div>
+                        ) : getAvailableOperators().length > 0 ? (
+                          getAvailableOperators().map((operator: any) => (
+                            <div
+                              key={operator.id}
+                              className="option"
+                              onClick={() => handleExecutorSelect(operator.name)}
+                            >
+                              {operator.name}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="option disabled">
+                            Нет доступных операторов
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
@@ -421,15 +476,23 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
                   />
                   {showProducerDropdown && (
                     <div className="dropdown-options active">
-                      {getAvailableProducers().map((employee) => (
-                        <div
-                          key={employee.id}
-                          className="option"
-                          onClick={() => handleProducerSelect(employee.name)}
-                        >
-                          {employee.name}
+                      {loading ? (
+                        <div className="option disabled">Загрузка...</div>
+                      ) : getAvailableProducers().length > 0 ? (
+                        getAvailableProducers().map((employee: any) => (
+                          <div
+                            key={employee.id}
+                            className="option"
+                            onClick={() => handleProducerSelect(employee.name)}
+                          >
+                            {employee.name}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="option disabled">
+                          {formData.type === 'training' ? 'Нет доступных кураторов' : 'Нет доступных продюсеров'}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -443,13 +506,13 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
               ) : (
                 <select
                   className="form-select"
-                  value={formData.address}
+                  value={addresses.find(addr => addr.address === formData.address && addr.room === formData.room)?.id?.toString() || ""}
                   onChange={(e) => handleAddressChange(e.target.value)}
                 >
-                  <option value="">Выберите адрес</option>
+                  <option value="">Выберите квартиру</option>
                   {addresses.map((addr) => (
-                    <option key={addr.value} value={addr.value}>
-                      {addr.value}
+                    <option key={addr.id} value={addr.id.toString()}>
+                      {addr.address}, {addr.room}
                     </option>
                   ))}
                 </select>
@@ -461,21 +524,13 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
               {mode === 'view' ? (
                 <input type="text" className="form-input" value={formData.room} readOnly />
               ) : (
-                <select
-                  className="form-select"
-                  value={formData.room}
-                  onChange={(e) => handleInputChange('room', e.target.value)}
-                  disabled={!formData.address}
-                >
-                  <option value="">
-                    {formData.address ? 'Выберите комнату' : 'Сначала выберите адрес'}
-                  </option>
-                  {getAvailableRooms().map((room) => (
-                    <option key={room} value={room}>
-                      {room}
-                    </option>
-                  ))}
-                </select>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={formData.room} 
+                  readOnly 
+                  placeholder="Комната будет выбрана автоматически"
+                />
               )}
             </div>
 
@@ -512,19 +567,18 @@ const ShiftModal: React.FC<ShiftModalProps> = ({
                 />
               </div>
             )}
+            {mode !== 'view' && (
+              <div className="modal-actions">
+                <button type="button" className="btn btn-cancel" onClick={onClose}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {mode === 'create' ? 'Создать смену' : 'Сохранить изменения'}
+                </button>
+              </div>
+            )}
           </form>
         </div>
-
-        {mode !== 'view' && (
-          <div className="modal-footer">
-            <button type="button" className="btn btn-cancel" onClick={onClose}>
-              Отмена
-            </button>
-            <button type="submit" className="btn btn-primary" onClick={handleSubmit}>
-              {mode === 'create' ? 'Создать смену' : 'Сохранить изменения'}
-            </button>
-          </div>
-        )}
 
         {mode === 'view' && (
           <div className="modal-footer">

@@ -97,6 +97,7 @@ const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose, on
               name="fullName"
               className="form-input"
               placeholder="Введите полное имя"
+              autoComplete="name"
               value={formData.fullName}
               onChange={handleInputChange}
               required
@@ -110,6 +111,7 @@ const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ isOpen, onClose, on
               name="phone"
               className="form-input"
               placeholder="+7 (999) 123-45-67"
+              autoComplete="tel"
               value={formData.phone}
               onChange={handleInputChange}
               required
