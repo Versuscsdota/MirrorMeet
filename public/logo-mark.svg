@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80" viewBox="0 0 200 80">
+  <title>Mirror Studio Mark</title>
+  <desc>Vector logo mark for header (teal strokes)</desc>
+  <g fill="none" stroke="#2bb3b1" stroke-linecap="round">
+    <path d="M20 45 Q25 35, 35 40 Q45 45, 50 35 Q55 25, 65 30 Q75 35, 80 25" stroke-width="3"/>
+    <path d="M90 55 Q100 45, 110 50 Q120 55, 125 45 Q130 35, 140 40 Q150 45, 155 35 Q160 25, 170 30 Q180 35, 185 25" stroke-width="3"/>
+    <ellipse cx="35" cy="20" rx="25" ry="15" stroke-width="2" transform="rotate(-15 35 20)"/>
+  </g>
+</svg>
