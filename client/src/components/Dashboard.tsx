@@ -176,7 +176,7 @@ export default function Dashboard() {
             </div>
             <div className="funnel-step">
               <div className="funnel-number">{conversionStats.confirmedSlots}</div>
-              <div className="funnel-label">Слоты</div>
+              <div className="funnel-label">Расписание</div>
               <div className="funnel-percent">{conversionStats.conversionFunnel.leadToSlot}%</div>
               <div className="funnel-arrow">↓</div>
             </div>

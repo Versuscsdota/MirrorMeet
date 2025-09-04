@@ -15,7 +15,7 @@ export default function Layout() {
                 Модели
               </NavLink>
               <NavLink to="/slots" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                Слоты
+                Расписание
               </NavLink>
               <NavLink to="/analytics" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                 Аналитика
