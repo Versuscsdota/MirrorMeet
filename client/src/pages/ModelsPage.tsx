@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import FileUpload from '../components/FileUpload';
 import ModelCard from '../components/ModelCard';
 import ModelProfile from '../components/ModelProfile';
+import { ProtectedRoute } from '../components/ProtectedRoute';
 
 export default function ModelsPage() {
   const [models, setModels] = useState<Model[]>([]);
@@ -58,8 +59,7 @@ export default function ModelsPage() {
       const query = filters.searchQuery.toLowerCase();
       result = result.filter(model => 
         model.fullName?.toLowerCase().includes(query) ||
-        model.phone?.toLowerCase().includes(query) ||
-        model.email?.toLowerCase().includes(query)
+        model.phone?.toLowerCase().includes(query)
       );
     }
 
@@ -221,21 +221,23 @@ export default function ModelsPage() {
         exportType="models"
       />
       {profileFor && (
-        <ModelProfile
-          model={profileFor}
-          onClose={() => setProfileFor(null)}
-          onEdit={() => { setSelectedModel(profileFor); setIsCreateMode(false); setProfileFor(null); }}
-          onDelete={() => { if (confirm('Удалить модель?')) { modelsAPI.delete(profileFor.id).then(() => { setProfileFor(null); loadModels(); }); } }}
-          onModelUpdate={(updatedModel) => {
-            // Обновляем модель в списке без перезагрузки
-            setModels(prevModels => 
-              prevModels.map(model => 
-                model.id === updatedModel.id ? updatedModel : model
-              )
-            );
-            setProfileFor(updatedModel);
-          }}
-        />
+        <ProtectedRoute module="models" permission="view">
+          <ModelProfile
+            model={profileFor}
+            onClose={() => setProfileFor(null)}
+            onEdit={() => { setSelectedModel(profileFor); setIsCreateMode(false); setProfileFor(null); }}
+            onDelete={() => { if (confirm('Удалить модель?')) { modelsAPI.delete(profileFor.id).then(() => { setProfileFor(null); loadModels(); }); } }}
+            onModelUpdate={(updatedModel) => {
+              // Обновляем модель в списке без перезагрузки
+              setModels(prevModels => 
+                prevModels.map(model => 
+                  model.id === updatedModel.id ? updatedModel : model
+                )
+              );
+              setProfileFor(updatedModel);
+            }}
+          />
+        </ProtectedRoute>
       )}
     </div>
   );

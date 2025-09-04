@@ -6,9 +6,12 @@ import { initDatabase } from './db/database';
 import authRoutes from './routes/auth';
 import modelsRouter from './routes/models';
 import slotsRouter from './routes/slots';
+import shiftsRouter from './routes/shifts';
 import exportRouter from './routes/export';
 import analyticsRouter from './routes/analytics';
 import auditRouter from './routes/audit';
+import usersRouter from './routes/users';
+import rolesRouter from './routes/roles';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,9 +39,12 @@ app.use('/uploads', express.static(uploadsDir));
 app.use('/api/auth', authRoutes);
 app.use('/api/models', modelsRouter);
 app.use('/api/slots', slotsRouter);
+app.use('/api/shifts', shiftsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/roles', rolesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { Model, Slot, User, AuditLog, ModelStatus } from '../types';
+import { Model, Slot, User, Role, AuditLog, ModelStatus, Shift } from '../types';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -24,10 +24,38 @@ export function initDatabase() {
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      role TEXT DEFAULT 'user',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      role TEXT DEFAULT 'inactive',
+      fullName TEXT,
+      phone TEXT,
+      email TEXT,
+      firstInternshipDate TEXT,
+      avatar TEXT,
+      permissions TEXT,
+      status TEXT DEFAULT 'inactive',
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Create roles table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      displayName TEXT NOT NULL,
+      permissions TEXT NOT NULL,
+      modules TEXT NOT NULL DEFAULT '{}',
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Add modules column to existing roles table if it doesn't exist
+  try {
+    db.prepare('ALTER TABLE roles ADD COLUMN modules TEXT DEFAULT "{}"').run();
+  } catch (e) {
+    // Column already exists
+  }
 
   // Create analytics settings table
   db.exec(`
@@ -60,6 +88,7 @@ export function initDatabase() {
       files TEXT,
       comments TEXT,
       accounts TEXT,
+      shifts TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       FOREIGN KEY (slotId) REFERENCES slots(id) ON DELETE SET NULL
@@ -116,6 +145,32 @@ export function initDatabase() {
     // Column already exists
   }
 
+  // Shifts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shifts (
+      id TEXT PRIMARY KEY,
+      model TEXT NOT NULL,
+      modelId TEXT,
+      responsible TEXT NOT NULL,
+      executor TEXT,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      start TEXT NOT NULL,
+      end TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('inactive', 'pending', 'active', 'completed')),
+      totalEarnings REAL DEFAULT 0,
+      address TEXT NOT NULL,
+      room TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('regular', 'training')),
+      accounts TEXT,
+      sites TEXT,
+      screenshots TEXT,
+      comment TEXT,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `);
+
   // Audit logs table
   db.exec(`
     CREATE TABLE IF NOT EXISTS audit_logs (
@@ -136,6 +191,13 @@ export function initDatabase() {
   try {
     db.exec(`ALTER TABLE models ADD COLUMN birthDate TEXT`);
   } catch (e) { /* Column already exists */ }
+
+  // Add missing updatedAt column to users table if it doesn't exist
+  try {
+    db.prepare('ALTER TABLE users ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP').run();
+  } catch (e) {
+    // Column already exists
+  }
   
   try {
     db.exec(`ALTER TABLE models ADD COLUMN documentType TEXT`);
@@ -157,15 +219,177 @@ export function initDatabase() {
     db.exec(`ALTER TABLE models ADD COLUMN accounts TEXT`);
   } catch (e) { /* Column already exists */ }
 
+  // Add new columns to existing users table
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN fullName TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN phone TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN email TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN firstInternshipDate TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN permissions TEXT`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'inactive'`);
+  } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP`);
+  } catch (e) { /* Column already exists */ }
+
+  // Clear existing roles and reinitialize with correct ones
+  db.prepare('DELETE FROM roles').run();
+  
+  // Initialize default roles
+  const roles = [
+      {
+        id: uuidv4(),
+        name: 'admin',
+        displayName: 'Администратор',
+        permissions: JSON.stringify([
+          'users.create', 'users.read', 'users.update', 'users.delete',
+          'models.create', 'models.read', 'models.update', 'models.delete',
+          'slots.create', 'slots.read', 'slots.update', 'slots.delete',
+          'roles.create', 'roles.read', 'roles.update', 'roles.delete',
+          'analytics.read', 'analytics.update', 'audit.read'
+        ]),
+        modules: JSON.stringify({
+          models: { view: true, create: true, edit: true, delete: true, export: true },
+          slots: { view: true, create: true, edit: true, delete: true, manage: true },
+          shifts: { view: true, create: true, edit: true, delete: true, manage: true },
+          analytics: { view: true, edit: true, export: true },
+          users: { view: true, create: true, edit: true, delete: true, manage_roles: true },
+          audit: { view: true, export: true },
+          settings: { view: true, edit: true }
+        })
+      },
+      {
+        id: uuidv4(),
+        name: 'producer',
+        displayName: 'Продьюсер',
+        permissions: JSON.stringify([
+          'models.create', 'models.read', 'models.update',
+          'slots.create', 'slots.read', 'slots.update',
+          'analytics.read'
+        ]),
+        modules: JSON.stringify({
+          models: { view: true, create: true, edit: true, delete: false, export: true },
+          slots: { view: true, create: true, edit: true, delete: false, manage: true },
+          shifts: { view: true, create: true, edit: true, delete: false, manage: true },
+          analytics: { view: true, edit: false, export: true },
+          users: { view: true, create: false, edit: false, delete: false, manage_roles: false },
+          audit: { view: false, export: false },
+          settings: { view: false, edit: false }
+        })
+      },
+      {
+        id: uuidv4(),
+        name: 'curator',
+        displayName: 'Куратор',
+        permissions: JSON.stringify([
+          'models.read', 'models.update',
+          'slots.read', 'slots.update',
+          'analytics.read'
+        ]),
+        modules: JSON.stringify({
+          models: { view: true, create: false, edit: true, delete: false, export: false },
+          slots: { view: true, create: false, edit: true, delete: false, manage: false },
+          shifts: { view: true, create: false, edit: true, delete: false, manage: false },
+          analytics: { view: true, edit: false, export: false },
+          users: { view: true, create: false, edit: false, delete: false, manage_roles: false },
+          audit: { view: false, export: false },
+          settings: { view: false, edit: false }
+        })
+      },
+      {
+        id: uuidv4(),
+        name: 'interviewer',
+        displayName: 'Интервьюер',
+        permissions: JSON.stringify([
+          'models.read', 'models.update',
+          'slots.read'
+        ]),
+        modules: JSON.stringify({
+          models: { view: true, create: false, edit: true, delete: false, export: false },
+          slots: { view: true, create: false, edit: false, delete: false, manage: false },
+          shifts: { view: true, create: false, edit: false, delete: false, manage: false },
+          analytics: { view: false, edit: false, export: false },
+          users: { view: false, create: false, edit: false, delete: false, manage_roles: false },
+          audit: { view: false, export: false },
+          settings: { view: false, edit: false }
+        })
+      },
+      {
+        id: uuidv4(),
+        name: 'operator',
+        displayName: 'Оператор',
+        permissions: JSON.stringify([
+          'models.read',
+          'slots.read'
+        ]),
+        modules: JSON.stringify({
+          models: { view: true, create: false, edit: false, delete: false, export: false },
+          slots: { view: true, create: false, edit: false, delete: false, manage: false },
+          shifts: { view: true, create: false, edit: false, delete: false, manage: false },
+          analytics: { view: false, edit: false, export: false },
+          users: { view: false, create: false, edit: false, delete: false, manage_roles: false },
+          audit: { view: false, export: false },
+          settings: { view: false, edit: false }
+        })
+      },
+      {
+        id: uuidv4(),
+        name: 'inactive',
+        displayName: 'Неактивный',
+        permissions: JSON.stringify([]),
+        modules: JSON.stringify({
+          models: { view: false, create: false, edit: false, delete: false, export: false },
+          slots: { view: false, create: false, edit: false, delete: false, manage: false },
+          shifts: { view: false, create: false, edit: false, delete: false, manage: false },
+          analytics: { view: false, edit: false, export: false },
+          users: { view: false, create: false, edit: false, delete: false, manage_roles: false },
+          audit: { view: false, export: false },
+          settings: { view: false, edit: false }
+        })
+      }
+    ];
+
+    const insertRole = db.prepare(`
+      INSERT INTO roles (id, name, displayName, permissions, modules)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+  roles.forEach(role => {
+    insertRole.run(role.id, role.name, role.displayName, role.permissions, role.modules || '{}');
+  });
+
   // Initialize default admin user
   const existingUser = userDb.getByUsername('root');
   if (!existingUser) {
     const adminId = uuidv4();
     const hashedPassword = bcrypt.hashSync('admin123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, password, role) 
-      VALUES (?, ?, ?, ?)
-    `).run(adminId, 'root', hashedPassword, 'admin');
+      INSERT INTO users (id, username, password, role, fullName, status) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(adminId, 'root', hashedPassword, 'admin', 'Root Administrator', 'active');
+  } else if (existingUser.status === 'inactive') {
+    // Ensure root user is always active
+    db.prepare('UPDATE users SET status = ? WHERE username = ?').run('active', 'root');
   }
 
   // Initialize analytics settings
@@ -319,16 +543,198 @@ export const analyticsDb = {
 
 // User operations
 export const userDb = {
+  create(userData: {
+    username: string;
+    password: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    firstInternshipDate?: string;
+    avatar?: string;
+    role?: string;
+    status?: string;
+  }): User {
+    const id = uuidv4();
+    const hashedPassword = bcrypt.hashSync(userData.password, 10);
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+      INSERT INTO users (id, username, password, fullName, phone, email, firstInternshipDate, avatar, role, status, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, 
+      userData.username, 
+      hashedPassword, 
+      userData.fullName, 
+      userData.phone, 
+      userData.email || null,
+      userData.firstInternshipDate || null,
+      userData.avatar || null,
+      userData.role || 'inactive',
+      userData.status || 'inactive',
+      now
+    );
+    
+    return this.getById(id)!;
+  },
+
+  getAll(): User[] {
+    const rows = db.prepare('SELECT * FROM users ORDER BY createdAt DESC').all();
+    return rows.map((row: any) => ({
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : []
+    }));
+  },
+
+  getById(id: string): User | null {
+    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+    if (!row) return null;
+    return {
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : []
+    };
+  },
+
   getByUsername(username: string): User | null {
     const row = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
     if (!row) return null;
-    return row;
+    return {
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : []
+    };
+  },
+
+  update(id: string, updates: Partial<User>): User | null {
+    const user = this.getById(id);
+    if (!user) return null;
+    
+    const updatedUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
+    const permissions = updatedUser.permissions ? JSON.stringify(updatedUser.permissions) : null;
+    
+    db.prepare(`
+      UPDATE users SET username = ?, fullName = ?, phone = ?, email = ?, firstInternshipDate = ?, avatar = ?, role = ?, status = ?, permissions = ?, password = ?
+      WHERE id = ?
+    `).run(
+      updatedUser.username,
+      updatedUser.fullName,
+      updatedUser.phone,
+      updatedUser.email,
+      updatedUser.firstInternshipDate,
+      updatedUser.avatar,
+      updatedUser.role,
+      updatedUser.status,
+      permissions,
+      updatedUser.password || user.password,
+      id
+    );
+    
+    return this.getById(id);
+  },
+
+  updateRole(id: string, role: string): User | null {
+    const user = this.getById(id);
+    if (!user) return null;
+    
+    db.prepare('UPDATE users SET role = ? WHERE id = ?')
+      .run(role, id);
+    
+    return this.getById(id);
+  },
+
+  delete(id: string): boolean {
+    const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    return result.changes > 0;
   },
 
   verifyPassword(username: string, password: string): boolean {
     const user = this.getByUsername(username);
     if (!user || !user.password) return false;
     return bcrypt.compareSync(password, user.password);
+  }
+};
+
+// Role operations
+export const roleDb = {
+  getAll(): Role[] {
+    const rows = db.prepare('SELECT * FROM roles ORDER BY name').all();
+    return rows.map((row: any) => ({
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : [],
+      modules: row.modules ? JSON.parse(row.modules) : {}
+    }));
+  },
+
+  getById(id: string): Role | null {
+    const row = db.prepare('SELECT * FROM roles WHERE id = ?').get(id) as any;
+    if (!row) return null;
+    return {
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : [],
+      modules: row.modules ? JSON.parse(row.modules) : {}
+    };
+  },
+
+  getByName(name: string): Role | null {
+    const row = db.prepare('SELECT * FROM roles WHERE name = ?').get(name) as any;
+    if (!row) return null;
+    return {
+      ...row,
+      permissions: row.permissions ? JSON.parse(row.permissions) : [],
+      modules: row.modules ? JSON.parse(row.modules) : {}
+    };
+  },
+
+  create(roleData: {
+    name: string;
+    displayName: string;
+    permissions: string[];
+    modules?: Record<string, any>;
+  }): Role {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+      INSERT INTO roles (id, name, displayName, permissions, modules, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      roleData.name,
+      roleData.displayName,
+      JSON.stringify(roleData.permissions),
+      JSON.stringify(roleData.modules || {}),
+      now,
+      now
+    );
+    
+    return this.getById(id)!;
+  },
+
+  update(id: string, updates: Partial<Role>): Role | null {
+    const role = this.getById(id);
+    if (!role) return null;
+    
+    const updatedRole = { ...role, ...updates, updatedAt: new Date().toISOString() };
+    const permissions = JSON.stringify(updatedRole.permissions);
+    const modules = JSON.stringify(updatedRole.modules);
+    
+    db.prepare(`
+      UPDATE roles SET name = ?, displayName = ?, permissions = ?, modules = ?, updatedAt = ?
+      WHERE id = ?
+    `).run(
+      updatedRole.name,
+      updatedRole.displayName,
+      permissions,
+      modules,
+      updatedRole.updatedAt,
+      id
+    );
+    
+    return this.getById(id);
+  },
+
+  delete(id: string): boolean {
+    const result = db.prepare('DELETE FROM roles WHERE id = ?').run(id);
+    return result.changes > 0;
   }
 };
 
@@ -373,6 +779,78 @@ export const auditDb = {
       ...row,
       details: row.details ? JSON.parse(row.details) : null
     }));
+  }
+};
+
+// Shifts database operations
+export const shiftDb = {
+  create(shift: Omit<Shift, 'id' | 'createdAt' | 'updatedAt'>): Shift {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    const accounts = shift.accounts ? JSON.stringify(shift.accounts) : '[]';
+    const sites = shift.sites ? JSON.stringify(shift.sites) : '[]';
+    const screenshots = shift.screenshots ? JSON.stringify(shift.screenshots) : '[]';
+    
+    db.prepare(`
+      INSERT INTO shifts (id, model, modelId, responsible, executor, date, time, start, end, status, totalEarnings, address, room, type, accounts, sites, screenshots, comment, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, shift.model, shift.modelId, shift.responsible, shift.executor, 
+      shift.date, shift.time, shift.start, shift.end, shift.status, 
+      shift.totalEarnings || 0, shift.address, shift.room, shift.type, 
+      accounts, sites, screenshots, shift.comment, now, now
+    );
+    
+    return this.getById(id)!;
+  },
+
+  getAll(): Shift[] {
+    const rows = db.prepare('SELECT * FROM shifts ORDER BY createdAt DESC').all();
+    return rows.map((row: any) => ({
+      ...row,
+      accounts: row.accounts ? JSON.parse(row.accounts) : [],
+      sites: row.sites ? JSON.parse(row.sites) : [],
+      screenshots: row.screenshots ? JSON.parse(row.screenshots) : []
+    }));
+  },
+
+  getById(id: string): Shift | null {
+    const row = db.prepare('SELECT * FROM shifts WHERE id = ?').get(id);
+    if (!row) return null;
+    
+    return {
+      ...(row as any),
+      accounts: (row as any).accounts ? JSON.parse((row as any).accounts) : [],
+      sites: (row as any).sites ? JSON.parse((row as any).sites) : [],
+      screenshots: (row as any).screenshots ? JSON.parse((row as any).screenshots) : []
+    };
+  },
+
+  update(id: string, updates: Partial<Shift>): Shift | null {
+    const shift = this.getById(id);
+    if (!shift) return null;
+    
+    const updatedShift = { ...shift, ...updates, updatedAt: new Date().toISOString() };
+    const accounts = updatedShift.accounts ? JSON.stringify(updatedShift.accounts) : '[]';
+    const sites = updatedShift.sites ? JSON.stringify(updatedShift.sites) : '[]';
+    const screenshots = updatedShift.screenshots ? JSON.stringify(updatedShift.screenshots) : '[]';
+    
+    db.prepare(`
+      UPDATE shifts SET model = ?, modelId = ?, responsible = ?, executor = ?, date = ?, time = ?, start = ?, end = ?, status = ?, totalEarnings = ?, address = ?, room = ?, type = ?, accounts = ?, sites = ?, screenshots = ?, comment = ?, updatedAt = ?
+      WHERE id = ?
+    `).run(
+      updatedShift.model, updatedShift.modelId, updatedShift.responsible, updatedShift.executor,
+      updatedShift.date, updatedShift.time, updatedShift.start, updatedShift.end, updatedShift.status,
+      updatedShift.totalEarnings, updatedShift.address, updatedShift.room, updatedShift.type,
+      accounts, sites, screenshots, updatedShift.comment, updatedShift.updatedAt, id
+    );
+    
+    return this.getById(id);
+  },
+
+  delete(id: string): boolean {
+    const result = db.prepare('DELETE FROM shifts WHERE id = ?').run(id);
+    return result.changes > 0;
   }
 };
 

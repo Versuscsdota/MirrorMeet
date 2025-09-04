@@ -3,6 +3,10 @@ import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus, AuditLog
 import { auditAPI, modelsAPI } from '../services/api';
 import StatusSelector from './StatusSelector';
 import AccountsModal from './AccountsModal';
+import ShiftHistory from './ShiftHistory';
+import { usePermissions } from '../hooks/usePermissions';
+
+const UPLOADS_PATH_PREFIX = '/uploads/';
 
 interface ModelProfileProps {
   model: Model;
@@ -12,96 +16,143 @@ interface ModelProfileProps {
   onModelUpdate?: (updatedModel: Model) => void;
 }
 
-export default function ModelProfile({ model, onClose, onEdit, onDelete, onModelUpdate }: ModelProfileProps) {
-  const [data, setData] = useState<Model>(model);
-  const [selectedStatuses, setSelectedStatuses] = useState<ModelStatus[]>([data.status]);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
-  const [commentText, setCommentText] = useState<string>('');
+interface ModelProfileState {
+  modelData: Model;
+  selectedStatuses: ModelStatus[];
+  auditLogs: AuditLog[];
+  isAccountsModalOpen: boolean;
+  commentText: string;
+}
 
-  const toUrl = (p: string) => p.startsWith('/uploads/') ? p : `/uploads/${p}`;
-  const avatar = (data.files && data.files[0]) ? toUrl(data.files[0]) : undefined;
+export default function ModelProfile({ model, onClose, onEdit, onDelete, onModelUpdate }: ModelProfileProps) {
+  const { hasPermission } = usePermissions();
+  const [profileState, setProfileState] = useState<ModelProfileState>({
+    modelData: model,
+    selectedStatuses: [model.status],
+    auditLogs: [],
+    isAccountsModalOpen: false,
+    commentText: ''
+  });
+
+  const buildFileUrl = (filePath: string): string => {
+    return filePath.startsWith(UPLOADS_PATH_PREFIX) ? filePath : `${UPLOADS_PATH_PREFIX}${filePath}`;
+  };
+
+  const getAvatarUrl = (): string | undefined => {
+    const firstFile = profileState.modelData.files?.[0];
+    return firstFile ? buildFileUrl(firstFile) : undefined;
+  };
 
   useEffect(() => {
-    setData(model);
+    setProfileState(prev => ({ ...prev, modelData: model }));
   }, [model]);
 
-  useEffect(() => {
-    // load audit logs and filter by this model - only status changes
-    auditAPI.getAll().then(({ items }) => {
-      const filtered = items.filter((l) => 
-        l.entityType === 'model' && 
-        l.entityId === data.id && 
-        (l.action.includes('status') || l.action.includes('Статус') || l.action.includes('изменен'))
-      ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setLogs(filtered);
-    }).catch(() => {});
-  }, [data.id]);
+  const loadModelAuditLogs = async (modelId: string): Promise<void> => {
+    // Check if user has permission to view audit logs
+    if (!hasPermission('audit', 'view')) {
+      console.log('No permission to view audit logs');
+      return;
+    }
 
-  const addComment = async () => {
-    if (!commentText.trim()) return;
-    const newComment: Comment = { text: commentText.trim(), timestamp: new Date().toISOString() };
-    const next = { comments: [...(data.comments || []), newComment] };
-    const updated = await modelsAPI.update(data.id, next);
-    setData(updated);
-    setCommentText('');
-  };
-
-  const setMainFile = async (file: string) => {
-    const files = (data.files || []);
-    const reordered = [file, ...files.filter(f => f !== file)];
-    const updated = await modelsAPI.update(data.id, { files: reordered });
-    setData(updated);
-  };
-
-  const deleteFile = async (file: string) => {
-    const files = (data.files || []).filter(f => f !== file);
-    const updated = await modelsAPI.update(data.id, { files });
-    setData(updated);
-  };
-
-  const handleStatusChange = async (newStatus: ModelStatus) => {
     try {
-      const updated = await modelsAPI.update(data.id, { status: newStatus });
-      setData(updated);
-      if (onModelUpdate) onModelUpdate(updated);
-      try {
-        const { items } = await auditAPI.getAll();
-        const filtered = items.filter(l => l.entityType === 'model' && l.entityId === data.id && l.action.includes('status'));
-        setLogs(filtered);
-      } catch (auditError) {
-        console.warn('Failed to load audit logs:', auditError);
-      }
+      const { items } = await auditAPI.getAll();
+      const statusChangeFilters = ['status', 'Статус', 'изменен'];
+      
+      const filteredLogs = items
+        .filter(log => 
+          log.entityType === 'model' && 
+          log.entityId === modelId && 
+          statusChangeFilters.some(filter => log.action.includes(filter))
+        )
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      setProfileState(prev => ({ ...prev, auditLogs: filteredLogs }));
     } catch (error) {
-      console.error('Failed to update status:', error);
+      console.warn('Failed to load audit logs:', error);
     }
   };
 
-  const handleAccountsSave = async (accounts: Account[]) => {
+  useEffect(() => {
+    loadModelAuditLogs(profileState.modelData.id);
+  }, [profileState.modelData.id]);
+
+  const addCommentToModel = async (): Promise<void> => {
+    const trimmedComment = profileState.commentText.trim();
+    if (!trimmedComment) return;
+    
+    const newComment: Comment = { 
+      text: trimmedComment, 
+      timestamp: new Date().toISOString() 
+    };
+    
+    const updatedComments = [...(profileState.modelData.comments || []), newComment];
+    const updatedModel = await modelsAPI.update(profileState.modelData.id, { comments: updatedComments });
+    
+    setProfileState(prev => ({
+      ...prev,
+      modelData: updatedModel,
+      commentText: ''
+    }));
+  };
+
+  const setFileAsMain = async (targetFile: string): Promise<void> => {
+    const currentFiles = profileState.modelData.files || [];
+    const reorderedFiles = [targetFile, ...currentFiles.filter(file => file !== targetFile)];
+    
+    const updatedModel = await modelsAPI.update(profileState.modelData.id, { files: reorderedFiles });
+    setProfileState(prev => ({ ...prev, modelData: updatedModel }));
+  };
+
+  const removeFileFromModel = async (targetFile: string): Promise<void> => {
+    const filteredFiles = (profileState.modelData.files || []).filter(file => file !== targetFile);
+    const updatedModel = await modelsAPI.update(profileState.modelData.id, { files: filteredFiles });
+    setProfileState(prev => ({ ...prev, modelData: updatedModel }));
+  };
+
+  const updateModelStatus = async (newStatus: ModelStatus): Promise<void> => {
     try {
-      // Auto-change status to ACCOUNT_REGISTERED if accounts are added
-      const shouldChangeStatus = accounts.length > 0 && data.status !== ModelStatus.ACCOUNT_REGISTERED;
+      const updatedModel = await modelsAPI.update(profileState.modelData.id, { status: newStatus });
+      
+      setProfileState(prev => ({ ...prev, modelData: updatedModel }));
+      onModelUpdate?.(updatedModel);
+      
+      await loadModelAuditLogs(profileState.modelData.id);
+    } catch (error) {
+      console.error('Failed to update model status:', error);
+    }
+  };
+
+  const saveModelAccounts = async (accounts: Account[]): Promise<void> => {
+    try {
+      const shouldAutoChangeStatus = accounts.length > 0 && profileState.modelData.status !== ModelStatus.ACCOUNT_REGISTERED;
       const updateData: Partial<Model> = { accounts };
       
-      if (shouldChangeStatus) {
+      if (shouldAutoChangeStatus) {
         updateData.status = ModelStatus.ACCOUNT_REGISTERED;
-        setSelectedStatuses([ModelStatus.ACCOUNT_REGISTERED]);
       }
       
-      const updated = await modelsAPI.update(data.id, updateData);
-      setData(updated);
-      if (onModelUpdate) onModelUpdate(updated);
+      const updatedModel = await modelsAPI.update(profileState.modelData.id, updateData);
+      
+      setProfileState(prev => ({
+        ...prev,
+        modelData: updatedModel,
+        selectedStatuses: shouldAutoChangeStatus ? [ModelStatus.ACCOUNT_REGISTERED] : prev.selectedStatuses
+      }));
+      
+      onModelUpdate?.(updatedModel);
     } catch (error) {
-      console.error('Failed to update accounts:', error);
+      console.error('Failed to update model accounts:', error);
     }
   };
 
-  const handleUploadInline = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const updated = await modelsAPI.uploadFiles(data.id, files);
-    setData(updated);
-    e.target.value = '';
+  const uploadFilesToModel = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
+    
+    const updatedModel = await modelsAPI.uploadFiles(profileState.modelData.id, selectedFiles);
+    setProfileState(prev => ({ ...prev, modelData: updatedModel }));
+    
+    event.target.value = '';
   };
 
   return (
@@ -114,21 +165,29 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
 
         <div className="profile-header">
           <div className="avatar">
-            {avatar ? <img src={avatar} alt={data.name} /> : <div className="avatar-fallback">{data.name?.slice(0,1) || 'M'}</div>}
+            {getAvatarUrl() ? (
+              <img src={getAvatarUrl()} alt={profileState.modelData.name} />
+            ) : (
+              <div className="avatar-fallback">
+                {profileState.modelData.name?.slice(0,1) || 'M'}
+              </div>
+            )}
           </div>
           <div className="names">
-            <div className="full">{data.fullName || data.name}</div>
-            {data.name && data.fullName && <div className="short">{data.name}</div>}
+            <div className="full">{profileState.modelData.fullName || profileState.modelData.name}</div>
+            {profileState.modelData.name && profileState.modelData.fullName && (
+              <div className="short">{profileState.modelData.name}</div>
+            )}
           </div>
           <div className="status-section">
             <StatusSelector 
-              selectedStatuses={selectedStatuses}
+              selectedStatuses={profileState.selectedStatuses}
               onMultiStatusChange={(statuses) => {
-                setSelectedStatuses(statuses);
-                // Для ModelProfile берем последний выбранный статус для сохранения
-                const newStatus = statuses[statuses.length - 1];
-                if (newStatus && newStatus !== data.status) {
-                  handleStatusChange(newStatus);
+                setProfileState(prev => ({ ...prev, selectedStatuses: statuses }));
+                
+                const latestStatus = statuses[statuses.length - 1];
+                if (latestStatus && latestStatus !== profileState.modelData.status) {
+                  updateModelStatus(latestStatus);
                 }
               }}
               className="profile-status-selector"
@@ -139,26 +198,29 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
         <div className="profile-columns">
           <div className="column">
             <Section title="Личная информация">
-              <InfoRow label="Телеграмм" value={data.telegram ? `@${data.telegram}` : '—'} />
-              <InfoRow label="ФИО" value={data.fullName || data.name || '—'} />
-              <InfoRow label="Телефон" value={data.phone || '—'} />
-              <InfoRow label="Дата рождения" value={data.birthDate || '—'} />
-              <InfoRow label="Дата первой стажировки" value={data.firstTrialDate || '—'} />
+              <InfoRow label="Телеграмм" value={profileState.modelData.telegram ? `@${profileState.modelData.telegram}` : '—'} />
+              <InfoRow label="ФИО" value={profileState.modelData.fullName || profileState.modelData.name || '—'} />
+              <InfoRow label="Телефон" value={profileState.modelData.phone || '—'} />
+              <InfoRow label="Дата рождения" value={profileState.modelData.birthDate || '—'} />
+              <InfoRow label="Дата первой стажировки" value={profileState.modelData.firstTrialDate || '—'} />
             </Section>
 
             <Section title="Документы">
-              <InfoRow label="Тип документа" value={data.documentType ? DocumentTypeLabels[data.documentType] : DocumentTypeLabels[DocumentType.NOT_SPECIFIED]} />
-              <InfoRow label="Серия и номер / Номер" value={data.documentNumber || '—'} />
+              <InfoRow 
+                label="Тип документа" 
+                value={profileState.modelData.documentType ? DocumentTypeLabels[profileState.modelData.documentType] : DocumentTypeLabels[DocumentType.NOT_SPECIFIED]} 
+              />
+              <InfoRow label="Серия и номер / Номер" value={profileState.modelData.documentNumber || '—'} />
             </Section>
 
             <Section title="Аккаунты">
               <button 
                 className="btn btn-secondary"
-                onClick={() => setIsAccountsModalOpen(true)}
+                onClick={() => setProfileState(prev => ({ ...prev, isAccountsModalOpen: true }))}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <span>⚙️</span>
-                Управление аккаунтами ({(data.accounts || []).length})
+                Управление аккаунтами ({(profileState.modelData.accounts || []).length})
               </button>
             </Section>
           </div>
@@ -166,25 +228,25 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
           <div className="column">
             <Section title="Файлы" action={<label className="btn btn-primary" style={{marginLeft: 'auto'}}>
               Загрузить
-              <input type="file" multiple hidden onChange={handleUploadInline} />
+              <input type="file" multiple hidden onChange={uploadFilesToModel} />
             </label>}>
               <div className="files-list">
-                {(data.files || []).length === 0 ? (
+                {(profileState.modelData.files || []).length === 0 ? (
                   <div className="muted">Файлов нет</div>
                 ) : (
-                  (data.files || []).map((f) => (
-                    <div className="file-row" key={f}>
+                  (profileState.modelData.files || []).map((file) => (
+                    <div className="file-row" key={file}>
                       <div className="preview">
-                        <img src={toUrl(f)} alt="file" />
+                        <img src={buildFileUrl(file)} alt="file" />
                       </div>
                       <div className="meta">
                         <div className="name">
-                          {f.split('/').pop()}
+                          {file.split('/').pop()}
                         </div>
                         <div className="controls">
-                          <button className="btn btn-secondary btn-sm" onClick={() => setMainFile(f)}>Сделать главной</button>
-                          <a className="btn btn-secondary btn-sm" href={toUrl(f)} target="_blank" rel="noreferrer">Скачать</a>
-                          <button className="btn btn-danger btn-sm" onClick={() => deleteFile(f)}>Удалить</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setFileAsMain(file)}>Сделать главной</button>
+                          <a className="btn btn-secondary btn-sm" href={buildFileUrl(file)} target="_blank" rel="noreferrer">Скачать</a>
+                          <button className="btn btn-danger btn-sm" onClick={() => removeFileFromModel(file)}>Удалить</button>
                         </div>
                       </div>
                     </div>
@@ -196,13 +258,13 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
             <Section title="Комментарии">
               <div className="comments">
                 <div className="comments-list">
-                  {(data.comments || []).length === 0 ? (
+                  {(profileState.modelData.comments || []).length === 0 ? (
                     <div className="muted">Комментариев нет</div>
                   ) : (
-                    (data.comments || []).slice().reverse().map((c, idx) => (
-                      <div key={idx} className="comment">
-                        <div className="time">{new Date(c.timestamp).toLocaleString()}</div>
-                        <div className="text">{c.text}</div>
+                    (profileState.modelData.comments || []).slice().reverse().map((comment, index) => (
+                      <div key={index} className="comment">
+                        <div className="time">{new Date(comment.timestamp).toLocaleString()}</div>
+                        <div className="text">{comment.text}</div>
                       </div>
                     ))
                   )}
@@ -211,31 +273,40 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
                   <input
                     type="text"
                     placeholder="Добавить комментарий..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') addComment(); }}
+                    value={profileState.commentText}
+                    onChange={(e) => setProfileState(prev => ({ ...prev, commentText: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addCommentToModel(); }}
                   />
-                  <button className="btn btn-primary" onClick={addComment}>▶</button>
+                  <button className="btn btn-primary" onClick={addCommentToModel}>▶</button>
                 </div>
               </div>
+            </Section>
+
+            <Section title="История смен">
+              <ShiftHistory 
+                modelId={profileState.modelData.id} 
+                title="Смены модели"
+              />
             </Section>
           </div>
         </div>
 
-        <Section title="История статусов">
-          <div className="status-log">
-            {logs.length === 0 ? (
-              <div className="muted">Нет событий</div>
-            ) : (
-              logs.map((l) => (
-                <div key={l.id} className="log-row">
-                  <div className="log-time">{new Date(l.timestamp).toLocaleString()}</div>
-                  <div className="log-text">{l.action}</div>
-                </div>
-              ))
-            )}
-          </div>
-        </Section>
+        {hasPermission('audit', 'view') && (
+          <Section title="История статусов">
+            <div className="status-log">
+              {profileState.auditLogs.length === 0 ? (
+                <div className="muted">Нет событий</div>
+              ) : (
+                profileState.auditLogs.map((log) => (
+                  <div key={log.id} className="log-row">
+                    <div className="log-time">{new Date(log.timestamp).toLocaleString()}</div>
+                    <div className="log-text">{log.action}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Section>
+        )}
 
         <div className="modal-footer actions">
           {onDelete && <button className="btn btn-danger" onClick={onDelete}>Удалить</button>}
@@ -245,10 +316,10 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
         </div>
 
         <AccountsModal
-          accounts={data.accounts || []}
-          isOpen={isAccountsModalOpen}
-          onClose={() => setIsAccountsModalOpen(false)}
-          onSave={handleAccountsSave}
+          accounts={profileState.modelData.accounts || []}
+          isOpen={profileState.isAccountsModalOpen}
+          onClose={() => setProfileState(prev => ({ ...prev, isAccountsModalOpen: false }))}
+          onSave={saveModelAccounts}
         />
       </div>
 

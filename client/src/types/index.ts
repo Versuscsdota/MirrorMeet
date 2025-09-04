@@ -8,7 +8,12 @@ export enum ModelStatus {
   ACCOUNT_REGISTERED = 'account_registered',
   CANDIDATE_REFUSED = 'candidate_refused',
   OUR_REFUSAL = 'our_refusal',
-  THINKING = 'thinking'
+  THINKING = 'thinking',
+  TRAINING = 'training',
+  CLOSED_TO_TEAM = 'closed_to_team',
+  READY_TO_WORK = 'ready_to_work',
+  MODEL = 'model',
+  INACTIVE = 'inactive'
 }
 
 export interface Comment {
@@ -33,7 +38,12 @@ export const StatusLabels: Record<ModelStatus, string> = {
   [ModelStatus.ACCOUNT_REGISTERED]: 'Зарегистрирована',
   [ModelStatus.CANDIDATE_REFUSED]: 'Отказ со стороны кандидата',
   [ModelStatus.OUR_REFUSAL]: 'Отказ с нашей стороны',
-  [ModelStatus.THINKING]: 'Ушла на подумать'
+  [ModelStatus.THINKING]: 'Ушла на подумать',
+  [ModelStatus.TRAINING]: 'Стажировка',
+  [ModelStatus.CLOSED_TO_TEAM]: 'Закрыта к команде',
+  [ModelStatus.READY_TO_WORK]: 'Готова к работе',
+  [ModelStatus.MODEL]: 'Модель',
+  [ModelStatus.INACTIVE]: 'Неактивна'
 };
 
 export interface Model {
@@ -88,16 +98,83 @@ export interface Slot {
   updatedAt: string;
 }
 
+export interface Role {
+  id: string;
+  name: string;
+  displayName: string;
+  permissions: string[];
+  modules: Record<string, any>;
+}
+
 export interface User {
   id: string;
   username: string;
-  role: 'root';
+  role: string | Role;
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  status?: string;
+  firstInternshipDate?: string;
+  avatar?: string;
+}
+
+export interface Shift {
+  id: string;
+  model: string;
+  modelName: string;
+  modelId?: string;
+  producer: string;
+  executor?: string;
+  date: string;
+  time: string;
+  start: string;
+  end: string;
+  startDateTime: string;
+  endDateTime: string;
+  status: 'inactive' | 'pending' | 'active' | 'completed' | 'upcoming';
+  totalEarnings?: number;
+  address: string;
+  room: string;
+  type: 'regular' | 'training';
+  accounts: Array<{
+    platform: string;
+    login: string;
+    password: string;
+  }>;
+  sites: Array<{
+    name: string;
+    login: string;
+    password: string;
+    earnings: number;
+  }>;
+  screenshots: string[];
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShiftHistory {
+  id: string;
+  shiftId: string;
+  modelId?: string;
+  employeeId?: string;
+  shiftType: 'regular' | 'training';
+  date: string;
+  duration: number; // в минутах
+  earnings?: number;
+  status: 'completed' | 'cancelled';
+  producer: string;
+  executor?: string;
+  address: string;
+  room: string;
+  comment?: string;
+  createdAt: string;
 }
 
 export interface AuditLog {
   id: string;
   action: string;
-  entityType: 'model' | 'slot' | 'user';
+  entityType: 'model' | 'slot' | 'user' | 'shift';
   entityId: string;
   userId: string;
   details: any;
