@@ -394,8 +394,8 @@ label{
   backdrop-filter:var(--blur);
   border:1px solid var(--border);
   border-radius:16px;
-  max-width:800px;
-  max-height:85vh;
+  max-width:1100px;
+  max-height:90vh;
   width:90%;
   padding:24px;
   box-shadow:var(--shadow-xl);
@@ -1385,9 +1385,35 @@ main{padding:16px}
 }
 
 .model-list {
-  display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.current-datetime {
+  text-align: right;
+}
+
+.current-time {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.current-date {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .model-item {
@@ -1987,14 +2013,10 @@ main{padding:16px}
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: var(--panel);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-family: var(--font-family);
-  font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -2002,6 +2024,42 @@ main{padding:16px}
 .status-button:hover {
   background: var(--panel-light);
   border-color: var(--accent-weak);
+}
+
+/* Icon-only variant for status trigger */
+.status-button.icon-only {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--panel-light);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  color: var(--text); /* ensure inline SVG uses visible color */
+}
+.status-button.icon-only svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor; /* force icon to inherit color */
+}
+
+.status-button.icon-only .material-symbols-rounded {
+  font-size: 20px;
+  color: var(--text);
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+  line-height: 1;
+}
+
+.status-button.icon-only:hover {
+  background: var(--panel);
+  border-color: var(--accent-weak);
+  color: var(--accent);
+}
+
+.status-button.icon-only:hover .material-symbols-rounded {
+  color: var(--accent);
 }
 
 .status-indicator {
@@ -2020,24 +2078,29 @@ main{padding:16px}
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
-  min-width: 220px;
+  min-width: 260px;
+  padding: 6px;
+  max-height: 420px;
+  overflow: auto;
   z-index: 1000;
   display: none;
 }
 
-.status-dropdown:hover .status-dropdown-content,
 .status-dropdown-content.open {
   display: block;
 }
 
 .status-option {
-  display: flex;
+  display: grid;
+  grid-template-columns: 16px 1fr 16px;
+  column-gap: 10px;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  padding: 8px 10px;
   color: var(--text);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.3;
+  border-radius: 8px;
   transition: background-color 0.2s ease;
 }
 
@@ -2053,6 +2116,70 @@ main{padding:16px}
   border-radius: 0 0 12px 12px;
 }
 
+/* Nicer checkbox inside status options */
+.status-option input[type="checkbox"]{
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--panel-light);
+  display: inline-block;
+  position: relative;
+  grid-column: 3;
+  justify-self: end;
+  margin: 0;
+}
+.status-option input[type="checkbox"]:hover{
+  border-color: var(--accent);
+}
+.status-option input[type="checkbox"]:checked{
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.status-option input[type="checkbox"]:checked::after{
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Ensure the colored dot stays on the left column */
+.status-option .status-indicator {
+  grid-column: 1;
+  display: block;
+}
+
+/* Middle column label */
+.status-option .status-label {
+  grid-column: 2;
+  align-self: center;
+  white-space: normal;
+}
+
+/* Keyboard focus accessibility */
+.status-option:focus-within {
+  outline: 2px solid var(--accent-weak);
+  outline-offset: 2px;
+}
+
+/* Chips row for selected statuses in slot modal */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 0; }
+.chip {
+  padding: 4px 8px;
+  border-radius: 9999px;
+  background: var(--panel-light);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+}
+
 .line-through {
   text-decoration: line-through;
 }
@@ -2063,17 +2190,35 @@ main{padding:16px}
   border-radius: 50%;
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--text); /* stronger default for light theme */
+  opacity: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
 }
+.icon-button svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor; /* force icon to inherit color */
+}
+.icon-button svg path { fill: currentColor !important; }
 
 .icon-button:hover {
   background: var(--panel-light);
   color: var(--accent);
+}
+
+/* Ensure strong contrast in light theme */
+[data-theme="light"] .status-button.icon-only,
+[data-theme="light"] .icon-button {
+  color: var(--text) !important;
+}
+[data-theme="light"] .status-button.icon-only:hover,
+[data-theme="light"] .icon-button:hover {
+  color: var(--accent) !important;
 }
 
 .profile-main {
@@ -2168,6 +2313,32 @@ main{padding:16px}
 .status-history-time {
   font-size: 12px;
   color: var(--muted);
+}
+
+.status-history-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.history-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.status-history-empty {
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
 }
 
 .comments-list {
@@ -2387,6 +2558,45 @@ main{padding:16px}
   --status-green-dark: #006400;
   --status-black: #000000;
   --status-gray: #696969;
+}
+
+/* Profile Status Chips */
+.profile-status-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.profile-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+/* Light theme status chip colors with good contrast */
+:root .profile-status-chip {
+  color: #1c1c1e;
+  text-shadow: none;
+}
+
+/* Dark theme status chip colors */
+[data-theme="dark"] .profile-status-chip {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.profile-status-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 /* Responsive Design for Models */

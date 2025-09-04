@@ -1,22 +1,19 @@
 {
   "name": "mirrorcrm",
   "version": "1.0.0",
-  "description": "MirrorCRM - Node.js VPS server",
-  "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
-    "e2e": "playwright test -c e2e/playwright.config.js",
-    "e2e:headed": "playwright test -c e2e/playwright.config.js --headed",
-    "e2e:smoke": "node e2e/api.smoke.mjs"
-  },
-  "dependencies": {
-    "better-sqlite3": "^9.6.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1"
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm run dev",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
   },
   "devDependencies": {
-    "@playwright/test": "^1.47.0"
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
   }
 }

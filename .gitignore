@@ -1,5 +1,1 @@
-# Ignore e2e tests and outputs
-/e2e/
-/test-results/
-/playwright-report/
-/.playwright-cache/
+node_modules
