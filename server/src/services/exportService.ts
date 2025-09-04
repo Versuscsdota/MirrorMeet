@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import * as ExcelJS from 'exceljs';
+=======
+import * as XLSX from 'xlsx';
+>>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
 import { modelDb, slotDb } from '../db/database';
 import { Model, Slot, ModelStatus } from '../types';
 
@@ -56,7 +60,11 @@ export class ExportService {
       'Последнее обновление': new Date(model.updatedAt).toLocaleDateString('ru-RU')
     }));
     
+<<<<<<< HEAD
     return await this.generateFile(exportData, 'Модели', format);
+=======
+    return this.generateFile(exportData, 'Модели', format);
+>>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
   }
   
   // Export slots schedule
@@ -92,7 +100,11 @@ export class ExportService {
       };
     });
     
+<<<<<<< HEAD
     return await this.generateFile(exportData, 'Расписание_слотов', format);
+=======
+    return this.generateFile(exportData, 'Расписание_слотов', format);
+>>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
   }
   
   // Generate period report
@@ -126,7 +138,11 @@ export class ExportService {
       { 'Показатель': 'Средняя загрузка в день', 'Значение': stats.avgSlotsPerDay }
     ];
     
+<<<<<<< HEAD
     return await this.generateFile(reportData, `Отчет_${dateFrom}_${dateTo}`, format);
+=======
+    return this.generateFile(reportData, `Отчет_${dateFrom}_${dateTo}`, format);
+>>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
   }
   
   private static calculatePeriodStats(models: Model[], slots: Slot[]) {
@@ -146,6 +162,7 @@ export class ExportService {
     };
   }
   
+<<<<<<< HEAD
   private static async generateFile(data: any[], sheetName: string, format: 'xlsx' | 'csv'): Promise<Buffer> {
     if (format === 'csv') {
       // Generate CSV manually
@@ -188,6 +205,17 @@ export class ExportService {
       }
       
       return await workbook.xlsx.writeBuffer() as Buffer;
+=======
+  private static generateFile(data: any[], sheetName: string, format: 'xlsx' | 'csv'): Buffer {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    
+    if (format === 'csv') {
+      return Buffer.from(XLSX.utils.sheet_to_csv(worksheet), 'utf-8');
+    } else {
+      return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+>>>>>>> 6dde83de0d7109cfc74c29e6952932b50ab6c4ac
     }
   }
   
