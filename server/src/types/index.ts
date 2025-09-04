@@ -5,6 +5,7 @@ export enum ModelStatus {
   CONFIRMED = 'confirmed',                // подтвердилась
   DRAINED = 'drained',                    // слив
   REGISTERED = 'registered',              // регистрация
+  ACCOUNT_REGISTERED = 'account_registered', // зарегистрирована
   CANDIDATE_REFUSED = 'candidate_refused', // отказ со стороны кандидата
   OUR_REFUSAL = 'our_refusal',           // отказ с нашей стороны
   THINKING = 'thinking'                   // ушла на подумать
@@ -19,6 +20,13 @@ export enum DocumentType {
 export interface Comment {
   text: string;
   timestamp: string;
+}
+
+export interface Account {
+  id: string;
+  site: string;
+  login: string;
+  password: string;
 }
 
 export interface Model {
@@ -39,6 +47,7 @@ export interface Model {
   slotId?: string;  // связь со слотом
   files?: string[]; // массив путей к файлам
   comments?: Comment[];
+  accounts?: Account[]; // массив вебкам аккаунтов
   createdAt: string;
   updatedAt: string;
 }

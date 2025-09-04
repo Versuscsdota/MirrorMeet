@@ -8,6 +8,7 @@ import modelsRouter from './routes/models';
 import slotsRouter from './routes/slots';
 import exportRouter from './routes/export';
 import analyticsRouter from './routes/analytics';
+import auditRouter from './routes/audit';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +38,7 @@ app.use('/api/models', modelsRouter);
 app.use('/api/slots', slotsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/audit', auditRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -197,6 +197,7 @@ export class ExportService {
       [ModelStatus.CONFIRMED]: 'Подтверждена',
       [ModelStatus.DRAINED]: 'Слита',
       [ModelStatus.CANDIDATE_REFUSED]: 'Отказ кандидата',
+      [ModelStatus.ACCOUNT_REGISTERED]: 'Зарегистрирована',
       [ModelStatus.OUR_REFUSAL]: 'Наш отказ',
       [ModelStatus.THINKING]: 'Думает',
       [ModelStatus.REGISTERED]: 'Зарегистрирована',

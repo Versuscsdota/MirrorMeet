@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus } from '../types';
+import { useState, useEffect } from 'react';
+import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus, AuditLog, Account } from '../types';
 import { auditAPI, modelsAPI } from '../services/api';
-import FilePreview from './FilePreview';
 import StatusSelector from './StatusSelector';
+import AccountsModal from './AccountsModal';
 
 interface ModelProfileProps {
   model: Model;
@@ -14,9 +14,10 @@ interface ModelProfileProps {
 
 export default function ModelProfile({ model, onClose, onEdit, onDelete, onModelUpdate }: ModelProfileProps) {
   const [data, setData] = useState<Model>(model);
+  const [selectedStatuses, setSelectedStatuses] = useState<ModelStatus[]>([data.status]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
   const [commentText, setCommentText] = useState<string>('');
-  const [logs, setLogs] = useState<any[]>([]);
-  const [previewFile, setPreviewFile] = useState<{ path: string; name: string } | null>(null);
 
   const toUrl = (p: string) => p.startsWith('/uploads/') ? p : `/uploads/${p}`;
   const avatar = (data.files && data.files[0]) ? toUrl(data.files[0]) : undefined;
@@ -63,20 +64,35 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
     try {
       const updated = await modelsAPI.update(data.id, { status: newStatus });
       setData(updated);
-      // Уведомляем родительский компонент об обновлении
-      if (onModelUpdate) {
-        onModelUpdate(updated);
+      if (onModelUpdate) onModelUpdate(updated);
+      try {
+        const { items } = await auditAPI.getAll();
+        const filtered = items.filter(l => l.entityType === 'model' && l.entityId === data.id && l.action.includes('status'));
+        setLogs(filtered);
+      } catch (auditError) {
+        console.warn('Failed to load audit logs:', auditError);
       }
-      // Обновляем историю статусов после изменения
-      const { items } = await auditAPI.getAll();
-      const filtered = items.filter((l) => 
-        l.entityType === 'model' && 
-        l.entityId === data.id && 
-        l.action.includes('status')
-      );
-      setLogs(filtered);
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleAccountsSave = async (accounts: Account[]) => {
+    try {
+      // Auto-change status to ACCOUNT_REGISTERED if accounts are added
+      const shouldChangeStatus = accounts.length > 0 && data.status !== ModelStatus.ACCOUNT_REGISTERED;
+      const updateData: Partial<Model> = { accounts };
+      
+      if (shouldChangeStatus) {
+        updateData.status = ModelStatus.ACCOUNT_REGISTERED;
+        setSelectedStatuses([ModelStatus.ACCOUNT_REGISTERED]);
+      }
+      
+      const updated = await modelsAPI.update(data.id, updateData);
+      setData(updated);
+      if (onModelUpdate) onModelUpdate(updated);
+    } catch (error) {
+      console.error('Failed to update accounts:', error);
     }
   };
 
@@ -106,8 +122,15 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
           </div>
           <div className="status-section">
             <StatusSelector 
-              currentStatus={data.status}
-              onStatusChange={handleStatusChange}
+              selectedStatuses={selectedStatuses}
+              onMultiStatusChange={(statuses) => {
+                setSelectedStatuses(statuses);
+                // Для ModelProfile берем последний выбранный статус для сохранения
+                const newStatus = statuses[statuses.length - 1];
+                if (newStatus && newStatus !== data.status) {
+                  handleStatusChange(newStatus);
+                }
+              }}
               className="profile-status-selector"
             />
           </div>
@@ -127,6 +150,17 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
               <InfoRow label="Тип документа" value={data.documentType ? DocumentTypeLabels[data.documentType] : DocumentTypeLabels[DocumentType.NOT_SPECIFIED]} />
               <InfoRow label="Серия и номер / Номер" value={data.documentNumber || '—'} />
             </Section>
+
+            <Section title="Аккаунты">
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setIsAccountsModalOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span>⚙️</span>
+                Управление аккаунтами ({(data.accounts || []).length})
+              </button>
+            </Section>
           </div>
 
           <div className="column">
@@ -140,15 +174,14 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
                 ) : (
                   (data.files || []).map((f) => (
                     <div className="file-row" key={f}>
-                      <div className="preview" onClick={() => setPreviewFile({ path: f, name: f.split('/').pop() || f })}>
+                      <div className="preview">
                         <img src={toUrl(f)} alt="file" />
                       </div>
                       <div className="meta">
-                        <div className="name" onClick={() => setPreviewFile({ path: f, name: f.split('/').pop() || f })}>
+                        <div className="name">
                           {f.split('/').pop()}
                         </div>
                         <div className="controls">
-                          <button className="btn btn-secondary btn-sm" onClick={() => setPreviewFile({ path: f, name: f.split('/').pop() || f })}>Просмотр</button>
                           <button className="btn btn-secondary btn-sm" onClick={() => setMainFile(f)}>Сделать главной</button>
                           <a className="btn btn-secondary btn-sm" href={toUrl(f)} target="_blank" rel="noreferrer">Скачать</a>
                           <button className="btn btn-danger btn-sm" onClick={() => deleteFile(f)}>Удалить</button>
@@ -210,16 +243,15 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
           <button className="btn btn-secondary" onClick={onEdit}>Изменить</button>
           <button className="btn btn-primary" onClick={onClose}>Готово</button>
         </div>
-      </div>
-      
-      {previewFile && (
-        <FilePreview
-          filePath={previewFile.path}
-          fileName={previewFile.name}
-          isOpen={!!previewFile}
-          onClose={() => setPreviewFile(null)}
+
+        <AccountsModal
+          accounts={data.accounts || []}
+          isOpen={isAccountsModalOpen}
+          onClose={() => setIsAccountsModalOpen(false)}
+          onSave={handleAccountsSave}
         />
-      )}
+      </div>
+
     </div>
   );
 }

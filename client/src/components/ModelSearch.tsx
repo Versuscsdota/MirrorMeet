@@ -5,11 +5,7 @@ import StatusSelector from './StatusSelector';
 export interface SearchFilters {
   searchQuery: string;
   status: ModelStatus | '';
-  selectedStatuses?: {
-    initial?: ModelStatus;
-    process?: ModelStatus;
-    final?: ModelStatus;
-  };
+  selectedStatuses?: ModelStatus[];
   dateFrom: string;
   dateTo: string;
   sortBy: 'name' | 'createdAt' | 'status';
@@ -34,7 +30,7 @@ export default function ModelSearch({ filters, onFiltersChange, onReset }: Model
     });
   };
 
-  const hasActiveFilters = filters.searchQuery || filters.status || filters.dateFrom || filters.dateTo || (filters.selectedStatuses && Object.keys(filters.selectedStatuses).length > 0);
+  const hasActiveFilters = filters.searchQuery || filters.status || filters.dateFrom || filters.dateTo || (filters.selectedStatuses && filters.selectedStatuses.length > 0);
 
   return (
     <div className="model-search">
@@ -72,8 +68,7 @@ export default function ModelSearch({ filters, onFiltersChange, onReset }: Model
             <div className="filter-group">
               <label>Статус</label>
               <StatusSelector
-                multiSelect={true}
-                selectedStatuses={filters.selectedStatuses || {}}
+                selectedStatuses={filters.selectedStatuses || []}
                 onMultiStatusChange={(statuses) => {
                   onFiltersChange({
                     ...filters,

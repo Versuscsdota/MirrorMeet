@@ -59,6 +59,7 @@ export function initDatabase() {
       slotId TEXT,
       files TEXT,
       comments TEXT,
+      accounts TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       FOREIGN KEY (slotId) REFERENCES slots(id) ON DELETE SET NULL
@@ -151,6 +152,10 @@ export function initDatabase() {
   try {
     db.exec(`ALTER TABLE models ADD COLUMN comments TEXT`);
   } catch (e) { /* Column already exists */ }
+  
+  try {
+    db.exec(`ALTER TABLE models ADD COLUMN accounts TEXT`);
+  } catch (e) { /* Column already exists */ }
 
   // Initialize default admin user
   const existingUser = userDb.getByUsername('root');
@@ -178,11 +183,12 @@ export const modelDb = {
     const tags = model.tags ? JSON.stringify(model.tags) : null;
     const files = model.files ? JSON.stringify(model.files) : null;
     const comments = model.comments ? JSON.stringify(model.comments) : null;
+    const accounts = model.accounts ? JSON.stringify(model.accounts) : null;
     
     db.prepare(`
-      INSERT INTO models (id, name, fullName, phone, email, telegram, instagram, birthDate, documentType, documentNumber, firstTrialDate, status, notes, tags, slotId, files, comments, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, model.name, model.fullName, model.phone, model.email, model.telegram, model.instagram, model.birthDate, model.documentType, model.documentNumber, model.firstTrialDate, model.status, model.notes, tags, model.slotId, files, comments, now, now);
+      INSERT INTO models (id, name, fullName, phone, email, telegram, instagram, birthDate, documentType, documentNumber, firstTrialDate, status, notes, tags, slotId, files, comments, accounts, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, model.name, model.fullName, model.phone, model.email, model.telegram, model.instagram, model.birthDate, model.documentType, model.documentNumber, model.firstTrialDate, model.status, model.notes, tags, model.slotId, files, comments, accounts, now, now);
     
     return this.getById(id)!;
   },
@@ -193,7 +199,8 @@ export const modelDb = {
       ...row,
       tags: row.tags ? JSON.parse(row.tags) : [],
       files: row.files ? JSON.parse(row.files) : [],
-      comments: row.comments ? JSON.parse(row.comments) : []
+      comments: row.comments ? JSON.parse(row.comments) : [],
+      accounts: row.accounts ? JSON.parse(row.accounts) : []
     }));
   },
 
@@ -204,7 +211,8 @@ export const modelDb = {
       ...row,
       tags: row.tags ? JSON.parse(row.tags) : [],
       files: row.files ? JSON.parse(row.files) : [],
-      comments: row.comments ? JSON.parse(row.comments) : []
+      comments: row.comments ? JSON.parse(row.comments) : [],
+      accounts: row.accounts ? JSON.parse(row.accounts) : []
     };
   },
 
@@ -216,16 +224,17 @@ export const modelDb = {
     const tags = updatedModel.tags ? JSON.stringify(updatedModel.tags) : null;
     const files = updatedModel.files ? JSON.stringify(updatedModel.files) : null;
     const comments = updatedModel.comments ? JSON.stringify(updatedModel.comments) : null;
+    const accounts = updatedModel.accounts ? JSON.stringify(updatedModel.accounts) : null;
     
     db.prepare(`
       UPDATE models SET name = ?, fullName = ?, phone = ?, email = ?, telegram = ?, instagram = ?, 
       birthDate = ?, documentType = ?, documentNumber = ?, firstTrialDate = ?,
-      status = ?, notes = ?, tags = ?, slotId = ?, files = ?, comments = ?, updatedAt = ?
+      status = ?, notes = ?, tags = ?, slotId = ?, files = ?, comments = ?, accounts = ?, updatedAt = ?
       WHERE id = ?
     `).run(updatedModel.name, updatedModel.fullName, updatedModel.phone, updatedModel.email, 
            updatedModel.telegram, updatedModel.instagram, updatedModel.birthDate, updatedModel.documentType,
            updatedModel.documentNumber, updatedModel.firstTrialDate, updatedModel.status, updatedModel.notes, 
-           tags, updatedModel.slotId, files, comments, updatedModel.updatedAt, id);
+           tags, updatedModel.slotId, files, comments, accounts, updatedModel.updatedAt, id);
     
     return this.getById(id);
   },

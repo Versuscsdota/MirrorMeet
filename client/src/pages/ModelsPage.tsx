@@ -21,7 +21,7 @@ export default function ModelsPage() {
   const [filters, setFilters] = useState<SearchFilters>({
     searchQuery: '',
     status: '',
-    selectedStatuses: {},
+    selectedStatuses: [],
     dateFrom: '',
     dateTo: '',
     sortBy: 'createdAt',
@@ -49,9 +49,8 @@ export default function ModelsPage() {
     let result = [...models];
 
     // Apply multi-status filter from filters.selectedStatuses
-    if (filters.selectedStatuses && Object.keys(filters.selectedStatuses).length > 0) {
-      const selectedStatusValues = Object.values(filters.selectedStatuses);
-      result = result.filter(model => selectedStatusValues.includes(model.status));
+    if (filters.selectedStatuses && filters.selectedStatuses.length > 0) {
+      result = result.filter(model => filters.selectedStatuses!.includes(model.status));
     }
 
     // Apply search query filter
@@ -122,7 +121,7 @@ export default function ModelsPage() {
     setFilters({
       searchQuery: '',
       status: '',
-      selectedStatuses: {},
+      selectedStatuses: [],
       dateFrom: '',
       dateTo: '',
       sortBy: 'createdAt',

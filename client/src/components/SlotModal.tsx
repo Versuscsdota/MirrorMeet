@@ -160,16 +160,44 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
     }
 
     try {
-      // Map status buttons to ModelStatus for the new model
-      let modelStatus = ModelStatus.REGISTERED;
-      if (status1 === 'confirmed') modelStatus = ModelStatus.CONFIRMED;
-      else if (status1 === 'drained') modelStatus = ModelStatus.DRAINED;
-      else if (status2 === 'candidate_refused') modelStatus = ModelStatus.CANDIDATE_REFUSED;
-      else if (status2 === 'our_refusal') modelStatus = ModelStatus.OUR_REFUSAL;
-      else if (status2 === 'thinking') modelStatus = ModelStatus.THINKING;
+      // New model always gets REGISTERED status after registration
+      const modelStatus = ModelStatus.REGISTERED;
 
-      // Create new model with all data including statuses and comments
-      const modelComments = [...(formData.comments || [])];
+      // Create status history from slot statuses if they exist
+      const statusHistory: { text: string; timestamp: string }[] = [];
+      
+      // Add previous statuses to history based on slot button states
+      if (status1 === 'confirmed') {
+        statusHistory.push({
+          text: `Статус изменен на: Подтвердилась`,
+          timestamp: new Date(Date.now() - 60000).toISOString() // 1 minute ago
+        });
+      } else if (status1 === 'drained') {
+        statusHistory.push({
+          text: `Статус изменен на: Слив`,
+          timestamp: new Date(Date.now() - 60000).toISOString()
+        });
+      }
+      
+      if (status2 === 'candidate_refused') {
+        statusHistory.push({
+          text: `Статус изменен на: Отказ со стороны кандидата`,
+          timestamp: new Date(Date.now() - 30000).toISOString() // 30 seconds ago
+        });
+      } else if (status2 === 'our_refusal') {
+        statusHistory.push({
+          text: `Статус изменен на: Отказ с нашей стороны`,
+          timestamp: new Date(Date.now() - 30000).toISOString()
+        });
+      } else if (status2 === 'thinking') {
+        statusHistory.push({
+          text: `Статус изменен на: Ушла на подумать`,
+          timestamp: new Date(Date.now() - 30000).toISOString()
+        });
+      }
+
+      // Create new model with all data including status history and comments
+      const modelComments = [...statusHistory, ...(formData.comments || [])];
       if (registrationComment.trim()) {
         modelComments.push({
           text: registrationComment.trim(),
@@ -196,11 +224,15 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
         await modelsAPI.uploadFiles(createdModel.id, files);
       }
 
-      // Update slot to link to new model and preserve the actual status
+      // Update slot to link to new model but keep original slot statuses
+      // Don't sync model status back to slot - they should be independent
+      const originalSlotStatus = formData.status || ModelStatus.NOT_CONFIRMED;
       await onSave({
         ...formData,
         modelId: createdModel.id,
-        status: modelStatus,
+        status: originalSlotStatus, // Keep original slot status
+        status1, // Keep original status1 from slot
+        status2, // Keep original status2 from slot
         notes: comment || formData.notes
       });
 
@@ -413,7 +445,6 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
               />
             </div>
           )}
-
           {/* Статус собеседования - Button Group */}
           <div className="form-group">
             <label>Статус собеседования</label>
@@ -492,9 +523,9 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
                   required
                 >
                   <option value="">Выберите документ</option>
-                  <option value="passport">Паспорт</option>
-                  <option value="license">Права</option>
-                  <option value="international">Загран паспорт</option>
+                  <option value="rus_passport">Паспорт РФ</option>
+                  <option value="driver_license">Водительские права</option>
+                  <option value="international_passport">Загранпаспорт</option>
                 </select>
                 {errors.documentType && <span className="error-message">{errors.documentType}</span>}
               </div>

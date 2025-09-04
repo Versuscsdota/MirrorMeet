@@ -5,6 +5,7 @@ export enum ModelStatus {
   CONFIRMED = 'confirmed',
   DRAINED = 'drained',
   REGISTERED = 'registered',
+  ACCOUNT_REGISTERED = 'account_registered',
   CANDIDATE_REFUSED = 'candidate_refused',
   OUR_REFUSAL = 'our_refusal',
   THINKING = 'thinking'
@@ -15,6 +16,13 @@ export interface Comment {
   timestamp: string; // ISO
 }
 
+export interface Account {
+  id: string;
+  site: string; // название сайта (Chaturbate, OnlyFans, etc.)
+  login: string;
+  password: string;
+}
+
 export const StatusLabels: Record<ModelStatus, string> = {
   [ModelStatus.NOT_CONFIRMED]: 'Не подтвердилась',
   [ModelStatus.NO_SHOW]: 'Не пришла',
@@ -22,6 +30,7 @@ export const StatusLabels: Record<ModelStatus, string> = {
   [ModelStatus.CONFIRMED]: 'Подтвердилась',
   [ModelStatus.DRAINED]: 'Слив',
   [ModelStatus.REGISTERED]: 'Регистрация',
+  [ModelStatus.ACCOUNT_REGISTERED]: 'Зарегистрирована',
   [ModelStatus.CANDIDATE_REFUSED]: 'Отказ со стороны кандидата',
   [ModelStatus.OUR_REFUSAL]: 'Отказ с нашей стороны',
   [ModelStatus.THINKING]: 'Ушла на подумать'
@@ -32,7 +41,6 @@ export interface Model {
   name: string;
   fullName?: string;
   phone?: string;
-  email?: string;
   telegram?: string;
   instagram?: string;
   birthDate?: string; // YYYY-MM-DD
@@ -40,11 +48,10 @@ export interface Model {
   documentNumber?: string; // "Серия и номер / Номер"
   firstTrialDate?: string; // YYYY-MM-DD
   status: ModelStatus;
-  notes?: string;
-  tags?: string[];
   slotId?: string;  // связь со слотом
   files?: string[]; // массив путей к файлам
   comments?: Comment[];
+  accounts?: Account[]; // массив вебкам аккаунтов
   createdAt: string;
   updatedAt: string;
 }

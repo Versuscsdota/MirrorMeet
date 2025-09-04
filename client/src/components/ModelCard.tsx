@@ -30,14 +30,12 @@ export default function ModelCard({ model, onClick }: ModelCardProps) {
         <span className="value">{model.phone || '—'}</span>
       </div>
       <div className="model-card-status">
-        <div 
-          className="status-badge"
-          style={{ 
-            backgroundColor: statusColors[model.status],
-            color: '#fff'
-          }}
-        >
-          {StatusLabels[model.status]}
+        <div className="status-dot-container">
+          <span 
+            className="status-dot-card"
+            style={{ backgroundColor: statusColors[model.status] }}
+          />
+          <span className="status-text">{StatusLabels[model.status]}</span>
         </div>
       </div>
     </button>
