@@ -112,7 +112,7 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
       entityType: 'slot',
       entityId: req.params.id,
       userId: req.user!.id,
-      details: null,
+      details: {},
       ip: req.ip,
       userAgent: req.get('user-agent')
     });
