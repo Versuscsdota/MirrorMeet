@@ -43,7 +43,12 @@ router.post('/', authenticateToken, async (req, res) => {
       entityType: 'shift',
       entityId: shift.id,
       userId: (req as AuthRequest).user?.id || '',
-      details: { model: shift.model, type: shift.type, status: shift.status },
+      details: { 
+        model: shift.model, 
+        type: shift.type, 
+        status: shift.status,
+        hasRegistrationData: !!(shift.birthDate || shift.documentType || shift.internshipDate || shift.photo || shift.audio)
+      },
       ip: req.ip,
       userAgent: req.get('User-Agent')
     });

@@ -94,6 +94,12 @@ export interface Slot {
   status1?: string;
   status2?: string;
   visitStatus?: string;
+  birthDate?: string;
+  documentType?: string;
+  documentData?: string;
+  internshipDate?: string;
+  photo?: string;
+  audio?: string;
   createdAt: string;
   updatedAt: string;
 }

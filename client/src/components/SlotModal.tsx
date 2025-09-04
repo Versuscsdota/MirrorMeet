@@ -53,6 +53,17 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
       // Load visit status if available
       if (slot.visitStatus) setVisitStatus(slot.visitStatus);
       
+      // Load registration fields if available
+      setBirthDate(slot.birthDate || '');
+      setDocumentType(slot.documentType || '');
+      setDocumentDetails(slot.documentData || '');
+      setInternshipDate(slot.internshipDate || '');
+      
+      // If registration data exists, show registration started
+      if (slot.birthDate || slot.documentType || slot.internshipDate) {
+        setRegistrationStarted(true);
+      }
+      
       // Clear errors when loading existing slot
       setErrors({});
     } else {
@@ -71,6 +82,13 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
       setStatus1('');
       setStatus2('');
       setVisitStatus('');
+      setBirthDate('');
+      setDocumentType('');
+      setDocumentDetails('');
+      setInternshipDate('');
+      setPhotoFile(null);
+      setAudioFile(null);
+      setRegistrationStarted(false);
       setErrors({});
     }
   }, [slot]);
@@ -296,7 +314,13 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
         status1,
         status2,
         visitStatus,
-        notes: comment || formData.notes
+        notes: comment || formData.notes,
+        birthDate: birthDate || undefined,
+        documentType: documentType || undefined,
+        documentData: documentDetails || undefined,
+        internshipDate: internshipDate || undefined,
+        photo: photoFile?.name || undefined,
+        audio: audioFile?.name || undefined
       });
       
       toast.success('Слот успешно сохранен');
@@ -563,7 +587,6 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
                     onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
                     style={{ display: 'none' }}
                     id="photo-upload"
-                    required
                   />
                   <label htmlFor="photo-upload" className="btn btn-secondary">
                     📷 Выбрать файл
@@ -584,7 +607,6 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
                     onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
                     style={{ display: 'none' }}
                     id="audio-upload"
-                    required
                   />
                   <label htmlFor="audio-upload" className="btn btn-secondary">
                     🎵 Выбрать файл

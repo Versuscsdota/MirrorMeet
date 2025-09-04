@@ -46,14 +46,20 @@ router.get('/:id', authenticateToken, (req: AuthRequest, res) => {
 // Create new slot
 router.post('/', authenticateToken, (req: AuthRequest, res) => {
   try {
-    const slot = slotDb.create(req.body);
+    // Add registeredBy field to track who registered the slot
+    const slotData = {
+      ...req.body,
+      registeredBy: req.user!.id
+    };
+    
+    const slot = slotDb.create(slotData);
     
     auditDb.create({
       action: 'slot_create',
       entityType: 'slot',
       entityId: slot.id,
       userId: req.user!.id,
-      details: req.body,
+      details: slotData,
       ip: req.ip,
       userAgent: req.get('user-agent')
     });

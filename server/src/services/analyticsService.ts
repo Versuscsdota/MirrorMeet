@@ -1,5 +1,5 @@
-import { modelDb, slotDb, analyticsDb } from '../db/database';
-import { Model, Slot, ModelStatus } from '../types';
+import { modelDb, slotDb, shiftDb, analyticsDb, userDb } from '../db/database';
+import { Model, Slot, ModelStatus, Shift, User } from '../types';
 
 export interface DashboardStats {
   totalModels: number;
@@ -41,6 +41,67 @@ export interface StatusAnalytics {
     count: number;
     change: number;
   }[];
+}
+
+export interface ModelLifecycleStats {
+  totalSlots: number;
+  confirmedSlots: number;
+  arrivedModels: number;
+  registeredModels: number;
+  firstTrainingCompleted: number;
+  secondTrainingCompleted: number;
+  readyToWork: number;
+  activeModels: number;
+  conversionRates: {
+    slotToConfirmed: number;
+    confirmedToArrived: number;
+    arrivedToRegistered: number;
+    registeredToFirstTraining: number;
+    firstToSecondTraining: number;
+    secondTrainingToReady: number;
+    readyToActive: number;
+    overallConversion: number;
+  };
+}
+
+export interface EarningsStats {
+  totalEarnings: number;
+  averageEarningsPerShift: number;
+  averageEarningsPerModel: number;
+  topEarningModels: Array<{
+    modelName: string;
+    totalEarnings: number;
+    shiftsCount: number;
+    averagePerShift: number;
+  }>;
+  earningsByPeriod: {
+    daily: Record<string, number>;
+    weekly: Record<string, number>;
+    monthly: Record<string, number>;
+  };
+  shiftStats: {
+    totalShifts: number;
+    completedShifts: number;
+    averageShiftDuration: number;
+    totalHoursWorked: number;
+  };
+}
+
+export interface EmployeeConversionStats {
+  employeeId: string;
+  employeeName: string;
+  totalSlotsRegistered: number;
+  confirmedSlots: number;
+  arrivedModels: number;
+  registeredModels: number;
+  activeModels: number;
+  conversionRates: {
+    slotToConfirmed: number;
+    confirmedToArrived: number;
+    arrivedToRegistered: number;
+    registeredToActive: number;
+    overallConversion: number;
+  };
 }
 
 export class AnalyticsService {
@@ -287,5 +348,226 @@ export class AnalyticsService {
         return acc;
       }, {} as Record<ModelStatus, number>)
     };
+  }
+
+  // Get model lifecycle statistics
+  static getModelLifecycleStats(): ModelLifecycleStats {
+    const models = modelDb.getAll();
+    const slots = slotDb.getAll();
+    const shifts = shiftDb.getAll();
+
+    // Count models by lifecycle stage
+    const totalSlots = slots.length;
+    const confirmedSlots = slots.filter(s => s.clientName || s.modelId).length;
+    const arrivedModels = models.filter(m => m.status === ModelStatus.ARRIVED).length;
+    const registeredModels = models.filter(m => m.status === ModelStatus.REGISTERED).length;
+    
+    // Count training completions based on shift history
+    const trainingShifts = shifts.filter(s => s.type === 'training' && s.status === 'completed');
+    const modelTrainingCounts = new Map<string, number>();
+    
+    trainingShifts.forEach(shift => {
+      const count = modelTrainingCounts.get(shift.model) || 0;
+      modelTrainingCounts.set(shift.model, count + 1);
+    });
+
+    const firstTrainingCompleted = Array.from(modelTrainingCounts.values()).filter(count => count >= 1).length;
+    const secondTrainingCompleted = Array.from(modelTrainingCounts.values()).filter(count => count >= 2).length;
+    
+    const readyToWork = models.filter(m => m.status === ModelStatus.READY_TO_WORK).length;
+    const activeModels = models.filter(m => m.status === ModelStatus.MODEL).length;
+
+    // Calculate conversion rates
+    const slotToConfirmed = totalSlots > 0 ? Math.round((confirmedSlots / totalSlots) * 100) : 0;
+    const confirmedToArrived = confirmedSlots > 0 ? Math.round((arrivedModels / confirmedSlots) * 100) : 0;
+    const arrivedToRegistered = arrivedModels > 0 ? Math.round((registeredModels / arrivedModels) * 100) : 0;
+    const registeredToFirstTraining = registeredModels > 0 ? Math.round((firstTrainingCompleted / registeredModels) * 100) : 0;
+    const firstToSecondTraining = firstTrainingCompleted > 0 ? Math.round((secondTrainingCompleted / firstTrainingCompleted) * 100) : 0;
+    const secondTrainingToReady = secondTrainingCompleted > 0 ? Math.round((readyToWork / secondTrainingCompleted) * 100) : 0;
+    const readyToActive = readyToWork > 0 ? Math.round((activeModels / readyToWork) * 100) : 0;
+    const overallConversion = totalSlots > 0 ? Math.round((activeModels / totalSlots) * 100) : 0;
+
+    return {
+      totalSlots,
+      confirmedSlots,
+      arrivedModels,
+      registeredModels,
+      firstTrainingCompleted,
+      secondTrainingCompleted,
+      readyToWork,
+      activeModels,
+      conversionRates: {
+        slotToConfirmed,
+        confirmedToArrived,
+        arrivedToRegistered,
+        registeredToFirstTraining,
+        firstToSecondTraining,
+        secondTrainingToReady,
+        readyToActive,
+        overallConversion
+      }
+    };
+  }
+
+  // Get earnings statistics
+  static getEarningsStats(): EarningsStats {
+    const shifts = shiftDb.getAll();
+    const models = modelDb.getAll();
+    const completedShifts = shifts.filter(s => s.status === 'completed');
+
+    // Calculate total earnings
+    const totalEarnings = completedShifts.reduce((sum, shift) => sum + (shift.totalEarnings || 0), 0);
+    const averageEarningsPerShift = completedShifts.length > 0 ? totalEarnings / completedShifts.length : 0;
+
+    // Calculate earnings per model
+    const modelEarnings = new Map<string, { total: number; shifts: number }>();
+    completedShifts.forEach(shift => {
+      const current = modelEarnings.get(shift.model) || { total: 0, shifts: 0 };
+      modelEarnings.set(shift.model, {
+        total: current.total + (shift.totalEarnings || 0),
+        shifts: current.shifts + 1
+      });
+    });
+
+    const activeModelsCount = Array.from(modelEarnings.keys()).length;
+    const averageEarningsPerModel = activeModelsCount > 0 ? totalEarnings / activeModelsCount : 0;
+
+    // Top earning models
+    const topEarningModels = Array.from(modelEarnings.entries())
+      .map(([modelName, data]) => ({
+        modelName,
+        totalEarnings: data.total,
+        shiftsCount: data.shifts,
+        averagePerShift: data.shifts > 0 ? data.total / data.shifts : 0
+      }))
+      .sort((a, b) => b.totalEarnings - a.totalEarnings)
+      .slice(0, 10);
+
+    // Earnings by period
+    const daily: Record<string, number> = {};
+    const weekly: Record<string, number> = {};
+    const monthly: Record<string, number> = {};
+
+    completedShifts.forEach(shift => {
+      const date = new Date(shift.date);
+      const dayKey = shift.date;
+      const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      daily[dayKey] = (daily[dayKey] || 0) + (shift.totalEarnings || 0);
+      weekly[weekKey] = (weekly[weekKey] || 0) + (shift.totalEarnings || 0);
+      monthly[monthKey] = (monthly[monthKey] || 0) + (shift.totalEarnings || 0);
+    });
+
+    // Shift statistics
+    const totalShifts = shifts.length;
+    const totalDuration = completedShifts.reduce((sum, shift) => {
+      // Calculate duration from start and end times if available
+      if (shift.start && shift.end) {
+        const start = new Date(`${shift.date}T${shift.start}`);
+        const end = new Date(`${shift.date}T${shift.end}`);
+        return sum + ((end.getTime() - start.getTime()) / (1000 * 60)); // Convert to minutes
+      }
+      return sum;
+    }, 0);
+    const averageShiftDuration = completedShifts.length > 0 ? totalDuration / completedShifts.length : 0;
+
+    return {
+      totalEarnings,
+      averageEarningsPerShift,
+      averageEarningsPerModel,
+      topEarningModels,
+      earningsByPeriod: {
+        daily,
+        weekly,
+        monthly
+      },
+      shiftStats: {
+        totalShifts,
+        completedShifts: completedShifts.length,
+        averageShiftDuration,
+        totalHoursWorked: totalDuration
+      }
+    };
+  }
+
+  // Get employee conversion statistics
+  static getEmployeeConversionStats(): EmployeeConversionStats[] {
+    const users = userDb.getAll();
+    const slots = slotDb.getAll();
+    const models = modelDb.getAll();
+
+    return users
+      .filter(user => user.status === 'active') // Only active employees
+      .map(user => {
+        // Get slots registered by this employee
+        const employeeSlots = slots.filter(slot => slot.registeredBy === user.id);
+        const totalSlotsRegistered = employeeSlots.length;
+
+        // Count confirmed slots (slots with client name or model assigned)
+        const confirmedSlots = employeeSlots.filter(slot => 
+          slot.clientName || slot.modelId
+        ).length;
+
+        // Count models that arrived from this employee's slots
+        const arrivedModels = employeeSlots.filter(slot => 
+          slot.modelId && models.find(model => 
+            model.id === slot.modelId && 
+            (model.status === ModelStatus.ARRIVED || 
+             model.status === ModelStatus.REGISTERED ||
+             model.status === ModelStatus.READY_TO_WORK ||
+             model.status === ModelStatus.MODEL)
+          )
+        ).length;
+
+        // Count registered models from this employee's slots
+        const registeredModels = employeeSlots.filter(slot => 
+          slot.modelId && models.find(model => 
+            model.id === slot.modelId && 
+            (model.status === ModelStatus.REGISTERED ||
+             model.status === ModelStatus.READY_TO_WORK ||
+             model.status === ModelStatus.MODEL)
+          )
+        ).length;
+
+        // Count active models from this employee's slots
+        const activeModels = employeeSlots.filter(slot => 
+          slot.modelId && models.find(model => 
+            model.id === slot.modelId && 
+            model.status === ModelStatus.MODEL
+          )
+        ).length;
+
+        // Calculate conversion rates
+        const slotToConfirmed = totalSlotsRegistered > 0 ? 
+          Math.round((confirmedSlots / totalSlotsRegistered) * 100) : 0;
+        const confirmedToArrived = confirmedSlots > 0 ? 
+          Math.round((arrivedModels / confirmedSlots) * 100) : 0;
+        const arrivedToRegistered = arrivedModels > 0 ? 
+          Math.round((registeredModels / arrivedModels) * 100) : 0;
+        const registeredToActive = registeredModels > 0 ? 
+          Math.round((activeModels / registeredModels) * 100) : 0;
+        const overallConversion = totalSlotsRegistered > 0 ? 
+          Math.round((activeModels / totalSlotsRegistered) * 100) : 0;
+
+        return {
+          employeeId: user.id,
+          employeeName: user.fullName || user.username,
+          totalSlotsRegistered,
+          confirmedSlots,
+          arrivedModels,
+          registeredModels,
+          activeModels,
+          conversionRates: {
+            slotToConfirmed,
+            confirmedToArrived,
+            arrivedToRegistered,
+            registeredToActive,
+            overallConversion
+          }
+        };
+      })
+      .filter(stats => stats.totalSlotsRegistered > 0) // Only show employees with registered slots
+      .sort((a, b) => b.conversionRates.overallConversion - a.conversionRates.overallConversion); // Sort by overall conversion
   }
 }

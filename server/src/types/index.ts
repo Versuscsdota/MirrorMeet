@@ -69,6 +69,7 @@ export interface Slot {
   comments?: Comment[];
   clientName?: string;
   clientPhone?: string;
+  registeredBy?: string;
   status1?: string;
   status2?: string;
   visitStatus?: string;
@@ -140,6 +141,13 @@ export interface Shift {
   }>;
   screenshots: string[];
   comment: string;
+  // Registration fields
+  birthDate?: string;
+  documentType?: 'rus_passport' | 'driver_license' | 'international_passport';
+  documentData?: string;
+  internshipDate?: string;
+  photo?: string;
+  audio?: string;
   createdAt: string;
   updatedAt: string;
 }

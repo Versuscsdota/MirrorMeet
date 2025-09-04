@@ -107,9 +107,11 @@ export function initDatabase() {
       files TEXT,
       clientName TEXT,
       clientPhone TEXT,
+      registeredBy TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
-      FOREIGN KEY (modelId) REFERENCES models(id) ON DELETE SET NULL
+      FOREIGN KEY (modelId) REFERENCES models(id) ON DELETE SET NULL,
+      FOREIGN KEY (registeredBy) REFERENCES users(id) ON DELETE SET NULL
     )
   `);
 
@@ -122,6 +124,13 @@ export function initDatabase() {
   
   try {
     db.prepare('ALTER TABLE slots ADD COLUMN clientPhone TEXT').run();
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Add registeredBy column if it doesn't exist
+  try {
+    db.prepare('ALTER TABLE slots ADD COLUMN registeredBy TEXT REFERENCES users(id)').run();
   } catch (e) {
     // Column already exists
   }
@@ -188,6 +197,12 @@ export function initDatabase() {
       actualStartTime TEXT,
       actualEndTime TEXT,
       actualDuration INTEGER,
+      birthDate TEXT,
+      documentType TEXT,
+      documentData TEXT,
+      internshipDate TEXT,
+      photo TEXT,
+      audio TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     )

@@ -12,7 +12,6 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
   const [formData, setFormData] = useState<Partial<Model>>({
     name: '',
     phone: '',
-    email: '',
     telegram: '',
     birthDate: '',
     firstTrialDate: '',
@@ -33,7 +32,6 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
       setFormData({
         name: '',
         phone: '',
-        email: '',
         telegram: '',
         birthDate: '',
         firstTrialDate: '',
@@ -81,15 +79,6 @@ export default function ModelModal({ model, isOpen, onClose, onSave }: ModelModa
             />
           </div>
           
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={formData.email || ''}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              autoComplete="email"
-            />
-          </div>
           
           <div className="form-group">
             <label>Telegram</label>

@@ -89,4 +89,37 @@ router.get('/leads', async (req, res) => {
   }
 });
 
+// Get model lifecycle statistics
+router.get('/lifecycle', async (req, res) => {
+  try {
+    const stats = AnalyticsService.getModelLifecycleStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Model lifecycle stats error:', error);
+    res.status(500).json({ error: 'Ошибка получения статистики жизненного цикла модели' });
+  }
+});
+
+// Get earnings statistics
+router.get('/earnings', async (req, res) => {
+  try {
+    const stats = AnalyticsService.getEarningsStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Earnings stats error:', error);
+    res.status(500).json({ error: 'Ошибка получения статистики заработка' });
+  }
+});
+
+// Get employee conversion statistics
+router.get('/employee-conversion', async (req, res) => {
+  try {
+    const stats = AnalyticsService.getEmployeeConversionStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Employee conversion stats error:', error);
+    res.status(500).json({ error: 'Ошибка получения статистики конверсии по сотрудникам' });
+  }
+});
+
 export default router;

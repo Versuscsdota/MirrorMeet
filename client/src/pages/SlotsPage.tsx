@@ -211,6 +211,9 @@ export default function SlotsPage() {
                         >
                           <div className="chip-title">
                             {linkedModel ? linkedModel.name : (slot.clientName || 'Без модели')}
+                            {(slot.birthDate || slot.documentType || slot.internshipDate || slot.photo || slot.audio) && (
+                              <span className="registration-badge" title="Есть данные регистрации">📋</span>
+                            )}
                           </div>
                           {(linkedModel?.phone || slot.clientPhone) && (
                             <div className="chip-sub">{linkedModel?.phone || slot.clientPhone}</div>
