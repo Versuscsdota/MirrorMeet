@@ -33,7 +33,7 @@ const createFileStorage = (): multer.StorageEngine => {
 
 const fileUploadMiddleware = multer({
   storage: createFileStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB
+  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB
 });
 
 const createAuditLogEntry = (action: string, entityId: string, userId: string, details: any, req: AuthRequest) => {
