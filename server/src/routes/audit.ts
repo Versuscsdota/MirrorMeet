@@ -4,10 +4,10 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Get audit logs (root-only)
+// Get audit logs (admin and root only)
 router.get('/', authenticateToken, (req: AuthRequest, res) => {
   try {
-    if (req.user?.role !== 'root') {
+    if (!req.user || !['root', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
