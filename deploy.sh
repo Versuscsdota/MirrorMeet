@@ -21,8 +21,14 @@ fi
 
 # Check if Docker Compose is installed
 if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}❌ Docker Compose is not installed. Please install Docker Compose first.${NC}"
+    echo -e "${RED}❌ Docker Compose is not installed. Please install Docker Compose first.${NC}
     exit 1
+fi
+
+# Install pnpm if not installed
+if ! command -v pnpm &> /dev/null; then
+    echo -e "${YELLOW}📦 Installing pnpm...${NC}"
+    npm install -g pnpm
 fi
 
 # Check for --skip-build flag
@@ -47,8 +53,14 @@ fi
 
 # Set proper permissions
 echo -e "${YELLOW}🔒 Setting permissions...${NC}"
-chmod 755 server/data
-chmod 755 server/uploads
+mkdir -p server/data server/uploads
+chmod -R 755 server/data server/uploads
+
+# Install client dependencies
+echo -e "${YELLOW}📦 Installing client dependencies...${NC}"
+cd client
+pnpm install --frozen-lockfile
+cd ..
 
 # Build and start services
 echo -e "${YELLOW}🏗️ Building Docker images...${NC}"
