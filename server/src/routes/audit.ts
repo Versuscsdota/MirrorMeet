@@ -4,10 +4,11 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Get audit logs (root only)
+// Get audit logs (admin-only)
 router.get('/', authenticateToken, (req: AuthRequest, res) => {
   try {
-    if (req.user?.role !== 'root') {
+    // Default superuser has role 'admin' in the system
+    if (req.user?.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
