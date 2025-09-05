@@ -2,6 +2,30 @@
 @use './apartments';
 
 @font-face { font-family: 'SF Pro Display'; src: url('/fonts/SF-Pro-Display-Ultralight.otf') format('opentype'); font-weight: 100; font-style: normal; }
+
+// Register modal specifics (reuse project tokens)
+.password-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.photo-picker-wrap { display: flex; align-items: center; }
+.photo-input-hidden { display: none; }
+.photo-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 120px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.photo-preview { max-width: 100%; max-height: 100%; border-radius: 8px; }
+.photo-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text-secondary); }
 @font-face { font-family: 'SF Pro Display'; src: url('/fonts/SF-Pro-Display-UltralightItalic.otf') format('opentype'); font-weight: 100; font-style: italic; }
 @font-face { font-family: 'SF Pro Display'; src: url('/fonts/SF-Pro-Display-Thin.otf') format('opentype'); font-weight: 200; font-style: normal; }
 @font-face { font-family: 'SF Pro Display'; src: url('/fonts/SF-Pro-Display-ThinItalic.otf') format('opentype'); font-weight: 200; font-style: italic; }

@@ -163,7 +163,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
 
           <div className="form-group">
             <label>Пароль *</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+            <div className="password-grid">
               <input
                 type="text"
                 name="password"
@@ -184,20 +184,20 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
 
           <div className="form-group">
             <label>Фото профиля</label>
-            <div>
+            <div className="photo-picker-wrap">
               <input
                 type="file"
                 id="photo"
                 name="photo"
                 accept="image/*"
                 onChange={handlePhotoChange}
-                style={{ display: 'none' }}
+                className="photo-input-hidden"
               />
-              <label htmlFor="photo" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 160, height: 120, border: '1px dashed var(--border)', borderRadius: 10, cursor: 'pointer' }}>
+              <label htmlFor="photo" className="photo-picker">
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }} />
+                  <img src={photoPreview} alt="Preview" className="photo-preview" />
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+                  <div className="photo-placeholder">
                     <span>📷</span>
                     <span>Загрузить фото</span>
                   </div>
