@@ -113,6 +113,13 @@ npm run dev
 ### Аудит
 - `GET /api/audit` - получить логи аудита (только для root)
 
+### Экспорт (модели/слоты/отчеты)
+- `GET /api/export/models?format=xlsx|csv&download=0|1` — экспорт моделей
+- `GET /api/export/slots?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&format=xlsx|csv&download=0|1` — экспорт слотов
+- `GET /api/export/report?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&format=xlsx|csv&download=0|1` — сводный отчет
+
+Параметр `download=1` включает сохранение файла на сервере в каталоге `EXPORTS_DIR` (по умолчанию `/var/lib/mirrorcrm/exports`) и отдачу через `res.download()`. Также папка доступна как статика по пути `/exports/` (через Express и Nginx).
+
 ## Структура проекта
 
 ```
@@ -132,8 +139,8 @@ MirrorCRM/
 │   │   ├── middleware/  # Express middleware
 │   │   ├── routes/      # API маршруты
 │   │   └── types/       # TypeScript типы
-│   ├── data/            # SQLite база данных
-│   ├── uploads/         # Загруженные файлы
+│   ├── data/            # (локальная папка для dev) SQLite база данных
+│   ├── uploads/         # (локальная папка для dev) Загруженные файлы
 │   └── package.json
 └── package.json         # Корневой package.json
 ```
@@ -150,3 +157,48 @@ MirrorCRM/
 - База данных SQLite создается автоматически при первом запуске
 - Папка для загрузки файлов создается автоматически
 - Токен авторизации действителен 24 часа
+
+## Storage on VPS
+
+В продакшене каталоги выносятся за пределы репозитория и настраиваются через переменные окружения (см. `server/.env`):
+
+- `DATA_DIR` — путь к базе SQLite. По умолчанию: `/var/lib/mirrorcrm`
+- `UPLOADS_DIR` — путь к загруженным файлам. По умолчанию: `/var/lib/mirrorcrm/uploads`
+- `EXPORTS_DIR` — путь к экспортам (xlsx/csv). По умолчанию: `/var/lib/mirrorcrm/exports`
+- `LOG_DIR` — путь к логам. По умолчанию: `/var/log/mirrorcrm`
+
+Express раздает следующие статики:
+
+- `GET /uploads/...` — файлы из `UPLOADS_DIR`
+- `GET /exports/...` — файлы из `EXPORTS_DIR`
+
+Nginx проксирует эти пути к backend (пример см. в `scripts/deploy.sh`).
+
+Рекомендованные права:
+
+```
+mkdir -p /var/lib/mirrorcrm/uploads /var/lib/mirrorcrm/exports /var/log/mirrorcrm
+chmod 750 /var/lib/mirrorcrm /var/lib/mirrorcrm/uploads /var/lib/mirrorcrm/exports
+```
+
+## Troubleshooting: Rollup optional deps
+
+Если сборка клиента на сервере падает с ошибкой вида `Cannot find module @rollup/rollup-linux-x64-gnu`, это баг npm с optional dependencies.
+
+Решение:
+
+```
+cd /opt/mirrorcrm/client
+rm -rf node_modules package-lock.json
+npm i
+npm run build
+# при необходимости
+npm i -D @rollup/rollup-linux-x64-gnu && npm run build
+```
+
+Альтернатива: использовать pnpm через corepack.
+
+## Скрипты деплоя
+
+- `scripts/deploy.sh <IP>` — полный деплой на Ubuntu 24.04 (Nginx + PM2 + sslip.io). Пример: `sudo bash scripts/deploy.sh 77.73.131.100`
+- `scripts/update.sh` — обновление проекта из GitHub, пересборка фронта/бэка и рестарт PM2.

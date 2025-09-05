@@ -45,6 +45,7 @@ initDatabase();
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
+app.use('/exports', express.static(exportsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
