@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # MirrorCRM Production Deployment Script
-# Usage: ./deploy.sh
+# Usage: ./deploy.sh [--skip-build]
 
 set -e
 
@@ -25,9 +25,16 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
+# Check for --skip-build flag
+SKIP_BUILD=false
+if [[ "$1" == "--skip-build" ]]; then
+    SKIP_BUILD=true
+    echo -e "${YELLOW}⚠️  Skipping build step as requested${NC}"
+fi
+
 # Create necessary directories
 echo -e "${YELLOW}📁 Creating directories...${NC}"
-mkdir -p server/data
+mkdir -p server/data server/uploads ssl
 mkdir -p server/uploads
 mkdir -p ssl
 
