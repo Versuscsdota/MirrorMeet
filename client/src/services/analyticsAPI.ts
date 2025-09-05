@@ -115,7 +115,8 @@ export interface EmployeeConversionStats {
   };
 }
 
-const API_BASE = 'http://localhost:3001/api';
+// Use Vite env override if provided, otherwise default to '/api' for Nginx proxying in production
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || '/api';
 
 export const analyticsAPI = {
   // Get dashboard statistics

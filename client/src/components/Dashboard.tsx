@@ -45,7 +45,9 @@ export default function Dashboard() {
       display: 'flex',
       gap: '0.5rem',
       marginBottom: '2rem',
-      borderBottom: '1px solid #e5e7eb'
+      borderBottomWidth: '1px',
+      borderBottomStyle: 'solid',
+      borderBottomColor: '#e5e7eb'
     } as React.CSSProperties,
     
     tabButton: {
@@ -240,11 +242,13 @@ export default function Dashboard() {
       display: 'flex',
       alignItems: 'center',
       padding: '1rem 1.5rem',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+      borderBottomWidth: '1px',
+      borderBottomStyle: 'solid',
+      borderBottomColor: 'rgba(255, 255, 255, 0.1)'
     } as React.CSSProperties,
     
     earnerItemLast: {
-      borderBottom: 'none'
+      borderBottomWidth: 0
     } as React.CSSProperties,
     
     earnerRank: {
