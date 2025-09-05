@@ -69,7 +69,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   manage_roles: 'Управление ролями'
 };
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE || '/api';
 
 const RoleManagement: React.FC = () => {
   const { user } = useAuthStore();

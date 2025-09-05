@@ -33,7 +33,8 @@ const ShiftHistoryComponent: React.FC<ShiftHistoryProps> = ({
     setLoading(true);
     try {
       // Загружаем реальные данные из API
-      const response = await fetch('http://localhost:3001/api/shifts', {
+      const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE || '/api';
+      const response = await fetch(`${API_BASE_URL}/shifts`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'

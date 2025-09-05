@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Model, Slot, AuditLog, Shift } from '../types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: (import.meta as any).env?.VITE_API_BASE || '/api',
 });
 
 // Add auth token to requests
