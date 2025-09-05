@@ -323,8 +323,8 @@ export function initDatabase() {
   const roles = [
       {
         id: uuidv4(),
-        name: 'admin',
-        displayName: 'Администратор',
+        name: 'root',
+        displayName: 'Root',
         permissions: JSON.stringify([
           'users.create', 'users.read', 'users.update', 'users.delete',
           'models.create', 'models.read', 'models.update', 'models.delete',
@@ -450,7 +450,7 @@ export function initDatabase() {
     db.prepare(`
       INSERT INTO users (id, username, password, role, fullName, status) 
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(adminId, 'root', hashedPassword, 'admin', 'Root Administrator', 'active');
+    `).run(adminId, 'root', hashedPassword, 'root', 'Root Administrator', 'active');
   } else if (existingUser.status === 'inactive') {
     // Ensure root user is always active
     db.prepare('UPDATE users SET status = ? WHERE username = ?').run('active', 'root');
