@@ -187,7 +187,7 @@ export class ExportService {
         };
       }
       
-      return Buffer.from(await workbook.xlsx.writeBuffer());
+      return await workbook.xlsx.writeBuffer() as Buffer;
     }
   }
   
@@ -202,12 +202,7 @@ export class ExportService {
       [ModelStatus.THINKING]: 'Думает',
       [ModelStatus.REGISTERED]: 'Зарегистрирована',
       [ModelStatus.NO_SHOW]: 'Не пришла',
-      [ModelStatus.ARRIVED]: 'Пришла',
-      [ModelStatus.TRAINING]: 'Стажировка',
-      [ModelStatus.READY_TO_WORK]: 'Готова к работе',
-      [ModelStatus.MODEL]: 'Модель',
-      [ModelStatus.CLOSED_TO_TEAM]: 'Закрыта для команды',
-      [ModelStatus.INACTIVE]: 'Неактивна'
+      [ModelStatus.ARRIVED]: 'Пришла'
     };
     
     return labels[status] || status;
