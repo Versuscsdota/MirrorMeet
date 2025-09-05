@@ -17,7 +17,8 @@ if (!fs.existsSync(dataDir)) {
 }
 
 const dbPath = path.join(dataDir, 'mirrorcrm.db');
-const db = new Database(dbPath);
+// Avoid leaking BetterSqlite3.Database type through module exports (TS4023)
+const db: any = new (Database as any)(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
