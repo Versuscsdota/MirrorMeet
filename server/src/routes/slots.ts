@@ -3,14 +3,25 @@ import { slotDb, auditDb, syncModelAndSlot } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
+// Resolve uploads directory from env or default system path
+const DEFAULT_UPLOADS_DIR = path.resolve('/var/lib/mirrorcrm/uploads');
+const UPLOADS_DIRECTORY = process.env.UPLOADS_DIR && process.env.UPLOADS_DIR.trim().length > 0
+  ? process.env.UPLOADS_DIR
+  : DEFAULT_UPLOADS_DIR;
+
+if (!fs.existsSync(UPLOADS_DIRECTORY)) {
+  fs.mkdirSync(UPLOADS_DIRECTORY, { recursive: true });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads'));
+    cb(null, UPLOADS_DIRECTORY);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
@@ -112,7 +123,7 @@ router.delete('/:id', authenticateToken, (req: AuthRequest, res) => {
       entityType: 'slot',
       entityId: req.params.id,
       userId: req.user!.id,
-      details: null,
+      details: {},
       ip: req.ip,
       userAgent: req.get('user-agent')
     });

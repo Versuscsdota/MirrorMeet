@@ -3,10 +3,20 @@ import { modelDb, auditDb, syncModelAndSlot } from '../db/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
-const UPLOADS_DIRECTORY = path.join(__dirname, '../../uploads');
+// Resolve uploads directory from env or default to a system path
+const DEFAULT_UPLOADS_DIR = path.resolve('/var/lib/mirrorcrm/uploads');
+const UPLOADS_DIRECTORY = process.env.UPLOADS_DIR && process.env.UPLOADS_DIR.trim().length > 0
+  ? process.env.UPLOADS_DIR
+  : DEFAULT_UPLOADS_DIR;
+
+// Ensure uploads directory exists
+if (!fs.existsSync(UPLOADS_DIRECTORY)) {
+  fs.mkdirSync(UPLOADS_DIRECTORY, { recursive: true });
+}
 
 const createFileStorage = (): multer.StorageEngine => {
   return multer.diskStorage({

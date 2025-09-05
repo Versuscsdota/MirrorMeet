@@ -5,12 +5,18 @@ import { Model, Slot, User, Role, AuditLog, ModelStatus, Shift } from '../types'
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
-const dbPath = path.join(__dirname, '../../data/mirrorcrm.db');
-// Ensure parent directory exists (e.g., server/data)
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+// Resolve database location using env or fallback to repo-relative path
+const DEFAULT_DATA_DIR = path.resolve('/var/lib/mirrorcrm');
+const dataDir = process.env.DATA_DIR && process.env.DATA_DIR.trim().length > 0
+  ? process.env.DATA_DIR
+  : DEFAULT_DATA_DIR;
+
+// Ensure parent directory exists
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
 }
+
+const dbPath = path.join(dataDir, 'mirrorcrm.db');
 const db = new Database(dbPath);
 
 // Enable foreign keys

@@ -17,16 +17,26 @@ import addressesRouter from './routes/addresses';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Create necessary directories
-const uploadsDir = path.join(__dirname, '../uploads');
-const dataDir = path.join(__dirname, '../data');
+// Create necessary directories using env-configurable paths
+const DEFAULT_DATA_DIR = path.resolve('/var/lib/mirrorcrm');
+const DEFAULT_UPLOADS_DIR = path.resolve('/var/lib/mirrorcrm/uploads');
+const DEFAULT_EXPORTS_DIR = path.resolve('/var/lib/mirrorcrm/exports');
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+const dataDir = (process.env.DATA_DIR && process.env.DATA_DIR.trim().length > 0)
+  ? process.env.DATA_DIR
+  : DEFAULT_DATA_DIR;
+const uploadsDir = (process.env.UPLOADS_DIR && process.env.UPLOADS_DIR.trim().length > 0)
+  ? process.env.UPLOADS_DIR
+  : DEFAULT_UPLOADS_DIR;
+const exportsDir = (process.env.EXPORTS_DIR && process.env.EXPORTS_DIR.trim().length > 0)
+  ? process.env.EXPORTS_DIR
+  : DEFAULT_EXPORTS_DIR;
+
+[uploadsDir, dataDir, exportsDir].forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 // Initialize database
 initDatabase();

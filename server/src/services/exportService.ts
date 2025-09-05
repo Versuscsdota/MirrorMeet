@@ -194,15 +194,20 @@ export class ExportService {
   private static getStatusLabel(status: ModelStatus): string {
     const labels: Record<ModelStatus, string> = {
       [ModelStatus.NOT_CONFIRMED]: 'Не подтверждена',
+      [ModelStatus.NO_SHOW]: 'Не пришла',
+      [ModelStatus.ARRIVED]: 'Пришла',
       [ModelStatus.CONFIRMED]: 'Подтверждена',
       [ModelStatus.DRAINED]: 'Слита',
+      [ModelStatus.REGISTERED]: 'Зарегистрирована',
+      [ModelStatus.ACCOUNT_REGISTERED]: 'Аккаунт зарегистрирован',
+      [ModelStatus.TRAINING]: 'Стажировка',
+      [ModelStatus.READY_TO_WORK]: 'Готова к работе',
+      [ModelStatus.MODEL]: 'Модель',
       [ModelStatus.CANDIDATE_REFUSED]: 'Отказ кандидата',
-      [ModelStatus.ACCOUNT_REGISTERED]: 'Зарегистрирована',
       [ModelStatus.OUR_REFUSAL]: 'Наш отказ',
       [ModelStatus.THINKING]: 'Думает',
-      [ModelStatus.REGISTERED]: 'Зарегистрирована',
-      [ModelStatus.NO_SHOW]: 'Не пришла',
-      [ModelStatus.ARRIVED]: 'Пришла'
+      [ModelStatus.CLOSED_TO_TEAM]: 'Закрыта к команде',
+      [ModelStatus.INACTIVE]: 'Неактивна'
     };
     
     return labels[status] || status;
