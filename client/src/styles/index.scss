@@ -265,6 +265,30 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
+
+    // Force readable inputs in modal regardless of other component-specific styles
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      background: var(--surface);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: var(--text-secondary);
+    }
+
+    // Fix WebKit autofill making text unreadable
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    textarea:-webkit-autofill,
+    select:-webkit-autofill {
+      -webkit-text-fill-color: var(--text-primary);
+      -webkit-box-shadow: 0 0 0px 1000px var(--surface) inset;
+      transition: background-color 9999s ease-in-out 0s;
+    }
   }
   
   &-header {

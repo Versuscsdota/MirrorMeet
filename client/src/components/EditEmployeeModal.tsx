@@ -51,6 +51,24 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
   const { user } = useAuthStore();
   const isRoot = user?.username === 'root';
 
+  const formatPhone = (raw: string) => {
+    let digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('8')) digits = '7' + digits.slice(1);
+    if (!digits.startsWith('7')) digits = '7' + digits;
+    digits = digits.slice(0, 11);
+    const p1 = digits.slice(1, 4);
+    const p2 = digits.slice(4, 7);
+    const p3 = digits.slice(7, 9);
+    const p4 = digits.slice(9, 11);
+    let result = '+7';
+    if (p1) result += ` (${p1}`;
+    if (p1 && p1.length === 3) result += ')';
+    if (p2) result += ` ${p2}`;
+    if (p3) result += `-${p3}`;
+    if (p4) result += `-${p4}`;
+    return result;
+  };
+
   useEffect(() => {
     if (employee) {
       setFormData({
@@ -88,7 +106,7 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'phone' ? formatPhone(value) : value
     }));
   };
 
@@ -156,6 +174,9 @@ const EditEmployeeModal: React.FC<EditEmployeeModalProps> = ({
                 name="phone"
                 value={formData.phone}
                 autoComplete="tel"
+                inputMode="tel"
+                maxLength={18}
+                placeholder="+7 (999) 123-45-67"
                 onChange={handleChange}
               />
             </div>

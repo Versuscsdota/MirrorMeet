@@ -18,6 +18,28 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
 
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
+  const formatPhone = (raw: string) => {
+    // Сохраняем только цифры
+    let digits = raw.replace(/\D/g, '');
+    // Приводим к российскому формату, начинается с 7
+    if (digits.startsWith('8')) digits = '7' + digits.slice(1);
+    if (!digits.startsWith('7')) digits = '7' + digits;
+    digits = digits.slice(0, 11); // +7 и ещё 10 цифр
+
+    // Формат: +7 (XXX) XXX-XX-XX
+    const p1 = digits.slice(1, 4);
+    const p2 = digits.slice(4, 7);
+    const p3 = digits.slice(7, 9);
+    const p4 = digits.slice(9, 11);
+    let result = '+7';
+    if (p1) result += ` (${p1}`;
+    if (p1 && p1.length === 3) result += ')';
+    if (p2) result += ` ${p2}`;
+    if (p3) result += `-${p3}`;
+    if (p4) result += `-${p4}`;
+    return result;
+  };
+
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     let password = '';
@@ -42,6 +64,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
       // Auto-generate username when fullName changes
       if (name === 'fullName') {
         updated.username = generateUsername(value);
+      }
+      if (name === 'phone') {
+        updated.phone = formatPhone(value);
       }
       
       return updated;
@@ -132,6 +157,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
               name="phone"
               placeholder="+7 (999) 123-45-67"
               autoComplete="tel"
+              inputMode="tel"
+              maxLength={18}
               value={formData.phone}
               onChange={handleInputChange}
               required
