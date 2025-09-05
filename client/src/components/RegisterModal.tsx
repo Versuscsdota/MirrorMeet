@@ -104,32 +104,19 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000
-    }}>
-      <div className="modal register-modal">
+    <div className="modal">
+      <div className="modal-content register-modal">
         <div className="modal-header">
-          <h2 className="modal-title">Регистрация</h2>
+          <h2>Регистрация</h2>
           <button className="modal-close" onClick={handleClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body">
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">ФИО *</label>
+            <label>ФИО *</label>
             <input
               type="text"
               name="fullName"
-              className="form-input"
               placeholder="Введите полное имя"
               autoComplete="name"
               value={formData.fullName}
@@ -139,11 +126,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
           </div>
 
           <div className="form-group">
-            <label className="form-label">Телефон *</label>
+            <label>Телефон *</label>
             <input
               type="tel"
               name="phone"
-              className="form-input"
               placeholder="+7 (999) 123-45-67"
               autoComplete="tel"
               value={formData.phone}
@@ -153,22 +139,20 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
           </div>
 
           <div className="form-group">
-            <label className="form-label">Дата первой стажировки</label>
+            <label>Дата первой стажировки</label>
             <input
               type="date"
               name="firstInternshipDate"
-              className="form-input"
               value={formData.firstInternshipDate}
               onChange={handleInputChange}
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label">Логин *</label>
+            <label>Логин *</label>
             <input
               type="text"
               name="username"
-              className="form-input"
               placeholder="Автоматически генерируется"
               autoComplete="username"
               value={formData.username}
@@ -178,12 +162,11 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
           </div>
 
           <div className="form-group">
-            <label className="form-label">Пароль *</label>
-            <div className="password-group">
+            <label>Пароль *</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
               <input
                 type="text"
                 name="password"
-                className="form-input"
                 placeholder="Нажмите 'Генерировать' для создания пароля"
                 value={formData.password}
                 onChange={handleInputChange}
@@ -191,7 +174,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
               />
               <button 
                 type="button" 
-                className="btn-generate-password"
+                className="btn btn-secondary"
                 onClick={handleGeneratePassword}
               >
                 🎲
@@ -200,23 +183,23 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
           </div>
 
           <div className="form-group">
-            <label className="form-label">Фото профиля</label>
-            <div className="photo-upload">
+            <label>Фото профиля</label>
+            <div>
               <input
                 type="file"
                 id="photo"
                 name="photo"
                 accept="image/*"
                 onChange={handlePhotoChange}
-                className="photo-input"
+                style={{ display: 'none' }}
               />
-              <label htmlFor="photo" className="photo-upload-label">
+              <label htmlFor="photo" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 160, height: 120, border: '1px dashed var(--border)', borderRadius: 10, cursor: 'pointer' }}>
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" className="photo-preview" />
+                  <img src={photoPreview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8 }} />
                 ) : (
-                  <div className="photo-placeholder">
-                    <span className="photo-icon">📷</span>
-                    <span className="photo-text">Загрузить фото</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+                    <span>📷</span>
+                    <span>Загрузить фото</span>
                   </div>
                 )}
               </label>
@@ -224,10 +207,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onRegist
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn-cancel" onClick={handleClose}>
+            <button type="button" className="btn btn-secondary" onClick={handleClose}>
               Отмена
             </button>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn btn-primary">
               Зарегистрировать
             </button>
           </div>
