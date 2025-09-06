@@ -77,12 +77,19 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
     loadModelAuditLogs(profileState.modelData.id);
   }, [profileState.modelData.id]);
 
-  // Периодически обновляем данные модели для синхронизации статуса
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const updatedModel = await modelsAPI.getById(profileState.modelData.id);
-        if (updatedModel && updatedModel.status !== profileState.modelData.status) {
+  // Обновляем данные модели только при изменениях статуса или других полей
+  const refreshModelData = async (): Promise<void> => {
+    try {
+      const updatedModel = await modelsAPI.getById(profileState.modelData.id);
+      if (updatedModel) {
+        // Проверяем, есть ли реальные изменения
+        const hasChanges = 
+          updatedModel.status !== profileState.modelData.status ||
+          updatedModel.name !== profileState.modelData.name ||
+          JSON.stringify(updatedModel.files) !== JSON.stringify(profileState.modelData.files) ||
+          JSON.stringify(updatedModel.comments) !== JSON.stringify(profileState.modelData.comments);
+        
+        if (hasChanges) {
           setProfileState(prev => ({ 
             ...prev, 
             modelData: updatedModel, 
@@ -90,13 +97,11 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
           }));
           onModelUpdate?.(updatedModel);
         }
-      } catch (error) {
-        console.error('Failed to refresh model data:', error);
       }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [profileState.modelData.id, profileState.modelData.status]);
+    } catch (error) {
+      console.error('Failed to refresh model data:', error);
+    }
+  };
 
   const addCommentToModel = async (): Promise<void> => {
     const trimmedComment = profileState.commentText.trim();
@@ -145,6 +150,11 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
     } catch (error) {
       console.error('Failed to update model status:', error);
     }
+  };
+
+  // Обновляем данные при изменениях в других компонентах
+  const handleRefresh = (): void => {
+    refreshModelData();
   };
 
   const saveModelAccounts = async (accounts: Account[]): Promise<void> => {
@@ -335,6 +345,7 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
 
         <div className="modal-footer actions">
           {onDelete && <button className="btn btn-danger" onClick={onDelete}>Удалить</button>}
+          <button className="btn btn-outline" onClick={handleRefresh} title="Обновить данные">🔄</button>
           <div style={{ flex: 1 }} />
           <button className="btn btn-secondary" onClick={onEdit}>Изменить</button>
           <button className="btn btn-primary" onClick={onClose}>Готово</button>

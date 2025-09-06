@@ -163,25 +163,116 @@
 }
 
 /* Profile modal for model */
-.model-profile-modal .modal-content.model-profile { max-width: 900px; }
+.model-profile-modal {
+  .modal-content.model-profile { 
+    max-width: 95vw; 
+    width: 1200px; 
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 1280px) {
+    .modal-content.model-profile { 
+      max-width: 90vw; 
+      width: 100%;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .modal-content.model-profile { 
+      max-width: 95vw; 
+      width: 100%;
+      max-height: 95vh;
+      margin: 10px;
+    }
+  }
+}
+
 .model-profile {
-  .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-  .profile-header .avatar { width: 96px; height: 96px; border-radius: 999px; overflow: hidden; background: #f3f4f6; display: grid; place-items: center; }
+  .profile-header { 
+    display: flex; 
+    align-items: center; 
+    gap: 16px; 
+    margin-bottom: 16px; 
+    flex-wrap: wrap;
+  }
+  
+  .profile-header .avatar { 
+    width: 96px; 
+    height: 96px; 
+    border-radius: 999px; 
+    overflow: hidden; 
+    background: #f3f4f6; 
+    display: grid; 
+    place-items: center; 
+    flex-shrink: 0;
+  }
+  
   .profile-header .avatar img { width: 100%; height: 100%; object-fit: cover; }
   .profile-header .avatar-fallback { font-size: 28px; font-weight: 600; color: #6b7280; }
-  .profile-header .names .full { font-size: 20px; font-weight: 700; }
-  .profile-header .names .short { color: #6b7280; }
+  .profile-header .names .full { font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .profile-header .names .short { color: #6b7280; margin-top: 4px; }
 
-  .profile-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
-  .profile-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-  @media (max-width: 860px) {
-    .profile-columns { grid-template-columns: 1fr; }
+  .profile-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
+  .profile-columns { 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 20px; 
+    align-items: start; 
   }
-  .section { background: #fff; border: 1px solid var(--border, rgba(0,0,0,0.08)); border-radius: 12px; padding: 12px; }
-  .section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .section-title { font-weight: 700; }
+  
+  @media (max-width: 1024px) {
+    .profile-columns { grid-template-columns: 1fr; gap: 16px; }
+  }
+  
+  @media (max-width: 768px) {
+    .profile-header { 
+      flex-direction: column; 
+      text-align: center; 
+      gap: 12px; 
+    }
+    .profile-columns { gap: 12px; }
+  }
+  
+  .section { 
+    background: #fff; 
+    border: 1px solid var(--border, rgba(0,0,0,0.08)); 
+    border-radius: 12px; 
+    padding: 16px; 
+    position: relative;
+  }
+  
+  .section-header { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    margin-bottom: 12px; 
+  }
+  
+  .section-title { font-weight: 700; font-size: 16px; }
 
-  .info-row { display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px dashed rgba(0,0,0,0.06); }
+  .info-row { 
+    display: grid; 
+    grid-template-columns: 180px 1fr; 
+    gap: 12px; 
+    align-items: center; 
+    padding: 10px 0; 
+    border-bottom: 1px dashed rgba(0,0,0,0.06); 
+  }
+  
+  @media (max-width: 768px) {
+    .info-row { 
+      grid-template-columns: 1fr; 
+      gap: 4px; 
+      text-align: left;
+    }
+    .info-row .label { 
+      font-size: 12px; 
+      font-weight: 600; 
+      text-transform: uppercase; 
+    }
+  }
+  
   .info-row .label { color: #6b7280; }
   .info-row .value { color: #111827; font-weight: 500; }
 
@@ -1647,22 +1738,33 @@
   position: absolute;
   top: 100%;
   left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   z-index: 1000;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: 
-    0 20px 60px rgba(0, 0, 0, 0.15),
-    0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(20px);
-  padding: 16px;
-  min-width: 520px;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
   margin-top: 8px;
 }
 
 .profile-status-selector .status-selector-dropdown {
   right: 0;
   left: auto;
+}
+
+// Fix dropdown positioning in modal context
+.model-profile .status-selector-dropdown {
+  right: 0;
+  left: auto;
+  transform: translateX(0);
+}
+
+// Ensure dropdown appears above modal content
+.modal .status-selector-dropdown {
+  z-index: 1050;
 }
 
 .status-columns {
