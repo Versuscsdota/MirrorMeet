@@ -44,7 +44,24 @@ initDatabase();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res, path) => {
+    // Set proper MIME types for audio files
+    if (path.endsWith('.mp3')) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+    } else if (path.endsWith('.wav')) {
+      res.setHeader('Content-Type', 'audio/wav');
+    } else if (path.endsWith('.ogg')) {
+      res.setHeader('Content-Type', 'audio/ogg');
+    } else if (path.endsWith('.m4a')) {
+      res.setHeader('Content-Type', 'audio/mp4');
+    } else if (path.endsWith('.aac')) {
+      res.setHeader('Content-Type', 'audio/aac');
+    }
+    // Enable range requests for audio/video
+    res.setHeader('Accept-Ranges', 'bytes');
+  }
+}));
 app.use('/exports', express.static(exportsDir));
 
 // Routes
