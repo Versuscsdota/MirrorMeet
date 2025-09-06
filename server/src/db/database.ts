@@ -816,32 +816,41 @@ export const auditDb = {
   },
 
   getAll(filters?: { from?: string; to?: string; action?: string; userId?: string }): AuditLog[] {
-    let query = 'SELECT * FROM audit_logs WHERE 1=1';
+    let query = `
+      SELECT 
+        al.*,
+        u.username,
+        u.fullName
+      FROM audit_logs al
+      LEFT JOIN users u ON al.userId = u.id
+      WHERE 1=1
+    `;
     const params: any[] = [];
     
     if (filters?.from) {
-      query += ' AND timestamp >= ?';
+      query += ' AND al.timestamp >= ?';
       params.push(filters.from);
     }
     if (filters?.to) {
-      query += ' AND timestamp <= ?';
+      query += ' AND al.timestamp <= ?';
       params.push(filters.to);
     }
     if (filters?.action) {
-      query += ' AND action LIKE ?';
+      query += ' AND al.action LIKE ?';
       params.push(`%${filters.action}%`);
     }
     if (filters?.userId) {
-      query += ' AND userId = ?';
+      query += ' AND al.userId = ?';
       params.push(filters.userId);
     }
     
-    query += ' ORDER BY timestamp DESC LIMIT 100';
+    query += ' ORDER BY al.timestamp DESC LIMIT 100';
     
     const rows = db.prepare(query).all(...params);
     return rows.map((row: any) => ({
       ...row,
-      details: row.details ? JSON.parse(row.details) : null
+      details: row.details ? JSON.parse(row.details) : null,
+      userDisplayName: row.fullName || row.username || 'Неизвестный пользователь'
     }));
   }
 };

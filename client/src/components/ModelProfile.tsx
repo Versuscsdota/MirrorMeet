@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { DocumentType, DocumentTypeLabels, Model, Comment, ModelStatus, AuditLog, Account } from '../types';
 import { auditAPI, modelsAPI } from '../services/api';
-import StatusSelector from './StatusSelector';
-import AccountsModal from './AccountsModal';
-import ShiftHistory from './ShiftHistory';
+import { useAuthStore } from '../store/useAuthStore';
 import { usePermissions } from '../hooks/usePermissions';
+import StatusSelector from './StatusSelector';
+import ShiftHistory from './ShiftHistory';
+import AccountsModal from './AccountsModal';
 
 const UPLOADS_PATH_PREFIX = '/uploads/';
 
@@ -101,9 +102,12 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
     const trimmedComment = profileState.commentText.trim();
     if (!trimmedComment) return;
     
+    const { user } = useAuthStore.getState();
     const newComment: Comment = { 
       text: trimmedComment, 
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString(),
+      userId: user?.id,
+      username: user?.username
     };
     
     const updatedComments = [...(profileState.modelData.comments || []), newComment];
@@ -203,7 +207,7 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
           <div className="status-section">
             <StatusSelector 
               selectedStatuses={profileState.selectedStatuses}
-              onMultiStatusChange={(statuses) => {
+              onMultiStatusChange={(statuses: ModelStatus[]) => {
                 setProfileState(prev => ({ ...prev, selectedStatuses: statuses }));
                 
                 const latestStatus = statuses[statuses.length - 1];
@@ -284,7 +288,7 @@ export default function ModelProfile({ model, onClose, onEdit, onDelete, onModel
                   ) : (
                     (profileState.modelData.comments || []).slice().reverse().map((comment, index) => (
                       <div key={index} className="comment">
-                        <div className="time">{new Date(comment.timestamp).toLocaleString()}</div>
+                        <div className="time">{new Date(comment.timestamp).toLocaleString()} {comment.username || 'Неизвестный пользователь'}</div>
                         <div className="text">{comment.text}</div>
                       </div>
                     ))

@@ -162,6 +162,7 @@ export interface AuditLog {
   ip?: string;
   userAgent?: string;
   timestamp: string;
+  userDisplayName?: string;
 }
 
 export interface AuditDetails {

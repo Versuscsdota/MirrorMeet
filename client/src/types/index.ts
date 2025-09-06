@@ -19,6 +19,8 @@ export enum ModelStatus {
 export interface Comment {
   text: string;
   timestamp: string; // ISO
+  userId?: string;
+  username?: string;
 }
 
 export interface Account {
