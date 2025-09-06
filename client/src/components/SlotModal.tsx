@@ -260,13 +260,12 @@ export default function SlotModal({ slot, slots, isOpen, onClose, onSave }: Slot
         await modelsAPI.uploadFiles(createdModel.id, files);
       }
 
-      // Update slot to link to new model but keep original slot statuses
-      // Don't sync model status back to slot - they should be independent
-      const originalSlotStatus = formData.status || ModelStatus.NOT_CONFIRMED;
+      // Update slot to link to new model and sync status progression
+      // Slot keeps its own statuses, model gets updated through sync
       await onSave({
         ...formData,
         modelId: createdModel.id,
-        status: originalSlotStatus, // Keep original slot status
+        status: ModelStatus.REGISTERED, // Set slot status to registered after registration
         status1, // Keep original status1 from slot
         status2, // Keep original status2 from slot
         notes: comment || formData.notes

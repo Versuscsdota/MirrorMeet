@@ -939,18 +939,41 @@ export function syncModelAndSlot(modelId: string, slotId: string): void {
   
   if (!model || !slot) return;
   
-  // Update model with slot reference
+  // Update model with slot reference and sync status only if it's a progression
+  const shouldUpdateModelStatus = shouldSyncStatusToModel(model.status, slot.status);
+  
   modelDb.update(modelId, {
     slotId: slotId,
-    status: slot.status,
+    ...(shouldUpdateModelStatus && { status: slot.status }),
     files: [...(model.files || []), ...(slot.files || [])]
   });
   
-  // Update slot with model reference
+  // Update slot with model reference but keep slot's own status
   slotDb.update(slotId, {
-    modelId: modelId,
-    status: model.status
+    modelId: modelId
+    // Don't override slot status with model status
   });
+}
+
+// Helper function to determine if slot status should update model status
+function shouldSyncStatusToModel(modelStatus: string, slotStatus: string): boolean {
+  // Define status progression hierarchy
+  const statusHierarchy = [
+    'not_confirmed',
+    'confirmed', 
+    'arrived',
+    'registered',
+    'account_registered',
+    'training',
+    'ready_to_work',
+    'model'
+  ];
+  
+  const modelIndex = statusHierarchy.indexOf(modelStatus);
+  const slotIndex = statusHierarchy.indexOf(slotStatus);
+  
+  // Only sync if slot status is a progression (higher in hierarchy)
+  return slotIndex > modelIndex;
 }
 
 export default db;
