@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { auditAPI } from '../services/api';
 import { AuditLog } from '../types';
+import { MobileTable } from '../components/MobileTable';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ProtectedRoute } from '../components/ProtectedRoute';
@@ -135,43 +136,81 @@ export default function AuditPage() {
           <p>Журнал аудита пуст</p>
         </div>
       ) : (
-        <div className="card">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Время</th>
-                <th>Действие</th>
-                <th>Тип</th>
-                <th>ID объекта</th>
-                <th>IP</th>
-                <th>User Agent</th>
-                <th>Детали</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(log => (
-                <tr key={log.id}>
-                  <td>{format(new Date(log.timestamp), 'dd.MM.yyyy HH:mm:ss')}</td>
-                  <td>{getActionLabel(log.action)}</td>
-                  <td>{getEntityTypeLabel(log.entityType)}</td>
-                  <td className="entity-id">{log.entityId.slice(0, 8)}...</td>
-                  <td>{log.ip || '-'}</td>
-                  <td className="user-agent" title={log.userAgent}>
-                    {log.userAgent ? log.userAgent.slice(0, 30) + '...' : '-'}
-                  </td>
-                  <td>
-                    {log.details && (
-                      <details>
-                        <summary>Показать</summary>
-                        <pre>{JSON.stringify(log.details, null, 2)}</pre>
-                      </details>
-                    )}
-                  </td>
+        <>
+          {/* Desktop table view */}
+          <div className="card desktop-only">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Время</th>
+                  <th>Действие</th>
+                  <th>Тип</th>
+                  <th>ID объекта</th>
+                  <th>IP</th>
+                  <th>User Agent</th>
+                  <th>Детали</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.id}>
+                    <td>{format(new Date(log.timestamp), 'dd.MM.yyyy HH:mm:ss')}</td>
+                    <td>{getActionLabel(log.action)}</td>
+                    <td>{getEntityTypeLabel(log.entityType)}</td>
+                    <td className="entity-id">{log.entityId.slice(0, 8)}...</td>
+                    <td>{log.ip || '-'}</td>
+                    <td className="user-agent" title={log.userAgent}>
+                      {log.userAgent ? log.userAgent.slice(0, 30) + '...' : '-'}
+                    </td>
+                    <td>
+                      {log.details && (
+                        <details>
+                          <summary>Показать</summary>
+                          <pre>{JSON.stringify(log.details, null, 2)}</pre>
+                        </details>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card view */}
+          <div className="mobile-only">
+            <MobileTable
+              data={logs}
+              columns={[
+                {
+                  key: 'timestamp',
+                  label: 'Время',
+                  render: (value: string) => format(new Date(value), 'dd.MM.yyyy HH:mm')
+                },
+                {
+                  key: 'action',
+                  label: 'Действие',
+                  render: (value: string) => <strong>{getActionLabel(value)}</strong>
+                },
+                {
+                  key: 'entityType',
+                  label: 'Тип',
+                  render: (value: string) => getEntityTypeLabel(value)
+                },
+                {
+                  key: 'ip',
+                  label: 'IP',
+                  render: (value: string) => value || '-'
+                }
+              ]}
+              keyField="id"
+              title={(row: AuditLog) => `${getActionLabel(row.action)} - ${getEntityTypeLabel(row.entityType)}`}
+              status={(row: AuditLog) => ({
+                label: format(new Date(row.timestamp), 'HH:mm'),
+                className: 'info'
+              })}
+            />
+          </div>
+        </>
       )}
       </div>
     </ProtectedRoute>

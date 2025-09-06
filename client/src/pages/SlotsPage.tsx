@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Slot, Model, ModelStatus } from '../types';
 import { slotsAPI, modelsAPI } from '../services/api';
+import { Slot, Model, ModelStatus, StatusLabels } from '../types';
 import SlotModal from '../components/SlotModal';
+import { MobileTable } from '../components/MobileTable';
 import toast from 'react-hot-toast';
-
-// Status labels for legend
-const StatusLabels = {
-  [ModelStatus.NOT_CONFIRMED]: 'Не подтверждена',
-  [ModelStatus.CONFIRMED]: 'Подтверждена',
-  [ModelStatus.DRAINED]: 'Слита',
-  [ModelStatus.REGISTERED]: 'Зарегистрирована',
-  [ModelStatus.CANDIDATE_REFUSED]: 'Отказ кандидата',
-  [ModelStatus.OUR_REFUSAL]: 'Наш отказ',
-  [ModelStatus.THINKING]: 'Думает'
-};
 
 export default function SlotsPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -116,6 +106,41 @@ export default function SlotsPage() {
     return `${day} ${d.toLocaleDateString('ru-RU', { month: 'long' })} ${year} г.`;
   };
 
+  // Prepare data for mobile table
+  const prepareMobileTableData = () => {
+    const daySlots = slots.filter(s => s.date === selectedDate);
+    return daySlots;
+  };
+
+  const mobileTableColumns = [
+    {
+      key: 'time',
+      label: 'Время',
+      render: (value: string) => <strong>{value}</strong>
+    },
+    {
+      key: 'clientName',
+      label: 'Модель',
+      render: (value: string, row: Slot) => {
+        const linkedModel = getLinkedModel(row.modelId);
+        return linkedModel ? linkedModel.name : (value || 'Без модели');
+      }
+    },
+    {
+      key: 'clientPhone',
+      label: 'Телефон',
+      render: (value: string, row: Slot) => {
+        const linkedModel = getLinkedModel(row.modelId);
+        return linkedModel?.phone || value || 'Не указан';
+      }
+    },
+    {
+      key: 'status',
+      label: 'Статус',
+      render: (value: ModelStatus) => StatusLabels[value] || value
+    }
+  ];
+
   if (isLoading) {
     return (
       <div className="loading">
@@ -185,73 +210,109 @@ export default function SlotsPage() {
         </div>
       </aside>
 
-      <main className="slots-main">
-        <div className="day-header">
-          <h3>{formatRuDate(selectedDate)}</h3>
-        </div>
+    <main className="slots-main">
+      <div className="day-header">
+        <h3>{formatRuDate(selectedDate)}</h3>
+      </div>
 
-        <div className="day-grid">
-          {times.map((t) => {
-            const items = slotsFor(selectedDate, t);
-            return (
-              <div key={t} className="time-column">
-                <div className="time-label">{t}</div>
-                <div className="time-stack card">
-                  {/* Always show 2 slots - occupied or free */}
-                  {[0, 1].map((slotIndex) => {
-                    const slot = items[slotIndex];
-                    if (slot) {
-                      const linkedModel = getLinkedModel(slot.modelId);
-                      // Use interview status for color instead of main status
-                      const interviewStatus = slot.status2 || slot.status1 || slot.status;
-                      return (
-                        <div 
-                          key={slot.id} 
-                          className={`slot-chip ${interviewStatus}`}
-                          onClick={() => handleEdit(slot)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <div className="chip-title">
-                            {linkedModel ? linkedModel.name : (slot.clientName || 'Без модели')}
-                            {(slot.birthDate || slot.documentType || slot.internshipDate || slot.photo || slot.audio) && (
-                              <span className="registration-badge" title="Есть данные регистрации">📋</span>
-                            )}
-                          </div>
-                          {(linkedModel?.phone || slot.clientPhone) && (
-                            <div className="chip-sub">{linkedModel?.phone || slot.clientPhone}</div>
+      {/* Desktop grid view */}
+      <div className="day-grid desktop-only">
+        {times.map((t) => {
+          const items = slotsFor(selectedDate, t);
+          return (
+            <div key={t} className="time-column">
+              <div className="time-label">{t}</div>
+              <div className="time-stack card">
+                {/* Always show 2 slots - occupied or free */}
+                {[0, 1].map((slotIndex) => {
+                  const slot = items[slotIndex];
+                  if (slot) {
+                    const linkedModel = getLinkedModel(slot.modelId);
+                    // Use interview status for color instead of main status
+                    const interviewStatus = slot.status2 || slot.status1 || slot.status;
+                    return (
+                      <div 
+                        key={slot.id} 
+                        className={`slot-chip ${interviewStatus}`}
+                        onClick={() => handleEdit(slot)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="chip-title">
+                          {linkedModel ? linkedModel.name : (slot.clientName || 'Без модели')}
+                          {(slot.birthDate || slot.documentType || slot.internshipDate || slot.photo || slot.audio) && (
+                            <span className="registration-badge" title="Есть данные регистрации">📋</span>
                           )}
                         </div>
-                      );
-                    } else {
-                      return (
-                        <div 
-                          key={`free-${slotIndex}`}
-                          className="free-slot"
-                          onClick={() => handleCreate(selectedDate, t)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          Свободно
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
+                        {(linkedModel?.phone || slot.clientPhone) && (
+                          <div className="chip-sub">{linkedModel?.phone || slot.clientPhone}</div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div 
+                        key={`free-${slotIndex}`}
+                        className="free-slot"
+                        onClick={() => handleCreate(selectedDate, t)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Свободно
+                      </div>
+                    );
+                  }
+                })}
               </div>
-            );
-          })}
-        </div>
-      </main>
+            </div>
+          );
+        })}
+      </div>
 
-      {isModalOpen && (
-        <SlotModal
-          slot={selectedSlot}
-          slots={slots}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleSave}
+      {/* Mobile card view */}
+      <div className="mobile-only">
+        <MobileTable 
+          data={prepareMobileTableData()}
+          columns={mobileTableColumns}
+          keyField="id"
+          title={(row: Slot) => {
+            const linkedModel = getLinkedModel(row.modelId);
+            return linkedModel ? linkedModel.name : (row.clientName || 'Без модели');
+          }}
+          status={(row: Slot) => {
+            const interviewStatus = row.status2 || row.status1 || row.status;
+            return {
+              label: StatusLabels[row.status] || row.status,
+              className: interviewStatus
+            };
+          }}
+          actions={(row: Slot) => (
+            <button 
+              onClick={() => handleEdit(row)}
+              className="btn btn-sm btn-primary"
+            >
+              Редактировать
+            </button>
+          )}
         />
-      )}
-    </div>
+        <button 
+          onClick={() => handleCreate()} 
+          className="btn btn-primary btn-block mobile-create-btn"
+          style={{ marginTop: '1rem' }}
+        >
+          + Создать слот
+        </button>
+      </div>
+    </main>
+
+    {isModalOpen && (
+      <SlotModal
+        slot={selectedSlot}
+        slots={slots}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+      />
+    )}
+  </div>
   );
 }
 

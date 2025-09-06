@@ -1,0 +1,453 @@
+// Mobile-optimized table styles
+// Converts tables to card layouts on mobile devices
+
+// Mobile table breakpoint system
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: block !important;
+  }
+  
+  // Slots page mobile optimization
+  .slots-layout {
+    flex-direction: column;
+    
+    .slots-sidebar {
+      order: 2;
+      width: 100%;
+      margin-top: 1rem;
+      
+      .month-card,
+      .legend {
+        display: none; // Hide on mobile to save space
+      }
+      
+      .create-slot-btn {
+        margin-bottom: 1rem;
+      }
+    }
+    
+    .slots-main {
+      order: 1;
+      width: 100%;
+      
+      .day-header {
+        text-align: center;
+        margin-bottom: 1rem;
+        
+        h3 {
+          font-size: 1.2rem;
+        }
+      }
+    }
+  }
+  
+  // Mobile create button styling
+  .mobile-create-btn {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+  }
+  
+  // Mobile table wrapper
+  .mobile-table-wrapper {
+    .table {
+      display: none; // Hide original table
+    }
+    
+    .mobile-table-cards {
+      display: block;
+    }
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-table-cards {
+    display: none; // Hide cards on desktop
+  }
+}
+
+// Mobile card layout for tables
+.mobile-table-cards {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  
+  .mobile-table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      
+      .card-title {
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--text-primary);
+      }
+      
+      .card-status {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+      }
+    }
+    
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      
+      .card-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        
+        .label {
+          font-size: 13px;
+          color: var(--text-secondary);
+          font-weight: 500;
+          min-width: 80px;
+        }
+        
+        .value {
+          font-size: 14px;
+          color: var(--text-primary);
+          text-align: right;
+          flex: 1;
+          word-break: break-word;
+        }
+      }
+    }
+    
+    .card-actions {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      
+      .btn {
+        flex: 1;
+        min-width: 80px;
+        font-size: 12px;
+        padding: 6px 12px;
+      }
+    }
+  }
+}
+
+// Specific styles for different table types
+.audit-mobile-card {
+  .card-header {
+    .card-title {
+      font-family: monospace;
+      font-size: 14px;
+    }
+  }
+  
+  .card-row {
+    &.details-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      
+      .label {
+        min-width: auto;
+      }
+      
+      .value {
+        text-align: left;
+        font-size: 12px;
+        background: var(--light);
+        padding: 8px;
+        border-radius: 6px;
+        width: 100%;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+    }
+  }
+}
+
+.analytics-mobile-card {
+  .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  
+  .metric-change {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    
+    &.positive {
+      background: #E5FFE5;
+      color: #00CC00;
+    }
+    
+    &.negative {
+      background: #FFE5E5;
+      color: #CC0000;
+    }
+  }
+}
+
+.employees-mobile-card {
+  .card-header {
+    .employee-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      
+      .employee-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      
+      .employee-details {
+        .employee-name {
+          font-weight: 600;
+          font-size: 14px;
+          color: var(--text-primary);
+        }
+        
+        .employee-username {
+          font-size: 12px;
+          color: var(--text-secondary);
+        }
+      }
+    }
+  }
+}
+
+// Role management mobile optimization
+.role-management {
+  @media (max-width: 768px) {
+    .permissions-table-container {
+      display: none;
+    }
+    
+    .mobile-roles-container {
+      display: block;
+    }
+  }
+  
+  @media (min-width: 769px) {
+    .mobile-roles-container {
+      display: none;
+    }
+  }
+}
+
+.mobile-roles-container {
+  display: none;
+  
+  .role-section {
+    margin-bottom: 24px;
+    
+    .role-header {
+      background: var(--primary);
+      color: white;
+      padding: 16px;
+      border-radius: 12px 12px 0 0;
+      
+      .role-name {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .role-code {
+        font-size: 14px;
+        opacity: 0.8;
+      }
+    }
+    
+    .modules-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      
+      .module-item {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+        
+        &:last-child {
+          border-bottom: none;
+        }
+        
+        .module-name {
+          font-weight: 600;
+          font-size: 16px;
+          color: var(--text-primary);
+          margin-bottom: 12px;
+        }
+        
+        .permissions-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 8px;
+          
+          .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--light);
+            border-radius: 8px;
+            
+            input[type="checkbox"] {
+              margin: 0;
+            }
+            
+            label {
+              font-size: 13px;
+              color: var(--text-primary);
+              margin: 0;
+              cursor: pointer;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Slots page mobile optimization
+.slots-page {
+  @media (max-width: 768px) {
+    .day-grid {
+      .time-column {
+        .time-stack {
+          .slot-chip {
+            padding: 12px;
+            
+            .chip-title {
+              font-size: 13px;
+              line-height: 1.2;
+            }
+            
+            .chip-sub {
+              font-size: 11px;
+              margin-top: 4px;
+            }
+            
+            .registration-badge {
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Generic responsive table utility
+.responsive-table {
+  @media (max-width: 768px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    
+    table {
+      min-width: 600px;
+      font-size: 12px;
+      
+      th, td {
+        padding: 8px 6px;
+        white-space: nowrap;
+      }
+      
+      th {
+        font-size: 11px;
+        position: sticky;
+        top: 0;
+        background: var(--light);
+        z-index: 10;
+      }
+    }
+  }
+}
+
+// Loading states for mobile cards
+.mobile-table-cards {
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    
+    .skeleton {
+      background: linear-gradient(90deg, var(--light) 25%, rgba(255,255,255,0.5) 50%, var(--light) 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+      border-radius: 4px;
+      
+      &.title {
+        height: 20px;
+        width: 60%;
+        margin-bottom: 12px;
+      }
+      
+      &.line {
+        height: 14px;
+        margin-bottom: 8px;
+        
+        &:nth-child(2) { width: 80%; }
+        &:nth-child(3) { width: 65%; }
+        &:nth-child(4) { width: 90%; }
+      }
+    }
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

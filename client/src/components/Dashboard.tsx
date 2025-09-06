@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { analyticsAPI, ModelLifecycleStats, EarningsStats, EmployeeConversionStats } from '../services/analyticsAPI';
+import { MobileTable } from './MobileTable';
 import toast from 'react-hot-toast';
 
 type TabType = 'conversion' | 'earnings' | 'employees';
@@ -547,7 +548,9 @@ export default function Dashboard() {
         {/* Top Earning Models */}
         <div>
           <h3 style={styles.sectionTitle}>🏆 Топ моделей по заработку</h3>
-          <div style={styles.earnersList}>
+          
+          {/* Desktop view */}
+          <div style={styles.earnersList} className="desktop-only">
             {earningsStats.topEarningModels.map((model, index) => (
               <div key={model.modelName} style={{
                 ...styles.earnerItem,
@@ -564,6 +567,37 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+
+          {/* Mobile view */}
+          <div className="mobile-only">
+            <MobileTable
+              data={earningsStats.topEarningModels}
+              columns={[
+                {
+                  key: 'modelName',
+                  label: 'Модель',
+                  render: (value: string) => <strong>{value}</strong>
+                },
+                {
+                  key: 'totalEarnings',
+                  label: 'Заработок',
+                  render: (value: number) => <strong style={{ color: '#22c55e' }}>{formatCurrency(value)}</strong>
+                },
+                {
+                  key: 'shiftsCount',
+                  label: 'Смен',
+                  render: (value: number) => `${value} смен`
+                },
+                {
+                  key: 'averagePerShift',
+                  label: 'За смену',
+                  render: (value: number) => formatCurrency(value)
+                }
+              ]}
+              keyField="modelName"
+              title={(row: any) => `#${earningsStats.topEarningModels.indexOf(row) + 1} ${row.modelName}`}
+            />
+          </div>
         </div>
       </div>
     );
@@ -577,7 +611,9 @@ export default function Dashboard() {
         {/* Employee Conversion Statistics */}
         <div style={{ marginBottom: '2rem' }}>
           <h3 style={styles.sectionTitle}>👥 Конверсия по сотрудникам</h3>
-          <div style={{ 
+          
+          {/* Desktop view */}
+          <div className="desktop-only" style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
             gap: '1rem',
@@ -655,6 +691,41 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Mobile view */}
+          <div className="mobile-only">
+            <MobileTable
+              data={analyticsState.employeeStats}
+              columns={[
+                {
+                  key: 'employeeName',
+                  label: 'Сотрудник',
+                  render: (value: string) => <strong>{value}</strong>
+                },
+                {
+                  key: 'totalSlotsRegistered',
+                  label: 'Слотов',
+                  render: (value: number) => `${value}`
+                },
+                {
+                  key: 'activeModels',
+                  label: 'Активных',
+                  render: (value: number) => `${value}`
+                },
+                {
+                  key: 'conversionRates',
+                  label: 'Конверсия',
+                  render: (value: any) => <strong style={{ color: '#059669' }}>{value.overallConversion}%</strong>
+                }
+              ]}
+              keyField="employeeId"
+              title={(row: any) => row.employeeName}
+              status={(row: any) => ({
+                label: `${row.conversionRates.overallConversion}% конверсия`,
+                className: row.conversionRates.overallConversion > 50 ? 'success' : 'warning'
+              })}
+            />
           </div>
         </div>
       </div>
