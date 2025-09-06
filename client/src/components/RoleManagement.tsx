@@ -71,6 +71,11 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE || '/api';
 
+// Add debug logging for API calls
+const debugLog = (message: string, data?: any) => {
+  console.log(`[RoleManagement] ${message}`, data);
+};
+
 const RoleManagement: React.FC = () => {
   const { user } = useAuthStore();
   const [roles, setRoles] = useState<Role[]>([]);
@@ -90,6 +95,9 @@ const RoleManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
+      debugLog('Loading roles with token:', token ? 'present' : 'missing');
+      debugLog('API URL:', `${API_BASE_URL}/roles`);
+      
       const response = await fetch(`${API_BASE_URL}/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -97,11 +105,20 @@ const RoleManagement: React.FC = () => {
         }
       });
 
+      debugLog('Response status:', response.status);
+      debugLog('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
         const rolesData = await response.json();
+        debugLog('Roles data received:', rolesData);
         setRoles(rolesData);
+      } else {
+        const errorText = await response.text();
+        debugLog('Error response:', errorText);
+        console.error('Failed to load roles:', response.status, errorText);
       }
     } catch (error) {
+      debugLog('Network error:', error);
       console.error('Error loading roles:', error);
     } finally {
       setLoading(false);
@@ -112,7 +129,10 @@ const RoleManagement: React.FC = () => {
     try {
       setSaving(true);
       const role = roles.find(r => r.id === roleId);
-      if (!role) return;
+      if (!role) {
+        debugLog('Role not found:', roleId);
+        return;
+      }
 
       const updatedModules = { ...role.modules };
       if (!updatedModules[module]) {
@@ -121,6 +141,8 @@ const RoleManagement: React.FC = () => {
       updatedModules[module][permission] = enabled;
 
       const token = localStorage.getItem('token');
+      debugLog('Updating role permissions:', { roleId, module, permission, enabled });
+      
       const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
         method: 'PATCH',
         headers: {
@@ -132,14 +154,22 @@ const RoleManagement: React.FC = () => {
         })
       });
 
+      debugLog('Update response status:', response.status);
+
       if (response.ok) {
         setRoles(prev => prev.map(r => 
           r.id === roleId 
             ? { ...r, modules: updatedModules }
             : r
         ));
+        debugLog('Role permissions updated successfully');
+      } else {
+        const errorText = await response.text();
+        debugLog('Update error response:', errorText);
+        console.error('Failed to update role permissions:', response.status, errorText);
       }
     } catch (error) {
+      debugLog('Update network error:', error);
       console.error('Error updating role permissions:', error);
     } finally {
       setSaving(false);

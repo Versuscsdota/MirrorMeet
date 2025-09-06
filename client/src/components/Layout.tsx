@@ -30,7 +30,7 @@ export default function Layout() {
               )}
               {canAccessModule('shifts') && (
                 <NavLink to="/apartments" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                  Квартиры
+                  Студии
                 </NavLink>
               )}
               {hasPermission('users', 'view') && (

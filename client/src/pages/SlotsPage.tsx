@@ -202,10 +202,12 @@ export default function SlotsPage() {
                     const slot = items[slotIndex];
                     if (slot) {
                       const linkedModel = getLinkedModel(slot.modelId);
+                      // Use interview status for color instead of main status
+                      const interviewStatus = slot.status2 || slot.status1 || slot.status;
                       return (
                         <div 
                           key={slot.id} 
-                          className={`slot-chip ${slot.status}`}
+                          className={`slot-chip ${interviewStatus}`}
                           onClick={() => handleEdit(slot)}
                           style={{ cursor: 'pointer' }}
                         >
