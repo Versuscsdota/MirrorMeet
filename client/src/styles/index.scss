@@ -1,5 +1,7 @@
 @use './components';
 @use './apartments';
+@use './responsive';
+@use './mobile-navigation';
 
 @font-face { font-family: 'SF Pro Display'; src: url('/fonts/SF-Pro-Display-Ultralight.otf') format('opentype'); font-weight: 100; font-style: normal; }
 
@@ -100,6 +102,14 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 24px;
+  
+  @media (max-width: 768px) {
+    padding: 0 16px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0 12px;
+  }
 }
 
 .btn {
@@ -115,6 +125,16 @@ body {
   transition: var(--transition);
   text-decoration: none;
   outline: none;
+  
+  @media (max-width: 768px) {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
   
   &-primary {
     background: var(--primary);
@@ -255,6 +275,18 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 20px;
+  
+  @media (max-width: 768px) {
+    padding: 12px;
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 8px;
+    padding-top: 16px;
+  }
   
   &-content {
     background: var(--surface);
@@ -265,6 +297,20 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
+    
+    @media (max-width: 768px) {
+      padding: 24px;
+      width: 95%;
+      max-height: 85vh;
+      border-radius: 8px;
+    }
+    
+    @media (max-width: 480px) {
+      padding: 16px;
+      width: 100%;
+      max-height: 90vh;
+      border-radius: 6px;
+    }
 
     // Force readable inputs in modal regardless of other component-specific styles
     .form-group input,
@@ -335,6 +381,14 @@ body {
   width: 100%;
   border-collapse: collapse;
   
+  @media (max-width: 768px) {
+    font-size: 14px;
+  }
+  
+  @media (max-width: 480px) {
+    font-size: 12px;
+  }
+  
   thead {
     background: var(--light);
     
@@ -344,6 +398,15 @@ body {
       font-weight: 600;
       color: var(--text-primary);
       border-bottom: 2px solid var(--border);
+      
+      @media (max-width: 768px) {
+        padding: 8px;
+      }
+      
+      @media (max-width: 480px) {
+        padding: 6px;
+        font-size: 11px;
+      }
     }
   }
   
@@ -360,6 +423,14 @@ body {
     td {
       padding: 12px;
       color: var(--text-primary);
+      
+      @media (max-width: 768px) {
+        padding: 8px;
+      }
+      
+      @media (max-width: 480px) {
+        padding: 6px;
+      }
     }
   }
 }

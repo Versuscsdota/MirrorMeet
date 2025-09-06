@@ -595,12 +595,40 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 24px;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 .slots-sidebar {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  
+  @media (max-width: 768px) {
+    order: -1;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    
+    .month-card {
+      min-width: 280px;
+      flex-shrink: 0;
+    }
+    
+    .legend {
+      min-width: 240px;
+      flex-shrink: 0;
+    }
+  }
 }
 
 .sidebar-header {
@@ -746,6 +774,16 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px 24px;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 16px;
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 .time-column { display: flex; flex-direction: column; gap: 8px; }
@@ -759,6 +797,16 @@
   color: #000;
   font-weight: 600;
   transition: all 0.2s ease;
+  
+  @media (max-width: 768px) {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
   
   &:hover {
     transform: translateY(-1px);

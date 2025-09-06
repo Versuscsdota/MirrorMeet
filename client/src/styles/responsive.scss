@@ -1,0 +1,339 @@
+// Responsive Design System for MirrorCRM
+// Mobile-first approach with progressive enhancement
+
+// Breakpoints
+$mobile: 480px;
+$tablet: 768px;
+$desktop: 1024px;
+$large: 1280px;
+
+// Responsive mixins
+@mixin mobile {
+  @media (max-width: #{$mobile - 1px}) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: #{$mobile}) and (max-width: #{$tablet - 1px}) {
+    @content;
+  }
+}
+
+@mixin tablet-up {
+  @media (min-width: #{$tablet}) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: #{$desktop}) {
+    @content;
+  }
+}
+
+// Role Management Table Responsive
+.role-management {
+  .permissions-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    
+    @include mobile {
+      margin: 0 -16px;
+      border-radius: 0;
+    }
+  }
+  
+  .permissions-table {
+    min-width: 800px;
+    
+    @include mobile {
+      min-width: 600px;
+      font-size: 12px;
+    }
+    
+    .role-header {
+      @include mobile {
+        padding: 8px 4px;
+        
+        .role-name {
+          font-size: 11px;
+        }
+        
+        .role-code {
+          font-size: 10px;
+        }
+      }
+    }
+    
+    .permission-row {
+      .permission-name {
+        @include mobile {
+          padding: 8px 12px;
+          font-size: 11px;
+        }
+      }
+      
+      .permission-cell {
+        @include mobile {
+          padding: 8px 4px;
+        }
+      }
+    }
+  }
+}
+
+// Navigation responsive
+.nav {
+  @include mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+    z-index: 100;
+    justify-content: space-around;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    
+    &-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 8px 4px;
+      
+      &::before {
+        content: '';
+        width: 20px;
+        height: 20px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+      
+      &[href="/models"]::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z'/%3E%3C/svg%3E");
+      }
+      
+      &[href="/slots"]::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E");
+      }
+      
+      &[href="/shifts"]::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+      }
+      
+      &[href="/analytics"]::before {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'/%3E%3C/svg%3E");
+      }
+      
+      &.active::after {
+        display: none;
+      }
+      
+      &.active {
+        color: var(--primary);
+        background: rgba(0, 122, 255, 0.1);
+        border-radius: 8px;
+      }
+    }
+  }
+}
+
+// Adjust main content for mobile navigation
+.main {
+  @include mobile {
+    padding-bottom: 80px; // Space for bottom navigation
+  }
+}
+
+// Header responsive adjustments
+.header {
+  @include mobile {
+    .header-content {
+      padding: 8px 0;
+    }
+    
+    .logo {
+      font-size: 16px;
+    }
+    
+    .header-user {
+      .username {
+        display: none;
+      }
+    }
+  }
+}
+
+// Form responsive improvements
+.form-group {
+  @include mobile {
+    margin-bottom: 16px;
+    
+    label {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    
+    input, textarea, select {
+      padding: 10px 12px;
+      font-size: 16px; // Prevent zoom on iOS
+    }
+  }
+}
+
+// Card responsive improvements
+.card {
+  @include mobile {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+}
+
+// Models grid responsive
+.models-grid {
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  @include tablet {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+// Dashboard responsive
+.dashboard-page {
+  @include mobile {
+    padding: 12px;
+  }
+  
+  .metrics-grid {
+    @include mobile {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    
+    @include tablet {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
+
+// Employees table responsive
+.employees-table-container {
+  @include mobile {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -12px;
+    border-radius: 0;
+  }
+}
+
+.employees-table {
+  @include mobile {
+    min-width: 600px;
+    font-size: 12px;
+    
+    th, td {
+      padding: 8px 6px;
+    }
+    
+    .employee-info {
+      gap: 8px;
+    }
+    
+    .employee-avatar {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+    }
+    
+    .employee-name {
+      font-size: 12px;
+    }
+    
+    .employee-username {
+      font-size: 10px;
+    }
+  }
+}
+
+// Audit page responsive
+.audit-filters {
+  .filters-grid {
+    @include mobile {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    
+    @include tablet {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
+
+// Touch-friendly improvements
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    min-height: 44px; // iOS recommended touch target
+    padding: 12px 20px;
+  }
+  
+  .slot-chip {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  .nav-link {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  .dropdown-menu-item {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+}
+
+// Landscape phone adjustments
+@media (max-width: 768px) and (orientation: landscape) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 101;
+  }
+  
+  .nav {
+    display: none; // Hide bottom nav in landscape
+  }
+  
+  .main {
+    padding-bottom: 20px;
+  }
+}
+
+// Print styles
+@media print {
+  .nav,
+  .header-user,
+  .btn,
+  .modal {
+    display: none !important;
+  }
+  
+  .main {
+    padding: 0;
+  }
+  
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
